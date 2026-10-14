@@ -251,15 +251,24 @@ func ApplyEnvoy(st *State, ws *Workspace) error {
 		}
 	}
 
+	// Touch only networks that are new or whose aliases changed. Re-attaching Envoy to a
+	// network gives it a new MAC under the same IP, and on OrbStack containers kept sending
+	// replies to the old MAC (stale ARP) until their cache expired.
+	attached := envoyAliases()
 	for _, env := range st.Envs {
 		net := st.NetworkName(env)
-		_, _ = docker("network", "disconnect", "-f", net, envoyName)
-		args := []string{"network", "connect", "--ip", env.EnvoyIP}
+		var aliases []string
 		if env.Kind == KindFeature {
 			sharedMods, sharedSvcs := SharedFrom(ws, env)
-			for _, a := range append(sharedMods, sharedSvcs...) {
-				args = append(args, "--alias", a)
-			}
+			aliases = append(sharedMods, sharedSvcs...)
+		}
+		if have, ok := attached[net]; ok && sameSet(have, aliases) {
+			continue
+		}
+		_, _ = docker("network", "disconnect", "-f", net, envoyName)
+		args := []string{"network", "connect", "--ip", env.EnvoyIP}
+		for _, a := range aliases {
+			args = append(args, "--alias", a)
 		}
 		args = append(args, net, envoyName)
 		if _, err := docker(args...); err != nil {
@@ -295,4 +304,44 @@ func RemoveEnvoy() {
 func envoyLogsTail() string {
 	out, _ := exec.Command("docker", "logs", "--tail", "20", envoyName).CombinedOutput()
 	return strings.TrimSpace(string(out))
+}
+
+// envoyAliases returns the networks Envoy is attached to and the aliases it has there
+// (without Docker's automatic container-name and ID aliases).
+func envoyAliases() map[string][]string {
+	out, err := docker("inspect", "-f", `{{range $n, $e := .NetworkSettings.Networks}}{{$n}}={{join $e.Aliases ","}};{{end}}`, envoyName)
+	res := map[string][]string{}
+	if err != nil {
+		return res
+	}
+	for _, part := range strings.Split(out, ";") {
+		name, list, ok := strings.Cut(part, "=")
+		if !ok || name == "" {
+			continue
+		}
+		var aliases []string
+		for _, a := range strings.Split(list, ",") {
+			if a != "" && a != envoyName && !strings.HasPrefix(envoyName, a) {
+				aliases = append(aliases, a)
+			}
+		}
+		res[name] = aliases
+	}
+	return res
+}
+
+func sameSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, x := range a {
+		seen[x] = true
+	}
+	for _, x := range b {
+		if !seen[x] {
+			return false
+		}
+	}
+	return true
 }
