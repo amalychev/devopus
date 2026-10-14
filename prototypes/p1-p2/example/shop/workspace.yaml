@@ -1,0 +1,49 @@
+# Example project for prototypes P-1/P-2: three modules in one repository + Postgres + Mailpit.
+version: 1
+project: shop
+domain: shop.localhost
+
+services:
+  db:
+    image: postgres:17-alpine
+    port: 5432
+    volume: /var/lib/postgresql/data
+    env:
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: app
+  mail:
+    image: axllent/mailpit:v1.21
+    port: 1025
+    expose: mail          # mail.shop.localhost, mail.<feature>.shop.localhost
+    ui_port: 8025
+
+modules:
+  frontend:
+    path: frontend
+    image: python:3.12-slim
+    routes: ["/"]
+    command: python -m http.server 80 --directory /app
+
+  backend:
+    path: backend
+    image: python:3.12-slim
+    routes: ["/api"]
+    uses: [payments, mail]
+    env:
+      PAYMENTS_URL: http://payments        # never changes in features
+    command: python /app/server.py
+
+  payments:
+    path: payments
+    build: payments
+    routes: ["/payments"]
+    uses: [db]
+    env:
+      DATABASE_URL: postgresql://postgres:dev@db:5432/app
+    hooks:
+      migrate: python /app/migrate.py
+    command: python /app/server.py
+
+features:
+  database: clone
+  isolation: simple

@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Shop</title>
+<h1 id="version">shop frontend: main</h1>
+<p>API calls use relative paths: <code>/api</code>, <code>/payments</code>.</p>
+<pre id="out"></pre>
+<script>
+fetch("/api/whoami").then(r => r.json()).then(j => out.textContent = JSON.stringify(j, null, 2));
+</script>
