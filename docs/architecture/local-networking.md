@@ -101,7 +101,7 @@ Wildcard покрывает один уровень: `*.shop.localhost` покр
 | Python | `REQUESTS_CA_BUNDLE` или пакет `truststore` |
 | Java | Импорт в keystore JDK |
 | WSL2 | Отдельное Linux-хранилище внутри WSL2 |
-| Контейнеры | Монтирование CA + `update-ca-certificates` при старте |
+| Контейнеры | Без пересборки образа: монтируются `/docklet/ca.pem` и `/docklet/bundle.pem` (публичные корни + наш CA), переменные `SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`. Проверено в P-6 для curl, Python, Node, PHP; публичные сайты продолжают работать. Java — отдельный truststore |
 
 Установка — с согласия; удаление — при деинсталляции.
 
