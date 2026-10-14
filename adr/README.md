@@ -9,9 +9,9 @@
 | [0003](0003-go-protobuf-connectrpc.md) | Go + Protobuf (Buf) + ConnectRPC | Accepted | — |
 | [0004](0004-envoy-single-proxy.md) | Один Envoy на устройство как единственный TLS-терминатор | Accepted | — |
 | [0005](0005-isolation-modes.md) | Simple Isolation в MVP, Contextual — этап 3 | Accepted | — |
-| [0006](0006-docker-network-topology.md) | Топология docker-сетей | Proposed | Этап 0 (P-2) |
-| [0007](0007-db-cloning.md) | Клонирование БД (Postgres / MySQL) | Proposed | Этап 0 (P-3, P-4) |
-| [0008](0008-config-location.md) | Где хранить `workspace.yaml` | Open | Этап 0 |
+| [0006](0006-docker-network-topology.md) | Топология docker-сетей: сеть на окружение | Accepted (P-2) | — |
+| [0007](0007-db-cloning.md) | Клонирование БД: PG — база в инстансе, MySQL — отдельный инстанс | Accepted (P-3, P-4) | — |
+| [0008](0008-config-location.md) | Где хранить `workspace.yaml` | Open | По итогам интервью (вопрос Г5) |
 | [0009](0009-secrets-key-distribution.md) | Доставка ключа команды на новое устройство | Proposed | До этапа 2 |
 | [0010](0010-agent-license.md) | Лицензия агента | Open | До публичного релиза агента |
 | [0011](0011-privileged-helper.md) | Privileged helper, никогда не слушать 0.0.0.0 | Accepted | — |
