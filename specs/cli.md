@@ -1,6 +1,6 @@
 # Спецификация: CLI агента (MVP)
 
-**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (веха M1). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
+**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (M1), `agent run`, `status`, `up`, `down` (M2; `up` пока создаёт только сеть окружения). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
 
 ## Установка и служба
 
@@ -11,6 +11,7 @@
 | `docklet doctor [--fix]` | Preflight-проверки (Docker, порты 80/443 v4/v6, DNS, CA, пулы адресов, reflink, ресурсы) с владельцами конфликтов и предложениями исправлений |
 | `docklet status` | Агент, runtime, режим портов (default / сосуществование / fallback), окружения |
 | `docklet ui` | Открыть локальную панель |
+| `docklet agent run` | Агент на переднем плане (до `install` CLI запускает его в фоне сам) |
 | `docklet version` | Версия |
 
 ## Проект
@@ -21,8 +22,8 @@
 | `docklet validate` | Проверка по JSON Schema и правилам + антипаттерны |
 | `docklet export compose [-o file]` | Экспорт в `docker-compose.yml` (по умолчанию в stdout); откажет, если конфиг с ошибками |
 | `docklet schema` | Напечатать JSON Schema `workspace.yaml` |
-| `docklet up` | Поднять базовое окружение (clone репозиториев, данные, хуки) |
-| `docklet down [--volumes]` | Остановить базовое окружение |
+| `docklet up [-d] [--timeout]` | Поднять базовое окружение (clone репозиториев, данные, хуки); показывает прогресс шагов. `-d` — не ждать |
+| `docklet down [--volumes] [--project]` | Остановить окружения проекта; `--volumes` — удалить проект со всеми ресурсами и данными |
 | `docklet open [env]` | Открыть URL в браузере |
 
 ## Фичи

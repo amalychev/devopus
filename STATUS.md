@@ -4,7 +4,7 @@
 
 ## Где мы
 
-**Этап 1 (MVP) начат параллельно с продуктовой частью этапа 0.** Готова веха M1 — `workspace.yaml` v1, `docklet init/validate/export compose`. Следующая — **M2: каркас агента** (служба, локальный API, reconcile-цикл). План и журнал — [docs/stage-1/plan.md](docs/stage-1/plan.md).
+**Этап 1 (MVP) начат параллельно с продуктовой частью этапа 0.** Готовы вехи M1 (`workspace.yaml` v1, импорт/экспорт compose) и M2 (агент: локальный API, желаемое состояние, reconcile-цикл, сеть окружения). Следующая — **M3: сеть и прокси** (Envoy + xDS/SDS, CA, DNS, порты 80/443, `docklet doctor`). План и журнал — [docs/stage-1/plan.md](docs/stage-1/plan.md).
 
 **Этап 0 (валидация) — техническая часть закрыта, продуктовая не начата.**
 
@@ -48,5 +48,6 @@
 ## Состояние окружения
 
 - Docker-контекст: `desktop-linux`.
+- Удалённого git-репозитория нет: коммиты только локально в `main`.
 - Colima и OrbStack установлены, VM остановлены (`colima start` / `orb start`, если понадобятся).
 - Опубликованный roadmap: https://claude.ai/artifact/XXRWjdCqmh1wb7WVczCjK7

@@ -1,0 +1,162 @@
+// Local API of the Docklet agent (stage 1). The CLI and the local panel talk to the
+// agent over a unix socket. DesiredState and EnvironmentStatus are the messages of
+// specs/agent-protocol.md: the cloud link of stage 2 reuses them (ADR-0001).
+syntax = "proto3";
+
+package docklet.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service AgentService {
+  // Status reports the agent, the container runtime and every environment.
+  rpc Status(StatusRequest) returns (StatusResponse);
+  // Up registers a project from its workspace.yaml and wants its base environment running.
+  rpc Up(UpRequest) returns (UpResponse);
+  // Down stops the base environment of a project, or removes the project with purge.
+  rpc Down(DownRequest) returns (DownResponse);
+  // Watch streams environment status: the current status first, then every change.
+  rpc Watch(WatchRequest) returns (stream WatchResponse);
+}
+
+// DesiredState is what must exist on this device. Revision grows with every change.
+message DesiredState {
+  uint64 revision = 1;
+  repeated ProjectSpec projects = 2;
+  repeated EnvironmentSpec environments = 3;
+}
+
+message ProjectSpec {
+  // Name from workspace.yaml; unique on the device.
+  string name = 1;
+  // Repository root: the folder of workspace.yaml.
+  string root = 2;
+  // workspace.yaml as it was when the project was applied.
+  bytes config = 3;
+  // sha256 of config, hex.
+  string config_hash = 4;
+}
+
+enum EnvironmentKind {
+  ENVIRONMENT_KIND_UNSPECIFIED = 0;
+  ENVIRONMENT_KIND_BASE = 1;
+  ENVIRONMENT_KIND_FEATURE = 2;
+}
+
+enum DesiredPhase {
+  DESIRED_PHASE_UNSPECIFIED = 0;
+  DESIRED_PHASE_RUNNING = 1;
+  // Containers stopped, data and network kept.
+  DESIRED_PHASE_STOPPED = 2;
+}
+
+message EnvironmentSpec {
+  // Stable ID used in every Docker resource; never derived from a branch name.
+  string id = 1;
+  string project = 2;
+  EnvironmentKind kind = 3;
+  // Only in URLs.
+  string slug = 4;
+  string branch = 5;
+  repeated string forked_modules = 6;
+  DesiredPhase phase = 7;
+}
+
+enum Phase {
+  PHASE_UNSPECIFIED = 0;
+  PHASE_CREATING = 1;
+  PHASE_RUNNING = 2;
+  PHASE_STOPPED = 3;
+  PHASE_ERROR = 4;
+  PHASE_DELETING = 5;
+}
+
+enum StepState {
+  STEP_STATE_UNSPECIFIED = 0;
+  STEP_STATE_PENDING = 1;
+  STEP_STATE_RUNNING = 2;
+  STEP_STATE_DONE = 3;
+  STEP_STATE_FAILED = 4;
+}
+
+message StepProgress {
+  string name = 1;
+  StepState state = 2;
+  string message = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp finished_at = 5;
+}
+
+message NetworkStatus {
+  string name = 1;
+  string subnet = 2;
+}
+
+message EnvironmentStatus {
+  string id = 1;
+  string project = 2;
+  EnvironmentKind kind = 3;
+  string slug = 4;
+  Phase phase = 5;
+  repeated StepProgress steps = 6;
+  string url = 7;
+  string error = 8;
+  NetworkStatus network = 9;
+  // Revision of the desired state this status reflects.
+  uint64 applied_revision = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  // The environment left the desired state and its resources are gone.
+  bool removed = 12;
+}
+
+message RuntimeInfo {
+  // docker-desktop, orbstack, colima, podman, docker-engine or unknown.
+  string name = 1;
+  string endpoint = 2;
+  string server_version = 3;
+  string os = 4;
+  bool reachable = 5;
+  string error = 6;
+}
+
+message StatusRequest {}
+
+message StatusResponse {
+  string agent_version = 1;
+  uint64 desired_revision = 2;
+  RuntimeInfo runtime = 3;
+  repeated ProjectSpec projects = 4;
+  repeated EnvironmentStatus environments = 5;
+}
+
+message UpRequest {
+  // Absolute path of workspace.yaml.
+  string workspace_path = 1;
+  bytes config = 2;
+}
+
+message UpResponse {
+  string environment_id = 1;
+  uint64 revision = 2;
+}
+
+message DownRequest {
+  string project = 1;
+  // Remove the project and everything it owns, data included.
+  bool purge = 2;
+}
+
+message DownResponse {
+  uint64 revision = 1;
+}
+
+message WatchRequest {
+  // Empty: every environment.
+  string environment_id = 1;
+}
+
+message WatchResponse {
+  EnvironmentStatus status = 1;
+  // Sent once, after the current statuses: from here on every change is delivered.
+  // A client that changes the desired state waits for it to not miss progress.
+  bool synced = 2;
+}

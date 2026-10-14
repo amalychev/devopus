@@ -11,7 +11,7 @@
 | # | Веха | User stories | Готово, когда |
 |---|---|---|---|
 | **M1** | **Конфиг:** Go-модуль, `workspace.yaml` v1 (типы, JSON Schema, валидатор, выражения `${{ }}`), `docklet init --from-compose`, `validate`, `export compose`, `schema` | US-2 | Проекты корпуса P-8 импортируются, проходят `validate`, экспорт проходит `docker compose config` |
-| M2 | **Каркас агента:** служба, локальный API на unix-сокете (ConnectRPC, `proto/`), хранилище состояния, reconcile-цикл, метки `com.docklet.*`, GC, `docklet status` | — | CLI говорит с агентом; перезапуск агента посреди шага сходится к тому же состоянию |
+| **M2** | **Каркас агента:** служба, локальный API на unix-сокете (ConnectRPC, `proto/`), хранилище состояния, reconcile-цикл, метки `com.docklet.*`, GC, `docklet status` | — | CLI говорит с агентом; перезапуск агента посреди шага сходится к тому же состоянию |
 | M3 | **Сеть и прокси:** Envoy-контейнер + xDS/SDS, пул сетей `10.213.0.0/16`, двухуровневый CA, CoreDNS, порты 80/443 и режимы конфликта, `docklet doctor` | US-1 (часть), US-7 | Статический модуль открывается по `https://<host>.localhost` с зелёным замком на Docker Desktop, Colima, OrbStack |
 | M4 | **Базовое окружение:** clone репозиториев, образы рантаймов, build, хуки, старт, маршруты по путям, `expose`, `up`/`down`/`open`/`logs`/`exec`/`routes` | US-3 | Демо-проект из 3 модулей поднимается с `main` одной командой |
 | M5 | **Фичи:** worktree, Simple Isolation, алиасы общих модулей, `feature create/add/list/rm/path` | US-4 | Интеграционный тест изоляции двух фич; создание/удаление не прерывает другие окружения |
@@ -28,6 +28,9 @@
 | `internal/workspace` | Модель `workspace.yaml`, загрузка, валидация, выражения |
 | `internal/compose` | Импорт из compose и экспорт в compose |
 | `internal/cli` | Команды CLI |
+| `internal/agent` | Агент: `store` (желаемое состояние), `reconcile` (цикл и GC), `runtime` (Docker Engine API), `api` (локальный API), `client` (подключение CLI) |
+| `proto/` → `gen/` | Контракт локального API (Buf + ConnectRPC); `go tool -modfile=tools/go.mod buf generate` |
+| `tools/` | Отдельный Go-модуль с buf и плагинами, чтобы не тянуть их в зависимости агента |
 | `schema/` | JSON Schema `workspace.yaml` (встроена в бинарник) |
 | `prototypes/` | Одноразовый код этапа 0, не импортируется |
 
@@ -39,7 +42,17 @@
 |---|---|---|
 | 14.10.2026 | M1 | **Готова.** `workspace.yaml` v1: модель, JSON Schema, валидатор с номерами строк, выражения `${{ }}`. CLI: `init` (импорт compose, шаблон), `validate`, `export compose`, `schema`, `version`, `--json`, коды выхода. Корпус P-8: 16 из 16 целевых проектов импортируются на уровне B без правок, экспорт всех проходит `docker compose config`; 5 проектов из готовых образов — уровень N, как в P-8. Найдено при реализации и внесено в спецификацию: `port`/`ui_port` у сервиса, корень репозитория = папка `workspace.yaml`, правила для `depends_on` сервиса на модуль, шаблонов `extends`, отсутствующих `env_file` |
 
+| 14.10.2026 | M2 | **Готова.** Агент: `docklet agent run` (один на каталог данных — flock), локальный API на ConnectRPC поверх unix-сокета `~/.docklet/agent.sock` (права 0600), желаемое состояние в `~/.docklet/state.json` (protojson, атомарная запись, ревизия), reconcile-цикл (по изменению + раз в 30 с, повтор через 5 с после ошибки), наблюдение и GC только по меткам `com.docklet.*`. Первый ресурс — сеть окружения: `/24` из `10.213.0.0/16` в обход занятых подсетей, повтор при гонке. CLI: `up` (с прогрессом шагов), `down`, `down --volumes`, `status`; если агент не запущен, `up` поднимает его в фоне. Проверено на Docker Desktop: повторный `up` ничего не меняет, после `kill -9` агента и ручного удаления сети `up` восстанавливает её в той же подсети, `down --volumes` не оставляет ресурсов, недоступный Docker переводит окружения в `error` с причиной. Автотесты: reconciler на фейковом runtime, хранилище, сквозной тест агента на реальном Docker; `-race` чистый |
+
 ### Открытые вопросы M1
 
 - **URL схемы для редактора.** `docklet init` пишет `# yaml-language-server: $schema=https://raw.githubusercontent.com/docklet/docklet/main/schema/workspace.v1.json`. Заработает, когда репозиторий станет публичным под этим именем; после выбора домена — перенести на него (константа `schema.URL`).
 - **Образы рантаймов.** `runtime: php:8.3` пока экспортируется в официальный образ языка; собственные образы рантаймов (с `ext-opentelemetry` для PHP) — в M4.
+
+### Решения M2
+
+- **Клиент Docker — `github.com/moby/moby/client`**: `github.com/docker/docker` после v28 устарел. Endpoint определяется как у `docker` CLI: `DOCKER_HOST` → `DOCKER_CONTEXT` или текущий контекст `~/.docker` → `/var/run/docker.sock`; по нему и по `docker info` — Docker Desktop, OrbStack, Colima, Podman.
+- **Локальный API — ConnectRPC поверх HTTP/1.1 на unix-сокете.** Те же сообщения `DesiredState`/`EnvironmentStatus`, что в [протоколе агента](../../specs/agent-protocol.md) (ADR-0001). `Watch` шлёт маркер `synced` после начального снимка: клиент меняет желаемое состояние только после него и не теряет прогресс.
+- **Агент как служба** — в M9 (`docklet install`); до этого CLI запускает его в фоне, лог — `~/.docklet/agent.log`.
+- `down` останавливает окружения (данные и сеть остаются), `down --volumes` удаляет проект со всеми ресурсами.
+- Не проверено на OrbStack и Colima (VM остановлены) — сделать в начале M3 вместе с прокси.

@@ -48,11 +48,11 @@
 
 ## Статус
 
-Этап 1 (MVP) начат параллельно с продуктовой валидацией этапа 0 (20 интервью и 5 LOI ещё впереди — см. [итоговый отчёт этапа 0](docs/stage-0/report.md)). Готова веха M1: `workspace.yaml` v1 и импорт/экспорт compose. План — [docs/stage-1/plan.md](docs/stage-1/plan.md).
+Этап 1 (MVP) начат параллельно с продуктовой валидацией этапа 0 (20 интервью и 5 LOI ещё впереди — см. [итоговый отчёт этапа 0](docs/stage-0/report.md)). Готовы вехи M1 (`workspace.yaml` v1, импорт/экспорт compose) и M2 (каркас агента). План — [docs/stage-1/plan.md](docs/stage-1/plan.md).
 
 ## Разработка
 
-Нужен Go 1.27+. Docker нужен только для одного теста экспорта (`docker compose config`; без Docker тест его пропускает).
+Нужен Go 1.27+. Тесты, которым нужен Docker (сквозной тест агента, `docker compose config` для экспорта), без него пропускаются.
 
 ```bash
 go test ./...                          # все тесты
@@ -62,4 +62,11 @@ go build -o docklet ./cmd/docklet      # бинарник
 ./docklet validate                     # проверка по схеме и правилам, с номерами строк
 ./docklet export compose -o out.yml    # обратно в docker-compose
 ./docklet schema                       # JSON Schema для редактора
+./docklet up                           # поднять базовое окружение (стартует агента в фоне)
+./docklet status                       # агент, runtime, окружения
+./docklet down --volumes               # удалить окружения проекта
+
+go tool -modfile=tools/go.mod buf generate   # после правок proto/
 ```
+
+Данные агента — в `~/.docklet` (или `$DOCKLET_HOME`).

@@ -72,6 +72,10 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		a.exportCmd(),
 		a.schemaCmd(),
 		a.versionCmd(),
+		a.agentCmd(),
+		a.statusCmd(),
+		a.upCmd(),
+		a.downCmd(),
 	)
 
 	err := root.Execute()
