@@ -1,0 +1,129 @@
+# Contextual Isolation (docs/architecture/routing.md), written by hand for two features.
+# The agent would generate the same shape from the feature list over xDS.
+#
+#   edge :8080  Host picks the environment. Client baggage is dropped; the proxy sets
+#               feature=<slug> itself. Only the forked module gets a feature route.
+#   mesh :80    Envoy owns the logical name "payments" (network alias). The baggage entry
+#               feature=<slug> picks the fork; anything else goes to main.
+static_resources:
+  listeners:
+  - name: edge
+    address: { socket_address: { address: 0.0.0.0, port_value: 8080 } }
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: edge
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config: { "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router }
+          route_config:
+            name: edge
+            virtual_hosts:
+            - name: main
+              domains: ["shop.localhost", "shop.localhost:*"]
+              request_headers_to_remove: [baggage]
+              routes:
+              - { match: { prefix: /api/node },   route: { cluster: backend-node } }
+              - { match: { prefix: /api/python }, route: { cluster: backend-python } }
+              - { match: { prefix: /api/php },    route: { cluster: backend-php } }
+              - { match: { prefix: /payments },   route: { cluster: payments-main } }
+            - name: pay-123
+              domains: ["pay-123.shop.localhost", "pay-123.shop.localhost:*"]
+              request_headers_to_remove: [baggage]
+              request_headers_to_add:
+              - header: { key: baggage, value: feature=pay-123 }
+                append_action: OVERWRITE_IF_EXISTS_OR_ADD
+              routes:
+              - { match: { prefix: /payments }, route: { cluster: payments-pay-123 } }
+              - { match: { prefix: /api/node },   route: { cluster: backend-node } }
+              - { match: { prefix: /api/python }, route: { cluster: backend-python } }
+              - { match: { prefix: /api/php },    route: { cluster: backend-php } }
+            - name: pay-124
+              domains: ["pay-124.shop.localhost", "pay-124.shop.localhost:*"]
+              request_headers_to_remove: [baggage]
+              request_headers_to_add:
+              - header: { key: baggage, value: feature=pay-124 }
+                append_action: OVERWRITE_IF_EXISTS_OR_ADD
+              routes:
+              - { match: { prefix: /payments }, route: { cluster: payments-pay-124 } }
+              - { match: { prefix: /api/node },   route: { cluster: backend-node } }
+              - { match: { prefix: /api/python }, route: { cluster: backend-python } }
+              - { match: { prefix: /api/php },    route: { cluster: backend-php } }
+
+  - name: mesh
+    address: { socket_address: { address: 0.0.0.0, port_value: 80 } }
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: mesh
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config: { "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router }
+          route_config:
+            name: mesh
+            virtual_hosts:
+            - name: payments
+              domains: ["payments", "payments:*"]
+              routes:
+              # A baggage entry is "key=value[;props]", entries are comma-separated (W3C Baggage).
+              - match:
+                  prefix: /
+                  headers:
+                  - name: baggage
+                    string_match: { safe_regex: { regex: '(?:^|.*,)\s*feature\s*=\s*pay-123\s*(?:[;,].*)?$' } }
+                route: { cluster: payments-pay-123 }
+              - match:
+                  prefix: /
+                  headers:
+                  - name: baggage
+                    string_match: { safe_regex: { regex: '(?:^|.*,)\s*feature\s*=\s*pay-124\s*(?:[;,].*)?$' } }
+                route: { cluster: payments-pay-124 }
+              - { match: { prefix: / }, route: { cluster: payments-main } }
+
+  clusters:
+  - name: backend-node
+    type: STRICT_DNS
+    connect_timeout: 2s
+    dns_lookup_family: V4_ONLY
+    load_assignment:
+      cluster_name: backend-node
+      endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: backend-node, port_value: 80 } } } }] }]
+  - name: backend-python
+    type: STRICT_DNS
+    connect_timeout: 2s
+    dns_lookup_family: V4_ONLY
+    load_assignment:
+      cluster_name: backend-python
+      endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: backend-python, port_value: 80 } } } }] }]
+  - name: backend-php
+    type: STRICT_DNS
+    connect_timeout: 2s
+    dns_lookup_family: V4_ONLY
+    load_assignment:
+      cluster_name: backend-php
+      endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: backend-php, port_value: 80 } } } }] }]
+  - name: payments-main
+    type: STRICT_DNS
+    connect_timeout: 2s
+    dns_lookup_family: V4_ONLY
+    load_assignment:
+      cluster_name: payments-main
+      endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: payments-main, port_value: 80 } } } }] }]
+  - name: payments-pay-123
+    type: STRICT_DNS
+    connect_timeout: 2s
+    dns_lookup_family: V4_ONLY
+    load_assignment:
+      cluster_name: payments-pay-123
+      endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: payments-pay-123, port_value: 80 } } } }] }]
+  - name: payments-pay-124
+    type: STRICT_DNS
+    connect_timeout: 2s
+    dns_lookup_family: V4_ONLY
+    load_assignment:
+      cluster_name: payments-pay-124
+      endpoints: [{ lb_endpoints: [{ endpoint: { address: { socket_address: { address: payments-pay-124, port_value: 80 } } } }] }]

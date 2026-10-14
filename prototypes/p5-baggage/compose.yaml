@@ -1,0 +1,53 @@
+# P-5 stand. Backends and the main worker exist only in main; features fork payments
+# (and pay-123 also the worker). Nothing but Envoy is published to the host.
+name: docklet-p5
+
+x-otel: &otel
+  OTEL_PROPAGATORS: tracecontext,baggage
+  OTEL_TRACES_EXPORTER: none
+  OTEL_METRICS_EXPORTER: none
+  OTEL_LOGS_EXPORTER: none
+
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.34.1
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "warn"]
+    environment: { ENVOY_UID: "0" }
+    volumes: ["./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro"]
+    ports: ["127.0.0.1:18090:8080"]
+    networks:
+      default:
+        aliases: [payments]   # the logical name belongs to the proxy, not to any copy
+
+  redis:
+    image: redis:7.4-alpine
+
+  payments-main:    { build: ./payments, environment: { INSTANCE: main } }
+  payments-pay-123: { build: ./payments, environment: { INSTANCE: pay-123 } }
+  payments-pay-124: { build: ./payments, environment: { INSTANCE: pay-124 } }
+
+  backend-node:
+    build: ./backend-node
+    # In Node, OTEL_TRACES_EXPORTER=none also switches off context propagation, so keep
+    # the default exporter and turn sampling off instead: baggage still flows, no spans leave.
+    environment: { <<: *otel, OTEL_SERVICE_NAME: backend-node, OTEL_TRACES_EXPORTER: otlp, OTEL_TRACES_SAMPLER: always_off }
+
+  backend-python:
+    build: ./python
+    command: ["opentelemetry-instrument", "python", "app.py"]
+    environment: { <<: *otel, OTEL_SERVICE_NAME: backend-python }
+    volumes: ["./forks.json:/etc/docklet/forks.json:ro"]
+
+  backend-php:
+    build: ./backend-php
+    environment: { <<: *otel, OTEL_SERVICE_NAME: backend-php, OTEL_PHP_AUTOLOAD_ENABLED: "true" }
+
+  worker-main:
+    build: ./python
+    command: ["opentelemetry-instrument", "python", "worker.py"]
+    environment: { <<: *otel, OTEL_SERVICE_NAME: worker, INSTANCE: main, QUEUE: jobs }
+
+  worker-pay-123:
+    build: ./python
+    command: ["opentelemetry-instrument", "python", "worker.py"]
+    environment: { <<: *otel, OTEL_SERVICE_NAME: worker, INSTANCE: pay-123, QUEUE: "jobs:pay-123" }

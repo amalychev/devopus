@@ -24,7 +24,7 @@
 | P-2 | Изоляция Docker: 2 фичи × одинаковые сервисы | Нет ли утечек между фичами | Тесты изоляции зелёные на Docker Desktop, OrbStack, Colima. **✅ Docker Desktop** (7/7) — [отчёт](../prototypes/p1-p2/README.md); OrbStack и Colima не проверены |
 | P-3 | Клон Postgres: золотая копия, `FILE_COPY` + `clone` на APFS/ext4/btrfs | Укладываемся ли в 60 с при 1 ГБ | Таблица времён по ФС. **✅ Docker Desktop: 0,4–0,55 с на ext4, 33 мс с reflink** — [отчёт](../prototypes/p3-db-clone/README.md); APFS/OrbStack и Linux не проверены |
 | P-4 | Клон MySQL: CoW-снапшот volume, инстанс на фичу, mysqldump | Какой путь выбрать | Решение в ADR-0007 |
-| P-5 | Contextual Isolation: Envoy + baggage + OTel (PHP/Python/Node) | Главная гипотеза отличия работает | Базовый бэкенд, вызванный из фичи, попадает в форкнутую платёжку; очередь с префиксом |
+| P-5 | Contextual Isolation: Envoy + baggage + OTel (PHP/Python/Node) | Главная гипотеза отличия работает | Базовый бэкенд, вызванный из фичи, попадает в форкнутую платёжку; очередь с префиксом. **✅ Node, Python, PHP: 29/29 проверок, +0,1 мс на вызов** — [отчёт](../prototypes/p5-baggage/README.md) |
 | P-6 | Порты/DNS: launchd socket activation, setcap, `/etc/resolver`, CoreDNS в контейнерах | Работает ли без `0.0.0.0` и без ручных шагов | `curl`, Node, Python резолвят и доверяют сертификату; IPv6 |
 | P-7 | Активность и пробуждение через Envoy | Hold запроса + страница «запускаемся» | Пробуждение < 10 с |
 | P-8 | Импорт compose на корпусе V-4 | Покрытие формата | ≥ 4 из 5 проектов импортируются без ручных правок |
