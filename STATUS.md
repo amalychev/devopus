@@ -48,6 +48,6 @@
 ## Состояние окружения
 
 - Docker-контекст: `desktop-linux`.
-- Удалённого git-репозитория нет: коммиты только локально в `main`.
+- Репозиторий: https://github.com/amalychev/docklet (приватный).
 - Colima и OrbStack установлены, VM остановлены (`colima start` / `orb start`, если понадобятся).
 - Опубликованный roadmap: https://claude.ai/artifact/XXRWjdCqmh1wb7WVczCjK7
