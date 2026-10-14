@@ -1,6 +1,6 @@
 # Спецификация: CLI агента (MVP)
 
-**Статус:** черновик. CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`.
+**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (веха M1). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
 
 ## Установка и служба
 
@@ -11,14 +11,16 @@
 | `docklet doctor [--fix]` | Preflight-проверки (Docker, порты 80/443 v4/v6, DNS, CA, пулы адресов, reflink, ресурсы) с владельцами конфликтов и предложениями исправлений |
 | `docklet status` | Агент, runtime, режим портов (default / сосуществование / fallback), окружения |
 | `docklet ui` | Открыть локальную панель |
+| `docklet version` | Версия |
 
 ## Проект
 
 | Команда | Описание |
 |---|---|
-| `docklet init [--from-compose <file>]` | Создать `workspace.yaml`; импорт compose с отчётом |
+| `docklet init [--from-compose <file>]… [--project <name>] [--no-pin] [--force]` | Создать `workspace.yaml` в текущей папке (она — корень репозитория). Без `--from-compose` берёт `compose.yaml`/`docker-compose.yml` из папки, если есть, иначе пишет шаблон. Несколько `--from-compose` сливаются как `docker compose -f`. Плавающие теги закрепляются по digest из реестра (`--no-pin` — пропустить). Секреты — в `.env.secrets`. Отчёт с уровнем A/B/C/N; код выхода 2 при уровне C |
 | `docklet validate` | Проверка по JSON Schema и правилам + антипаттерны |
-| `docklet export compose [-o file]` | Экспорт в `docker-compose.yml` |
+| `docklet export compose [-o file]` | Экспорт в `docker-compose.yml` (по умолчанию в stdout); откажет, если конфиг с ошибками |
+| `docklet schema` | Напечатать JSON Schema `workspace.yaml` |
 | `docklet up` | Поднять базовое окружение (clone репозиториев, данные, хуки) |
 | `docklet down [--volumes]` | Остановить базовое окружение |
 | `docklet open [env]` | Открыть URL в браузере |

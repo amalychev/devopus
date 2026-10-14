@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:docklet:workspace:v1",
+  "title": "Docklet workspace.yaml v1",
+  "description": "One file describes the whole project: services, modules and the feature policy.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "project", "domain", "modules"],
+  "properties": {
+    "version": {
+      "description": "Format version.",
+      "const": 1
+    },
+    "project": {
+      "description": "Project name; used in names of Docker resources.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,30}$"
+    },
+    "domain": {
+      "description": "Host of the base environment. Features get <slug>.<domain>.",
+      "type": "string",
+      "pattern": "^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+localhost$"
+    },
+    "services": {
+      "description": "Infrastructure without code: databases, caches, mail. Names are logical DNS names inside an environment.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/name" },
+      "additionalProperties": { "$ref": "#/$defs/service" }
+    },
+    "modules": {
+      "description": "Units of code. Names are logical DNS names inside an environment (http://payments).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/name" },
+      "additionalProperties": { "$ref": "#/$defs/module" }
+    },
+    "features": { "$ref": "#/$defs/features" },
+    "overrides": { "$ref": "#/$defs/overrides" },
+    "data": { "$ref": "#/$defs/data" }
+  },
+  "$defs": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,62}$"
+    },
+    "image": {
+      "description": "OCI image pinned to a version tag (postgres:17.2) or a digest. latest and floating tags (redis:alpine) are rejected.",
+      "type": "string",
+      "minLength": 1
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "env": {
+      "description": "Environment variables. Values support ${{ secrets.NAME }}, ${{ <module>.url }}, ${{ <service>.host }}, ${{ env.url }} and friends.",
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^([0-9]+(ms|s|m|h))+$"
+    },
+    "stringList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "names": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/name" }
+    },
+    "healthcheck": {
+      "description": "As in compose.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "test": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+          ]
+        },
+        "interval": { "$ref": "#/$defs/duration" },
+        "timeout": { "$ref": "#/$defs/duration" },
+        "retries": { "type": "integer", "minimum": 0 },
+        "start_period": { "$ref": "#/$defs/duration" },
+        "disable": { "type": "boolean" }
+      }
+    },
+    "ulimits": {
+      "description": "As in compose.",
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "integer" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["soft", "hard"],
+            "properties": {
+              "soft": { "type": "integer" },
+              "hard": { "type": "integer" }
+            }
+          }
+        ]
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image"],
+      "properties": {
+        "image": { "$ref": "#/$defs/image" },
+        "port": {
+          "$ref": "#/$defs/port",
+          "description": "TCP port modules connect to; ${{ <service>.port }}."
+        },
+        "expose": {
+          "description": "Publishes the web UI as <expose>.<domain> (and <expose>.<slug>.<domain> in features).",
+          "$ref": "#/$defs/name"
+        },
+        "ui_port": {
+          "$ref": "#/$defs/port",
+          "description": "Port of the web UI published by expose; defaults to port."
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "seed": {
+              "description": "snapshot://<name>/<tag>, file://<path> or hook://<module>.<hook>.",
+              "type": "string",
+              "pattern": "^(snapshot://[a-z0-9-]+/[A-Za-z0-9._-]+|file://.+|hook://[a-z][a-z0-9-]*\\.(install|migrate|seed|build))$"
+            }
+          }
+        },
+        "env": { "$ref": "#/$defs/env" },
+        "command": { "type": "string" },
+        "entrypoint": { "type": "string" },
+        "volumes": {
+          "description": "Named volumes (namespaced per environment) and bind mounts of repository files.",
+          "$ref": "#/$defs/stringList"
+        },
+        "healthcheck": { "$ref": "#/$defs/healthcheck" },
+        "uses": {
+          "description": "Services this one depends on; start order.",
+          "$ref": "#/$defs/names"
+        },
+        "optional": {
+          "description": "Not started by default; only on demand or in a feature that needs it.",
+          "type": "boolean"
+        },
+        "tmpfs": { "$ref": "#/$defs/stringList" },
+        "ulimits": { "$ref": "#/$defs/ulimits" },
+        "per_feature": {
+          "description": "Overrides features.database for this service.",
+          "enum": ["clone", "shared", "instance"]
+        }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repo": {
+          "description": "Git URL of the module's repository. Mutually exclusive with path.",
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "description": "Folder inside the main repository (monorepo).",
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "description": "Base branch; main by default.",
+          "type": "string",
+          "minLength": 1
+        },
+        "runtime": {
+          "description": "Platform runtime image: <lang>:<version>, e.g. php:8.3, node:22.",
+          "type": "string",
+          "pattern": "^[a-z]+:[0-9][0-9.]*$"
+        },
+        "image": { "$ref": "#/$defs/image" },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["context"],
+          "properties": {
+            "context": { "type": "string", "minLength": 1 },
+            "dockerfile": { "type": "string" },
+            "target": { "type": "string" },
+            "args": {
+              "type": "object",
+              "additionalProperties": { "type": ["string", "number", "boolean"] }
+            }
+          }
+        },
+        "routes": {
+          "description": "Path prefixes the proxy sends to this module on the environment host.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^/" }
+        },
+        "port": {
+          "$ref": "#/$defs/port",
+          "description": "Port inside the container; 8080 by default."
+        },
+        "uses": {
+          "description": "Services and modules this one depends on.",
+          "$ref": "#/$defs/names"
+        },
+        "env": { "$ref": "#/$defs/env" },
+        "command": { "type": "string" },
+        "entrypoint": { "type": "string" },
+        "healthcheck": { "$ref": "#/$defs/healthcheck" },
+        "tmpfs": { "$ref": "#/$defs/stringList" },
+        "ulimits": { "$ref": "#/$defs/ulimits" },
+        "optional": { "type": "boolean" },
+        "hooks": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "install": {
+              "description": "Installs dependencies; runs when a worktree is created and when lock files change.",
+              "type": "string"
+            },
+            "migrate": {
+              "description": "Migrations; in a feature only on its own database clone.",
+              "type": "string"
+            },
+            "seed": { "type": "string" },
+            "build": { "type": "string" }
+          }
+        },
+        "cron": {
+          "description": "Runs only in the base environment and in features that fork the module.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["schedule", "command"],
+            "properties": {
+              "schedule": { "type": "string" },
+              "command": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "workers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["command"],
+            "properties": {
+              "command": { "type": "string", "minLength": 1 },
+              "replicas": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "volumes": {
+          "description": "Heavy folders (node_modules, vendor) in named volumes: name:/path.",
+          "$ref": "#/$defs/stringList"
+        },
+        "ports": {
+          "description": "Ignored: outside access goes through the proxy. Use routes.",
+          "deprecated": true
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "database": {
+          "description": "Clone the database of a forked module from the golden copy, or share the base one.",
+          "enum": ["clone", "shared"]
+        },
+        "sleep_after": { "$ref": "#/$defs/duration" },
+        "cleanup": {
+          "type": "string",
+          "pattern": "^(on_merge|manual|after:([0-9]+(m|h|d))+)$"
+        },
+        "isolation": {
+          "description": "contextual arrives in stage 3.",
+          "enum": ["simple", "contextual"]
+        },
+        "branch_prefix": { "type": "string" },
+        "max_running": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "overrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(xdebug|ports|resources|env:[A-Za-z_][A-Za-z0-9_]*)$"
+          }
+        }
+      }
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "snapshots": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/name" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source"],
+            "properties": {
+              "source": { "$ref": "#/$defs/name" },
+              "mask": {
+                "type": "object",
+                "propertyNames": { "pattern": "^[A-Za-z0-9_]+\\.[A-Za-z0-9_]+$" },
+                "additionalProperties": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

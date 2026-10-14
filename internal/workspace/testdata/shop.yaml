@@ -1,0 +1,86 @@
+# The example of specs/workspace-yaml.md with pinned images.
+version: 1
+project: shop
+domain: shop.localhost
+
+services:
+  mysql:
+    image: mysql:8.4
+    port: 3306
+    env:
+      MYSQL_DATABASE: shop
+      MYSQL_ROOT_PASSWORD: root
+    data:
+      seed: snapshot://shop-anonymized/latest
+  redis:
+    image: redis:7
+    port: 6379
+  mail:
+    image: axllent/mailpit:v1.21
+    port: 1025
+    ui_port: 8025
+    expose: mail
+  s3:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    port: 9000
+
+modules:
+  backend:
+    repo: git@github.com:acme/shop-api.git
+    runtime: php:8.3
+    routes: ["/api"]
+    uses: [mysql, redis, mail, s3, payments]
+    env:
+      CACHE_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      MAIL_HOST: mail
+      PAYMENTS_URL: http://payments
+      DB_HOST: ${{ mysql.host }}
+      DB_DATABASE: ${{ mysql.database }}
+      APP_URL: ${{ env.url }}
+      STRIPE_KEY: ${{ secrets.STRIPE_TEST_KEY }}
+    command: php artisan serve --host 0.0.0.0 --port 8080
+    hooks:
+      install: composer install
+      migrate: php artisan migrate --force
+    cron:
+      - schedule: "* * * * *"
+        command: php artisan schedule:run
+    workers:
+      - command: php artisan queue:work
+
+  frontend:
+    repo: git@github.com:acme/shop-web.git
+    runtime: node:22
+    routes: ["/"]
+    port: 5173
+    hooks:
+      install: npm ci
+    command: npm run dev
+    volumes: ["node-modules:/app/node_modules"]
+
+  payments:
+    repo: git@github.com:acme/shop-payments.git
+    runtime: python:3.12
+    routes: ["/payments"]
+    uses: [mysql]
+    hooks:
+      install: pip install -r requirements.txt
+    command: uvicorn app:main --host 0.0.0.0 --port 8080
+
+features:
+  database: clone
+  sleep_after: 2h
+  cleanup: on_merge
+  isolation: simple
+
+overrides:
+  allowed: [xdebug, ports, "env:LOG_LEVEL"]
+
+data:
+  snapshots:
+    shop-anonymized:
+      source: mysql
+      mask:
+        users.email: email
+        payments.card_last4: redact

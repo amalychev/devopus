@@ -1,0 +1,71 @@
+# A typical product: a frontend, an API behind nginx, a worker, infrastructure.
+x-api-env: &api-env
+  DATABASE_URL: postgres://app:${DB_PASSWORD:-devpass}@db:5432/shop
+  REDIS_URL: redis://cache:6379
+  JWT_SECRET: dev-jwt-secret
+
+services:
+  web:
+    build: ./web
+    ports: ["3000:3000"]
+    volumes: ["./web:/app", "web-node-modules:/app/node_modules"]
+    environment:
+      VITE_API_URL: /api
+    command: npm run dev -- --host 0.0.0.0
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+      target: dev
+      args:
+        PHP_VERSION: "8.3"
+    expose: ["9000"]
+    volumes: ["./api:/var/www"]
+    environment:
+      <<: *api-env
+    env_file: [api/.env]
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_started
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["8000:80"]
+    volumes: ["./api/nginx.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [api]
+
+  queue_worker:
+    build: ./worker
+    command: ["php", "artisan", "queue:work", "--tries=3"]
+    environment:
+      <<: *api-env
+    depends_on: [db, cache]
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: shop
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpass}
+    volumes: ["pgdata:/var/lib/postgresql/data", "/tmp/dumps:/dumps"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 5s
+      retries: 10
+    ulimits:
+      nofile: {soft: 1024, hard: 4096}
+
+  cache:
+    image: redis:alpine
+
+  mailpit:
+    image: axllent/mailpit
+    ports: ["8025:8025", "1025:1025"]
+    profiles: [mail]
+
+volumes:
+  pgdata:
+  web-node-modules:

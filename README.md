@@ -32,6 +32,8 @@
 | План | [roadmap.md](roadmap.md) | Этапы 0–4, критерии перехода, P0/P1/P2 |
 | | [docs/stage-0-plan.md](docs/stage-0-plan.md) | Валидация: интервью + технические прототипы |
 | | [docs/stage-0/](docs/stage-0/README.md) | **Итоговый отчёт этапа 0** и комплект для интервью и пилотов |
+| | [docs/stage-1/plan.md](docs/stage-1/plan.md) | **Этап 1 (MVP):** вехи M1–M9, раскладка кода, журнал |
+| Код | `cmd/`, `internal/`, `schema/` | Агент и CLI на Go (см. «Разработка» ниже) |
 | Прототипы | [prototypes/](prototypes/) | P-1…P-8: код и отчёты технических прототипов этапа 0 |
 | Решения | [adr/](adr/README.md) | Architecture Decision Records |
 | Риски | [risks-and-open-questions.md](risks-and-open-questions.md) | Риски, открытые вопросы, найденные противоречия в источниках |
@@ -46,4 +48,18 @@
 
 ## Статус
 
-Этап 0 (валидация). Технические прототипы P-1…P-8 готовы, решения внесены в архитектуру и PRD MVP. Осталась продуктовая валидация: 20 интервью и 5 LOI — см. [итоговый отчёт этапа 0](docs/stage-0/report.md).
+Этап 1 (MVP) начат параллельно с продуктовой валидацией этапа 0 (20 интервью и 5 LOI ещё впереди — см. [итоговый отчёт этапа 0](docs/stage-0/report.md)). Готова веха M1: `workspace.yaml` v1 и импорт/экспорт compose. План — [docs/stage-1/plan.md](docs/stage-1/plan.md).
+
+## Разработка
+
+Нужен Go 1.27+. Docker нужен только для одного теста экспорта (`docker compose config`; без Docker тест его пропускает).
+
+```bash
+go test ./...                          # все тесты
+go build -o docklet ./cmd/docklet      # бинарник
+
+./docklet init                         # workspace.yaml из compose-файла в текущей папке
+./docklet validate                     # проверка по схеме и правилам, с номерами строк
+./docklet export compose -o out.yml    # обратно в docker-compose
+./docklet schema                       # JSON Schema для редактора
+```

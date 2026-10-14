@@ -1,2 +1,4 @@
 prototypes/p1-p2/docklet
 .DS_Store
+/docklet
+.env.secrets
