@@ -46,10 +46,10 @@ flowchart TB
 
 ## Этап 1 · MVP
 
-**Цель:** ценность ядра для одного разработчика. Детали — [specs/mvp-prd.md](specs/mvp-prd.md).
+**Цель:** ценность ядра для одного разработчика. Детали — [specs/mvp-prd.md](specs/mvp-prd.md). **Идёт:** готовы M1–M2 из 9 вех — [docs/stage-1/plan.md](docs/stage-1/plan.md).
 
-- Агент для macOS и Linux; privileged helper.
-- `workspace.yaml` v1, JSON Schema, импорт/экспорт docker-compose.
+- Агент для macOS и Linux; privileged helper. *(каркас агента — ✅ M2; helper — M3/M9)*
+- ✅ `workspace.yaml` v1, JSON Schema, импорт/экспорт docker-compose. *(M1)*
 - Фичи с worktree и своим хостом; маршрутизация по путям; Simple Isolation.
 - Изоляция Docker; порты, DNS, CA; HTTP-режим.
 - Клон БД (золотая копия), миграции на клонах.
