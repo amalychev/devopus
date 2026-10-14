@@ -13,5 +13,5 @@
 | [0007](0007-db-cloning.md) | Клонирование БД: PG — база в инстансе, MySQL — отдельный инстанс | Accepted (P-3, P-4) | — |
 | [0008](0008-config-location.md) | Где хранить `workspace.yaml` | Open | По итогам интервью (вопрос Г5) |
 | [0009](0009-secrets-key-distribution.md) | Доставка ключа команды на новое устройство | Proposed | До этапа 2 |
-| [0010](0010-agent-license.md) | Лицензия агента | Open | До публичного релиза агента |
+| [0010](0010-agent-license.md) | Лицензия агента: Apache 2.0 | Accepted | — |
 | [0011](0011-privileged-helper.md) | Privileged helper, никогда не слушать 0.0.0.0 | Accepted | — |
