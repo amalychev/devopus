@@ -1,0 +1,45 @@
+[
+  {
+    "name": "pay-1",
+    "host": "pay-1.shop.localhost",
+    "containers": [
+      "p7-pay-1-db",
+      "p7-pay-1-payments"
+    ],
+    "clusters": [
+      "pay-1-payments"
+    ],
+    "worktree": "/worktrees/pay-1",
+    "upstreams": [
+      "172.30.0.21:80"
+    ]
+  },
+  {
+    "name": "ui-2",
+    "host": "ui-2.shop.localhost",
+    "containers": [
+      "p7-ui-2-frontend"
+    ],
+    "clusters": [
+      "ui-2-frontend"
+    ],
+    "worktree": "/worktrees/ui-2",
+    "upstreams": [
+      "172.30.0.22:80"
+    ]
+  },
+  {
+    "name": "slow-3",
+    "host": "slow-3.shop.localhost",
+    "containers": [
+      "p7-slow-3-app"
+    ],
+    "clusters": [
+      "slow-3-app"
+    ],
+    "worktree": "/worktrees/ui-2",
+    "upstreams": [
+      "172.30.0.23:80"
+    ]
+  }
+]

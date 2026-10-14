@@ -1,0 +1,66 @@
+# P-7 stand: main (never sleeps) and two features managed by the waker.
+name: docklet-p7
+
+# The agent allocates a subnet per environment anyway (prototype P-1/P-2), so it can pin
+# container IPs: Envoy then uses static endpoints and never routes to a stale address.
+networks:
+  default:
+    ipam:
+      config: [{ subnet: 172.30.0.0/24 }]
+
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.34.1
+    container_name: p7-envoy
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "warn"]
+    volumes: ["./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro"]
+    ports: ["127.0.0.1:18095:8080"]
+
+  waker:
+    build: ./waker
+    container_name: p7-waker
+    networks: { default: { ipv4_address: 172.30.0.10 } }
+    environment:
+      SLEEP_AFTER: ${SLEEP_AFTER:-2h}
+      MAX_RUNNING: ${MAX_RUNNING:-0}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./envs.json:/etc/waker/envs.json:ro
+      - ./worktrees:/worktrees:ro
+
+  backend:
+    image: python:3.12-slim
+    container_name: p7-backend
+    command: ["python", "/app/server.py"]
+    volumes: ["./backend:/app:ro"]
+
+  pay-1-db:
+    image: postgres:17-alpine
+    container_name: p7-pay-1-db
+    init: true          # PID 1 must forward SIGTERM, or every sleep waits for SIGKILL
+    environment: { POSTGRES_PASSWORD: dev }
+
+  pay-1-payments:
+    build: ./payments
+    container_name: p7-pay-1-payments
+    networks: { default: { ipv4_address: 172.30.0.21 } }
+    init: true          # PID 1 must forward SIGTERM, or every sleep waits for SIGKILL
+    environment: { DATABASE_URL: "postgresql://postgres:dev@p7-pay-1-db:5432/postgres" }
+    volumes: ["./worktrees/pay-1:/app:ro"]
+
+  ui-2-frontend:
+    image: node:22-alpine
+    container_name: p7-ui-2-frontend
+    networks: { default: { ipv4_address: 172.30.0.22 } }
+    init: true          # PID 1 must forward SIGTERM, or every sleep waits for SIGKILL
+    command: ["node", "/app/server.js"]
+    volumes: ["./worktrees/ui-2:/app:ro"]
+
+  slow-3-app:
+    # Boots for 3 s before it listens, like a Spring or Rails app.
+    image: node:22-alpine
+    container_name: p7-slow-3-app
+    networks: { default: { ipv4_address: 172.30.0.23 } }
+    init: true
+    command: ["sh", "-c", "sleep 3 && exec node /app/server.js"]
+    volumes: ["./worktrees/ui-2:/app:ro"]
