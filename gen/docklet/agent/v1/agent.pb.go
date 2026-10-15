@@ -244,6 +244,7 @@ type DesiredState struct {
 	Revision      uint64                 `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
 	Projects      []*ProjectSpec         `protobuf:"bytes,2,rep,name=projects,proto3" json:"projects,omitempty"`
 	Environments  []*EnvironmentSpec     `protobuf:"bytes,3,rep,name=environments,proto3" json:"environments,omitempty"`
+	Device        *DeviceSettings        `protobuf:"bytes,4,opt,name=device,proto3" json:"device,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -299,6 +300,77 @@ func (x *DesiredState) GetEnvironments() []*EnvironmentSpec {
 	return nil
 }
 
+func (x *DesiredState) GetDevice() *DeviceSettings {
+	if x != nil {
+		return x.Device
+	}
+	return nil
+}
+
+// DeviceSettings are per device, not per project.
+type DeviceSettings struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Coexistence (local-networking.md §1): a dev server moved off 80/443 to these host
+	// ports gets every host Docklet does not serve. 0: off.
+	CoexistHttpPort  uint32 `protobuf:"varint,1,opt,name=coexist_http_port,json=coexistHttpPort,proto3" json:"coexist_http_port,omitempty"`
+	CoexistHttpsPort uint32 `protobuf:"varint,2,opt,name=coexist_https_port,json=coexistHttpsPort,proto3" json:"coexist_https_port,omitempty"`
+	// Bumping it recreates the proxy container, which probes the ports again.
+	ProxyGeneration uint64 `protobuf:"varint,3,opt,name=proxy_generation,json=proxyGeneration,proto3" json:"proxy_generation,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *DeviceSettings) Reset() {
+	*x = DeviceSettings{}
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceSettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceSettings) ProtoMessage() {}
+
+func (x *DeviceSettings) ProtoReflect() protoreflect.Message {
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceSettings.ProtoReflect.Descriptor instead.
+func (*DeviceSettings) Descriptor() ([]byte, []int) {
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *DeviceSettings) GetCoexistHttpPort() uint32 {
+	if x != nil {
+		return x.CoexistHttpPort
+	}
+	return 0
+}
+
+func (x *DeviceSettings) GetCoexistHttpsPort() uint32 {
+	if x != nil {
+		return x.CoexistHttpsPort
+	}
+	return 0
+}
+
+func (x *DeviceSettings) GetProxyGeneration() uint64 {
+	if x != nil {
+		return x.ProxyGeneration
+	}
+	return 0
+}
+
 type ProjectSpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name from workspace.yaml; unique on the device.
@@ -315,7 +387,7 @@ type ProjectSpec struct {
 
 func (x *ProjectSpec) Reset() {
 	*x = ProjectSpec{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[1]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -327,7 +399,7 @@ func (x *ProjectSpec) String() string {
 func (*ProjectSpec) ProtoMessage() {}
 
 func (x *ProjectSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[1]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -340,7 +412,7 @@ func (x *ProjectSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectSpec.ProtoReflect.Descriptor instead.
 func (*ProjectSpec) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{1}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ProjectSpec) GetName() string {
@@ -388,7 +460,7 @@ type EnvironmentSpec struct {
 
 func (x *EnvironmentSpec) Reset() {
 	*x = EnvironmentSpec{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[2]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -400,7 +472,7 @@ func (x *EnvironmentSpec) String() string {
 func (*EnvironmentSpec) ProtoMessage() {}
 
 func (x *EnvironmentSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[2]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -413,7 +485,7 @@ func (x *EnvironmentSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnvironmentSpec.ProtoReflect.Descriptor instead.
 func (*EnvironmentSpec) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{2}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *EnvironmentSpec) GetId() string {
@@ -478,7 +550,7 @@ type StepProgress struct {
 
 func (x *StepProgress) Reset() {
 	*x = StepProgress{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[3]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +562,7 @@ func (x *StepProgress) String() string {
 func (*StepProgress) ProtoMessage() {}
 
 func (x *StepProgress) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[3]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,7 +575,7 @@ func (x *StepProgress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepProgress.ProtoReflect.Descriptor instead.
 func (*StepProgress) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{3}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *StepProgress) GetName() string {
@@ -551,7 +623,7 @@ type NetworkStatus struct {
 
 func (x *NetworkStatus) Reset() {
 	*x = NetworkStatus{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[4]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -563,7 +635,7 @@ func (x *NetworkStatus) String() string {
 func (*NetworkStatus) ProtoMessage() {}
 
 func (x *NetworkStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[4]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -576,7 +648,7 @@ func (x *NetworkStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkStatus.ProtoReflect.Descriptor instead.
 func (*NetworkStatus) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{4}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *NetworkStatus) GetName() string {
@@ -615,7 +687,7 @@ type EnvironmentStatus struct {
 
 func (x *EnvironmentStatus) Reset() {
 	*x = EnvironmentStatus{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[5]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -627,7 +699,7 @@ func (x *EnvironmentStatus) String() string {
 func (*EnvironmentStatus) ProtoMessage() {}
 
 func (x *EnvironmentStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[5]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -640,7 +712,7 @@ func (x *EnvironmentStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnvironmentStatus.ProtoReflect.Descriptor instead.
 func (*EnvironmentStatus) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{5}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *EnvironmentStatus) GetId() string {
@@ -742,7 +814,7 @@ type RuntimeInfo struct {
 
 func (x *RuntimeInfo) Reset() {
 	*x = RuntimeInfo{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[6]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -754,7 +826,7 @@ func (x *RuntimeInfo) String() string {
 func (*RuntimeInfo) ProtoMessage() {}
 
 func (x *RuntimeInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[6]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -767,7 +839,7 @@ func (x *RuntimeInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeInfo.ProtoReflect.Descriptor instead.
 func (*RuntimeInfo) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{6}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RuntimeInfo) GetName() string {
@@ -820,7 +892,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[7]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -832,7 +904,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[7]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -845,7 +917,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{8}
 }
 
 type StatusResponse struct {
@@ -855,13 +927,15 @@ type StatusResponse struct {
 	Runtime         *RuntimeInfo           `protobuf:"bytes,3,opt,name=runtime,proto3" json:"runtime,omitempty"`
 	Projects        []*ProjectSpec         `protobuf:"bytes,4,rep,name=projects,proto3" json:"projects,omitempty"`
 	Environments    []*EnvironmentStatus   `protobuf:"bytes,5,rep,name=environments,proto3" json:"environments,omitempty"`
+	Proxy           *ProxyStatus           `protobuf:"bytes,6,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	Ca              *CAInfo                `protobuf:"bytes,7,opt,name=ca,proto3" json:"ca,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StatusResponse) Reset() {
 	*x = StatusResponse{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -873,7 +947,7 @@ func (x *StatusResponse) String() string {
 func (*StatusResponse) ProtoMessage() {}
 
 func (x *StatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -886,7 +960,7 @@ func (x *StatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
 func (*StatusResponse) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{8}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *StatusResponse) GetAgentVersion() string {
@@ -924,6 +998,597 @@ func (x *StatusResponse) GetEnvironments() []*EnvironmentStatus {
 	return nil
 }
 
+func (x *StatusResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+func (x *StatusResponse) GetCa() *CAInfo {
+	if x != nil {
+		return x.Ca
+	}
+	return nil
+}
+
+type PortConflict struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 127.0.0.1:80, [::1]:443…
+	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Owner   string `protobuf:"bytes,2,opt,name=owner,proto3" json:"owner,omitempty"`
+	Pid     int32  `protobuf:"varint,3,opt,name=pid,proto3" json:"pid,omitempty"`
+	// A dev server that can coexist (nginx, Laravel Herd…) or "runtime".
+	Kind          string `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
+	Hint          string `protobuf:"bytes,5,opt,name=hint,proto3" json:"hint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PortConflict) Reset() {
+	*x = PortConflict{}
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PortConflict) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PortConflict) ProtoMessage() {}
+
+func (x *PortConflict) ProtoReflect() protoreflect.Message {
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PortConflict.ProtoReflect.Descriptor instead.
+func (*PortConflict) Descriptor() ([]byte, []int) {
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *PortConflict) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *PortConflict) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *PortConflict) GetPid() int32 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
+func (x *PortConflict) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *PortConflict) GetHint() string {
+	if x != nil {
+		return x.Hint
+	}
+	return ""
+}
+
+type ProxyStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// absent (no environments), starting, running, error.
+	State string `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	// default, coexist or fallback.
+	Mode      string `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	HttpPort  uint32 `protobuf:"varint,3,opt,name=http_port,json=httpPort,proto3" json:"http_port,omitempty"`
+	HttpsPort uint32 `protobuf:"varint,4,opt,name=https_port,json=httpsPort,proto3" json:"https_port,omitempty"`
+	Error     string `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	// Why the proxy is not on 80/443, or why it cannot start.
+	Conflicts []*PortConflict `protobuf:"bytes,6,rep,name=conflicts,proto3" json:"conflicts,omitempty"`
+	// Envoy holds the xDS stream.
+	Connected     bool   `protobuf:"varint,7,opt,name=connected,proto3" json:"connected,omitempty"`
+	ConfigVersion string `protobuf:"bytes,8,opt,name=config_version,json=configVersion,proto3" json:"config_version,omitempty"`
+	// Envoy's last rejection of the configuration, if any.
+	Rejected         string `protobuf:"bytes,9,opt,name=rejected,proto3" json:"rejected,omitempty"`
+	Container        string `protobuf:"bytes,10,opt,name=container,proto3" json:"container,omitempty"`
+	CoexistHttpPort  uint32 `protobuf:"varint,11,opt,name=coexist_http_port,json=coexistHttpPort,proto3" json:"coexist_http_port,omitempty"`
+	CoexistHttpsPort uint32 `protobuf:"varint,12,opt,name=coexist_https_port,json=coexistHttpsPort,proto3" json:"coexist_https_port,omitempty"`
+	// Loopback addresses the agent relays itself because the runtime does not publish
+	// them (Colima: [::1] for ports above 1024).
+	Relays        []string `protobuf:"bytes,13,rep,name=relays,proto3" json:"relays,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProxyStatus) Reset() {
+	*x = ProxyStatus{}
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProxyStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProxyStatus) ProtoMessage() {}
+
+func (x *ProxyStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProxyStatus.ProtoReflect.Descriptor instead.
+func (*ProxyStatus) Descriptor() ([]byte, []int) {
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ProxyStatus) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ProxyStatus) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *ProxyStatus) GetHttpPort() uint32 {
+	if x != nil {
+		return x.HttpPort
+	}
+	return 0
+}
+
+func (x *ProxyStatus) GetHttpsPort() uint32 {
+	if x != nil {
+		return x.HttpsPort
+	}
+	return 0
+}
+
+func (x *ProxyStatus) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *ProxyStatus) GetConflicts() []*PortConflict {
+	if x != nil {
+		return x.Conflicts
+	}
+	return nil
+}
+
+func (x *ProxyStatus) GetConnected() bool {
+	if x != nil {
+		return x.Connected
+	}
+	return false
+}
+
+func (x *ProxyStatus) GetConfigVersion() string {
+	if x != nil {
+		return x.ConfigVersion
+	}
+	return ""
+}
+
+func (x *ProxyStatus) GetRejected() string {
+	if x != nil {
+		return x.Rejected
+	}
+	return ""
+}
+
+func (x *ProxyStatus) GetContainer() string {
+	if x != nil {
+		return x.Container
+	}
+	return ""
+}
+
+func (x *ProxyStatus) GetCoexistHttpPort() uint32 {
+	if x != nil {
+		return x.CoexistHttpPort
+	}
+	return 0
+}
+
+func (x *ProxyStatus) GetCoexistHttpsPort() uint32 {
+	if x != nil {
+		return x.CoexistHttpsPort
+	}
+	return 0
+}
+
+func (x *ProxyStatus) GetRelays() []string {
+	if x != nil {
+		return x.Relays
+	}
+	return nil
+}
+
+type CAInfo struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The root certificate people add to their trust stores.
+	RootPath string `protobuf:"bytes,1,opt,name=root_path,json=rootPath,proto3" json:"root_path,omitempty"`
+	// SHA-256 of the root, as keychains show it.
+	Fingerprint   string                 `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	NotAfter      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=not_after,json=notAfter,proto3" json:"not_after,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CAInfo) Reset() {
+	*x = CAInfo{}
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CAInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CAInfo) ProtoMessage() {}
+
+func (x *CAInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CAInfo.ProtoReflect.Descriptor instead.
+func (*CAInfo) Descriptor() ([]byte, []int) {
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CAInfo) GetRootPath() string {
+	if x != nil {
+		return x.RootPath
+	}
+	return ""
+}
+
+func (x *CAInfo) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *CAInfo) GetNotAfter() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NotAfter
+	}
+	return nil
+}
+
+type Route struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Host          string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,2,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	Project       string                 `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
+	// Path prefix; "/" for everything.
+	Path string `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	// What serves it: a module, or a page of the proxy until modules run (M4).
+	Target        string `protobuf:"bytes,5,opt,name=target,proto3" json:"target,omitempty"`
+	Url           string `protobuf:"bytes,6,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Route) Reset() {
+	*x = Route{}
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Route) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Route) ProtoMessage() {}
+
+func (x *Route) ProtoReflect() protoreflect.Message {
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Route.ProtoReflect.Descriptor instead.
+func (*Route) Descriptor() ([]byte, []int) {
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *Route) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+func (x *Route) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *Route) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *Route) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *Route) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *Route) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type RoutesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty: every environment.
+	EnvironmentId string `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoutesRequest) Reset() {
+	*x = RoutesRequest{}
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoutesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoutesRequest) ProtoMessage() {}
+
+func (x *RoutesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoutesRequest.ProtoReflect.Descriptor instead.
+func (*RoutesRequest) Descriptor() ([]byte, []int) {
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RoutesRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+type RoutesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Routes        []*Route               `protobuf:"bytes,1,rep,name=routes,proto3" json:"routes,omitempty"`
+	Proxy         *ProxyStatus           `protobuf:"bytes,2,opt,name=proxy,proto3" json:"proxy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoutesResponse) Reset() {
+	*x = RoutesResponse{}
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoutesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoutesResponse) ProtoMessage() {}
+
+func (x *RoutesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoutesResponse.ProtoReflect.Descriptor instead.
+func (*RoutesResponse) Descriptor() ([]byte, []int) {
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *RoutesResponse) GetRoutes() []*Route {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
+func (x *RoutesResponse) GetProxy() *ProxyStatus {
+	if x != nil {
+		return x.Proxy
+	}
+	return nil
+}
+
+type SetProxyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 0 turns coexistence off.
+	CoexistHttpPort  uint32 `protobuf:"varint,1,opt,name=coexist_http_port,json=coexistHttpPort,proto3" json:"coexist_http_port,omitempty"`
+	CoexistHttpsPort uint32 `protobuf:"varint,2,opt,name=coexist_https_port,json=coexistHttpsPort,proto3" json:"coexist_https_port,omitempty"`
+	// Recreate the proxy container: it probes 80/443 again. Changing coexistence
+	// restarts it too, since that is when 80/443 become free.
+	Restart       bool `protobuf:"varint,3,opt,name=restart,proto3" json:"restart,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetProxyRequest) Reset() {
+	*x = SetProxyRequest{}
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetProxyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetProxyRequest) ProtoMessage() {}
+
+func (x *SetProxyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetProxyRequest.ProtoReflect.Descriptor instead.
+func (*SetProxyRequest) Descriptor() ([]byte, []int) {
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *SetProxyRequest) GetCoexistHttpPort() uint32 {
+	if x != nil {
+		return x.CoexistHttpPort
+	}
+	return 0
+}
+
+func (x *SetProxyRequest) GetCoexistHttpsPort() uint32 {
+	if x != nil {
+		return x.CoexistHttpsPort
+	}
+	return 0
+}
+
+func (x *SetProxyRequest) GetRestart() bool {
+	if x != nil {
+		return x.Restart
+	}
+	return false
+}
+
+type SetProxyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Revision      uint64                 `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetProxyResponse) Reset() {
+	*x = SetProxyResponse{}
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetProxyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetProxyResponse) ProtoMessage() {}
+
+func (x *SetProxyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetProxyResponse.ProtoReflect.Descriptor instead.
+func (*SetProxyResponse) Descriptor() ([]byte, []int) {
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *SetProxyResponse) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 type UpRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Absolute path of workspace.yaml.
@@ -935,7 +1600,7 @@ type UpRequest struct {
 
 func (x *UpRequest) Reset() {
 	*x = UpRequest{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -947,7 +1612,7 @@ func (x *UpRequest) String() string {
 func (*UpRequest) ProtoMessage() {}
 
 func (x *UpRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -960,7 +1625,7 @@ func (x *UpRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpRequest.ProtoReflect.Descriptor instead.
 func (*UpRequest) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{9}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpRequest) GetWorkspacePath() string {
@@ -987,7 +1652,7 @@ type UpResponse struct {
 
 func (x *UpResponse) Reset() {
 	*x = UpResponse{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[10]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -999,7 +1664,7 @@ func (x *UpResponse) String() string {
 func (*UpResponse) ProtoMessage() {}
 
 func (x *UpResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[10]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1012,7 +1677,7 @@ func (x *UpResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpResponse.ProtoReflect.Descriptor instead.
 func (*UpResponse) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{10}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *UpResponse) GetEnvironmentId() string {
@@ -1040,7 +1705,7 @@ type DownRequest struct {
 
 func (x *DownRequest) Reset() {
 	*x = DownRequest{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1052,7 +1717,7 @@ func (x *DownRequest) String() string {
 func (*DownRequest) ProtoMessage() {}
 
 func (x *DownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1065,7 +1730,7 @@ func (x *DownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownRequest.ProtoReflect.Descriptor instead.
 func (*DownRequest) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{11}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DownRequest) GetProject() string {
@@ -1091,7 +1756,7 @@ type DownResponse struct {
 
 func (x *DownResponse) Reset() {
 	*x = DownResponse{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1103,7 +1768,7 @@ func (x *DownResponse) String() string {
 func (*DownResponse) ProtoMessage() {}
 
 func (x *DownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1116,7 +1781,7 @@ func (x *DownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownResponse.ProtoReflect.Descriptor instead.
 func (*DownResponse) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{12}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DownResponse) GetRevision() uint64 {
@@ -1136,7 +1801,7 @@ type WatchRequest struct {
 
 func (x *WatchRequest) Reset() {
 	*x = WatchRequest{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1148,7 +1813,7 @@ func (x *WatchRequest) String() string {
 func (*WatchRequest) ProtoMessage() {}
 
 func (x *WatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1161,7 +1826,7 @@ func (x *WatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchRequest.ProtoReflect.Descriptor instead.
 func (*WatchRequest) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{13}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *WatchRequest) GetEnvironmentId() string {
@@ -1183,7 +1848,7 @@ type WatchResponse struct {
 
 func (x *WatchResponse) Reset() {
 	*x = WatchResponse{}
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1195,7 +1860,7 @@ func (x *WatchResponse) String() string {
 func (*WatchResponse) ProtoMessage() {}
 
 func (x *WatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_docklet_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_docklet_agent_v1_agent_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1208,7 +1873,7 @@ func (x *WatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchResponse.ProtoReflect.Descriptor instead.
 func (*WatchResponse) Descriptor() ([]byte, []int) {
-	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{14}
+	return file_docklet_agent_v1_agent_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *WatchResponse) GetStatus() *EnvironmentStatus {
@@ -1229,11 +1894,16 @@ var File_docklet_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_docklet_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x1cdocklet/agent/v1/agent.proto\x12\x10docklet.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xac\x01\n" +
+	"\x1cdocklet/agent/v1/agent.proto\x12\x10docklet.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe6\x01\n" +
 	"\fDesiredState\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x04R\brevision\x129\n" +
 	"\bprojects\x18\x02 \x03(\v2\x1d.docklet.agent.v1.ProjectSpecR\bprojects\x12E\n" +
-	"\fenvironments\x18\x03 \x03(\v2!.docklet.agent.v1.EnvironmentSpecR\fenvironments\"n\n" +
+	"\fenvironments\x18\x03 \x03(\v2!.docklet.agent.v1.EnvironmentSpecR\fenvironments\x128\n" +
+	"\x06device\x18\x04 \x01(\v2 .docklet.agent.v1.DeviceSettingsR\x06device\"\x95\x01\n" +
+	"\x0eDeviceSettings\x12*\n" +
+	"\x11coexist_http_port\x18\x01 \x01(\rR\x0fcoexistHttpPort\x12,\n" +
+	"\x12coexist_https_port\x18\x02 \x01(\rR\x10coexistHttpsPort\x12)\n" +
+	"\x10proxy_generation\x18\x03 \x01(\x04R\x0fproxyGeneration\"n\n" +
 	"\vProjectSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04root\x18\x02 \x01(\tR\x04root\x12\x16\n" +
@@ -1281,13 +1951,59 @@ const file_docklet_agent_v1_agent_proto_rawDesc = "" +
 	"\x02os\x18\x04 \x01(\tR\x02os\x12\x1c\n" +
 	"\treachable\x18\x05 \x01(\bR\treachable\x12\x14\n" +
 	"\x05error\x18\x06 \x01(\tR\x05error\"\x0f\n" +
-	"\rStatusRequest\"\x9d\x02\n" +
+	"\rStatusRequest\"\xfc\x02\n" +
 	"\x0eStatusResponse\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x12)\n" +
 	"\x10desired_revision\x18\x02 \x01(\x04R\x0fdesiredRevision\x127\n" +
 	"\aruntime\x18\x03 \x01(\v2\x1d.docklet.agent.v1.RuntimeInfoR\aruntime\x129\n" +
 	"\bprojects\x18\x04 \x03(\v2\x1d.docklet.agent.v1.ProjectSpecR\bprojects\x12G\n" +
-	"\fenvironments\x18\x05 \x03(\v2#.docklet.agent.v1.EnvironmentStatusR\fenvironments\"J\n" +
+	"\fenvironments\x18\x05 \x03(\v2#.docklet.agent.v1.EnvironmentStatusR\fenvironments\x123\n" +
+	"\x05proxy\x18\x06 \x01(\v2\x1d.docklet.agent.v1.ProxyStatusR\x05proxy\x12(\n" +
+	"\x02ca\x18\a \x01(\v2\x18.docklet.agent.v1.CAInfoR\x02ca\"x\n" +
+	"\fPortConflict\x12\x18\n" +
+	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x14\n" +
+	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x10\n" +
+	"\x03pid\x18\x03 \x01(\x05R\x03pid\x12\x12\n" +
+	"\x04kind\x18\x04 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04hint\x18\x05 \x01(\tR\x04hint\"\xb8\x03\n" +
+	"\vProxyStatus\x12\x14\n" +
+	"\x05state\x18\x01 \x01(\tR\x05state\x12\x12\n" +
+	"\x04mode\x18\x02 \x01(\tR\x04mode\x12\x1b\n" +
+	"\thttp_port\x18\x03 \x01(\rR\bhttpPort\x12\x1d\n" +
+	"\n" +
+	"https_port\x18\x04 \x01(\rR\thttpsPort\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x12<\n" +
+	"\tconflicts\x18\x06 \x03(\v2\x1e.docklet.agent.v1.PortConflictR\tconflicts\x12\x1c\n" +
+	"\tconnected\x18\a \x01(\bR\tconnected\x12%\n" +
+	"\x0econfig_version\x18\b \x01(\tR\rconfigVersion\x12\x1a\n" +
+	"\brejected\x18\t \x01(\tR\brejected\x12\x1c\n" +
+	"\tcontainer\x18\n" +
+	" \x01(\tR\tcontainer\x12*\n" +
+	"\x11coexist_http_port\x18\v \x01(\rR\x0fcoexistHttpPort\x12,\n" +
+	"\x12coexist_https_port\x18\f \x01(\rR\x10coexistHttpsPort\x12\x16\n" +
+	"\x06relays\x18\r \x03(\tR\x06relays\"\x80\x01\n" +
+	"\x06CAInfo\x12\x1b\n" +
+	"\troot_path\x18\x01 \x01(\tR\brootPath\x12 \n" +
+	"\vfingerprint\x18\x02 \x01(\tR\vfingerprint\x127\n" +
+	"\tnot_after\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bnotAfter\"\x9a\x01\n" +
+	"\x05Route\x12\x12\n" +
+	"\x04host\x18\x01 \x01(\tR\x04host\x12%\n" +
+	"\x0eenvironment_id\x18\x02 \x01(\tR\renvironmentId\x12\x18\n" +
+	"\aproject\x18\x03 \x01(\tR\aproject\x12\x12\n" +
+	"\x04path\x18\x04 \x01(\tR\x04path\x12\x16\n" +
+	"\x06target\x18\x05 \x01(\tR\x06target\x12\x10\n" +
+	"\x03url\x18\x06 \x01(\tR\x03url\"6\n" +
+	"\rRoutesRequest\x12%\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"v\n" +
+	"\x0eRoutesResponse\x12/\n" +
+	"\x06routes\x18\x01 \x03(\v2\x17.docklet.agent.v1.RouteR\x06routes\x123\n" +
+	"\x05proxy\x18\x02 \x01(\v2\x1d.docklet.agent.v1.ProxyStatusR\x05proxy\"\x85\x01\n" +
+	"\x0fSetProxyRequest\x12*\n" +
+	"\x11coexist_http_port\x18\x01 \x01(\rR\x0fcoexistHttpPort\x12,\n" +
+	"\x12coexist_https_port\x18\x02 \x01(\rR\x10coexistHttpsPort\x12\x18\n" +
+	"\arestart\x18\x03 \x01(\bR\arestart\".\n" +
+	"\x10SetProxyResponse\x12\x1a\n" +
+	"\brevision\x18\x01 \x01(\x04R\brevision\"J\n" +
 	"\tUpRequest\x12%\n" +
 	"\x0eworkspace_path\x18\x01 \x01(\tR\rworkspacePath\x12\x16\n" +
 	"\x06config\x18\x02 \x01(\fR\x06config\"O\n" +
@@ -1325,12 +2041,14 @@ const file_docklet_agent_v1_agent_proto_rawDesc = "" +
 	"\x12STEP_STATE_PENDING\x10\x01\x12\x16\n" +
 	"\x12STEP_STATE_RUNNING\x10\x02\x12\x13\n" +
 	"\x0fSTEP_STATE_DONE\x10\x03\x12\x15\n" +
-	"\x11STEP_STATE_FAILED\x10\x042\xaf\x02\n" +
+	"\x11STEP_STATE_FAILED\x10\x042\xcf\x03\n" +
 	"\fAgentService\x12K\n" +
 	"\x06Status\x12\x1f.docklet.agent.v1.StatusRequest\x1a .docklet.agent.v1.StatusResponse\x12?\n" +
 	"\x02Up\x12\x1b.docklet.agent.v1.UpRequest\x1a\x1c.docklet.agent.v1.UpResponse\x12E\n" +
 	"\x04Down\x12\x1d.docklet.agent.v1.DownRequest\x1a\x1e.docklet.agent.v1.DownResponse\x12J\n" +
-	"\x05Watch\x12\x1e.docklet.agent.v1.WatchRequest\x1a\x1f.docklet.agent.v1.WatchResponse0\x01B\xbd\x01\n" +
+	"\x05Watch\x12\x1e.docklet.agent.v1.WatchRequest\x1a\x1f.docklet.agent.v1.WatchResponse0\x01\x12K\n" +
+	"\x06Routes\x12\x1f.docklet.agent.v1.RoutesRequest\x1a .docklet.agent.v1.RoutesResponse\x12Q\n" +
+	"\bSetProxy\x12!.docklet.agent.v1.SetProxyRequest\x1a\".docklet.agent.v1.SetProxyResponseB\xbd\x01\n" +
 	"\x14com.docklet.agent.v1B\n" +
 	"AgentProtoP\x01Z7github.com/docklet/docklet/gen/docklet/agent/v1;agentv1\xa2\x02\x03DAX\xaa\x02\x10Docklet.Agent.V1\xca\x02\x10Docklet\\Agent\\V1\xe2\x02\x1cDocklet\\Agent\\V1\\GPBMetadata\xea\x02\x12Docklet::Agent::V1b\x06proto3"
 
@@ -1347,59 +2065,79 @@ func file_docklet_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_docklet_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_docklet_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_docklet_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_docklet_agent_v1_agent_proto_goTypes = []any{
 	(EnvironmentKind)(0),          // 0: docklet.agent.v1.EnvironmentKind
 	(DesiredPhase)(0),             // 1: docklet.agent.v1.DesiredPhase
 	(Phase)(0),                    // 2: docklet.agent.v1.Phase
 	(StepState)(0),                // 3: docklet.agent.v1.StepState
 	(*DesiredState)(nil),          // 4: docklet.agent.v1.DesiredState
-	(*ProjectSpec)(nil),           // 5: docklet.agent.v1.ProjectSpec
-	(*EnvironmentSpec)(nil),       // 6: docklet.agent.v1.EnvironmentSpec
-	(*StepProgress)(nil),          // 7: docklet.agent.v1.StepProgress
-	(*NetworkStatus)(nil),         // 8: docklet.agent.v1.NetworkStatus
-	(*EnvironmentStatus)(nil),     // 9: docklet.agent.v1.EnvironmentStatus
-	(*RuntimeInfo)(nil),           // 10: docklet.agent.v1.RuntimeInfo
-	(*StatusRequest)(nil),         // 11: docklet.agent.v1.StatusRequest
-	(*StatusResponse)(nil),        // 12: docklet.agent.v1.StatusResponse
-	(*UpRequest)(nil),             // 13: docklet.agent.v1.UpRequest
-	(*UpResponse)(nil),            // 14: docklet.agent.v1.UpResponse
-	(*DownRequest)(nil),           // 15: docklet.agent.v1.DownRequest
-	(*DownResponse)(nil),          // 16: docklet.agent.v1.DownResponse
-	(*WatchRequest)(nil),          // 17: docklet.agent.v1.WatchRequest
-	(*WatchResponse)(nil),         // 18: docklet.agent.v1.WatchResponse
-	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
+	(*DeviceSettings)(nil),        // 5: docklet.agent.v1.DeviceSettings
+	(*ProjectSpec)(nil),           // 6: docklet.agent.v1.ProjectSpec
+	(*EnvironmentSpec)(nil),       // 7: docklet.agent.v1.EnvironmentSpec
+	(*StepProgress)(nil),          // 8: docklet.agent.v1.StepProgress
+	(*NetworkStatus)(nil),         // 9: docklet.agent.v1.NetworkStatus
+	(*EnvironmentStatus)(nil),     // 10: docklet.agent.v1.EnvironmentStatus
+	(*RuntimeInfo)(nil),           // 11: docklet.agent.v1.RuntimeInfo
+	(*StatusRequest)(nil),         // 12: docklet.agent.v1.StatusRequest
+	(*StatusResponse)(nil),        // 13: docklet.agent.v1.StatusResponse
+	(*PortConflict)(nil),          // 14: docklet.agent.v1.PortConflict
+	(*ProxyStatus)(nil),           // 15: docklet.agent.v1.ProxyStatus
+	(*CAInfo)(nil),                // 16: docklet.agent.v1.CAInfo
+	(*Route)(nil),                 // 17: docklet.agent.v1.Route
+	(*RoutesRequest)(nil),         // 18: docklet.agent.v1.RoutesRequest
+	(*RoutesResponse)(nil),        // 19: docklet.agent.v1.RoutesResponse
+	(*SetProxyRequest)(nil),       // 20: docklet.agent.v1.SetProxyRequest
+	(*SetProxyResponse)(nil),      // 21: docklet.agent.v1.SetProxyResponse
+	(*UpRequest)(nil),             // 22: docklet.agent.v1.UpRequest
+	(*UpResponse)(nil),            // 23: docklet.agent.v1.UpResponse
+	(*DownRequest)(nil),           // 24: docklet.agent.v1.DownRequest
+	(*DownResponse)(nil),          // 25: docklet.agent.v1.DownResponse
+	(*WatchRequest)(nil),          // 26: docklet.agent.v1.WatchRequest
+	(*WatchResponse)(nil),         // 27: docklet.agent.v1.WatchResponse
+	(*timestamppb.Timestamp)(nil), // 28: google.protobuf.Timestamp
 }
 var file_docklet_agent_v1_agent_proto_depIdxs = []int32{
-	5,  // 0: docklet.agent.v1.DesiredState.projects:type_name -> docklet.agent.v1.ProjectSpec
-	6,  // 1: docklet.agent.v1.DesiredState.environments:type_name -> docklet.agent.v1.EnvironmentSpec
-	0,  // 2: docklet.agent.v1.EnvironmentSpec.kind:type_name -> docklet.agent.v1.EnvironmentKind
-	1,  // 3: docklet.agent.v1.EnvironmentSpec.phase:type_name -> docklet.agent.v1.DesiredPhase
-	3,  // 4: docklet.agent.v1.StepProgress.state:type_name -> docklet.agent.v1.StepState
-	19, // 5: docklet.agent.v1.StepProgress.started_at:type_name -> google.protobuf.Timestamp
-	19, // 6: docklet.agent.v1.StepProgress.finished_at:type_name -> google.protobuf.Timestamp
-	0,  // 7: docklet.agent.v1.EnvironmentStatus.kind:type_name -> docklet.agent.v1.EnvironmentKind
-	2,  // 8: docklet.agent.v1.EnvironmentStatus.phase:type_name -> docklet.agent.v1.Phase
-	7,  // 9: docklet.agent.v1.EnvironmentStatus.steps:type_name -> docklet.agent.v1.StepProgress
-	8,  // 10: docklet.agent.v1.EnvironmentStatus.network:type_name -> docklet.agent.v1.NetworkStatus
-	19, // 11: docklet.agent.v1.EnvironmentStatus.updated_at:type_name -> google.protobuf.Timestamp
-	10, // 12: docklet.agent.v1.StatusResponse.runtime:type_name -> docklet.agent.v1.RuntimeInfo
-	5,  // 13: docklet.agent.v1.StatusResponse.projects:type_name -> docklet.agent.v1.ProjectSpec
-	9,  // 14: docklet.agent.v1.StatusResponse.environments:type_name -> docklet.agent.v1.EnvironmentStatus
-	9,  // 15: docklet.agent.v1.WatchResponse.status:type_name -> docklet.agent.v1.EnvironmentStatus
-	11, // 16: docklet.agent.v1.AgentService.Status:input_type -> docklet.agent.v1.StatusRequest
-	13, // 17: docklet.agent.v1.AgentService.Up:input_type -> docklet.agent.v1.UpRequest
-	15, // 18: docklet.agent.v1.AgentService.Down:input_type -> docklet.agent.v1.DownRequest
-	17, // 19: docklet.agent.v1.AgentService.Watch:input_type -> docklet.agent.v1.WatchRequest
-	12, // 20: docklet.agent.v1.AgentService.Status:output_type -> docklet.agent.v1.StatusResponse
-	14, // 21: docklet.agent.v1.AgentService.Up:output_type -> docklet.agent.v1.UpResponse
-	16, // 22: docklet.agent.v1.AgentService.Down:output_type -> docklet.agent.v1.DownResponse
-	18, // 23: docklet.agent.v1.AgentService.Watch:output_type -> docklet.agent.v1.WatchResponse
-	20, // [20:24] is the sub-list for method output_type
-	16, // [16:20] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	6,  // 0: docklet.agent.v1.DesiredState.projects:type_name -> docklet.agent.v1.ProjectSpec
+	7,  // 1: docklet.agent.v1.DesiredState.environments:type_name -> docklet.agent.v1.EnvironmentSpec
+	5,  // 2: docklet.agent.v1.DesiredState.device:type_name -> docklet.agent.v1.DeviceSettings
+	0,  // 3: docklet.agent.v1.EnvironmentSpec.kind:type_name -> docklet.agent.v1.EnvironmentKind
+	1,  // 4: docklet.agent.v1.EnvironmentSpec.phase:type_name -> docklet.agent.v1.DesiredPhase
+	3,  // 5: docklet.agent.v1.StepProgress.state:type_name -> docklet.agent.v1.StepState
+	28, // 6: docklet.agent.v1.StepProgress.started_at:type_name -> google.protobuf.Timestamp
+	28, // 7: docklet.agent.v1.StepProgress.finished_at:type_name -> google.protobuf.Timestamp
+	0,  // 8: docklet.agent.v1.EnvironmentStatus.kind:type_name -> docklet.agent.v1.EnvironmentKind
+	2,  // 9: docklet.agent.v1.EnvironmentStatus.phase:type_name -> docklet.agent.v1.Phase
+	8,  // 10: docklet.agent.v1.EnvironmentStatus.steps:type_name -> docklet.agent.v1.StepProgress
+	9,  // 11: docklet.agent.v1.EnvironmentStatus.network:type_name -> docklet.agent.v1.NetworkStatus
+	28, // 12: docklet.agent.v1.EnvironmentStatus.updated_at:type_name -> google.protobuf.Timestamp
+	11, // 13: docklet.agent.v1.StatusResponse.runtime:type_name -> docklet.agent.v1.RuntimeInfo
+	6,  // 14: docklet.agent.v1.StatusResponse.projects:type_name -> docklet.agent.v1.ProjectSpec
+	10, // 15: docklet.agent.v1.StatusResponse.environments:type_name -> docklet.agent.v1.EnvironmentStatus
+	15, // 16: docklet.agent.v1.StatusResponse.proxy:type_name -> docklet.agent.v1.ProxyStatus
+	16, // 17: docklet.agent.v1.StatusResponse.ca:type_name -> docklet.agent.v1.CAInfo
+	14, // 18: docklet.agent.v1.ProxyStatus.conflicts:type_name -> docklet.agent.v1.PortConflict
+	28, // 19: docklet.agent.v1.CAInfo.not_after:type_name -> google.protobuf.Timestamp
+	17, // 20: docklet.agent.v1.RoutesResponse.routes:type_name -> docklet.agent.v1.Route
+	15, // 21: docklet.agent.v1.RoutesResponse.proxy:type_name -> docklet.agent.v1.ProxyStatus
+	10, // 22: docklet.agent.v1.WatchResponse.status:type_name -> docklet.agent.v1.EnvironmentStatus
+	12, // 23: docklet.agent.v1.AgentService.Status:input_type -> docklet.agent.v1.StatusRequest
+	22, // 24: docklet.agent.v1.AgentService.Up:input_type -> docklet.agent.v1.UpRequest
+	24, // 25: docklet.agent.v1.AgentService.Down:input_type -> docklet.agent.v1.DownRequest
+	26, // 26: docklet.agent.v1.AgentService.Watch:input_type -> docklet.agent.v1.WatchRequest
+	18, // 27: docklet.agent.v1.AgentService.Routes:input_type -> docklet.agent.v1.RoutesRequest
+	20, // 28: docklet.agent.v1.AgentService.SetProxy:input_type -> docklet.agent.v1.SetProxyRequest
+	13, // 29: docklet.agent.v1.AgentService.Status:output_type -> docklet.agent.v1.StatusResponse
+	23, // 30: docklet.agent.v1.AgentService.Up:output_type -> docklet.agent.v1.UpResponse
+	25, // 31: docklet.agent.v1.AgentService.Down:output_type -> docklet.agent.v1.DownResponse
+	27, // 32: docklet.agent.v1.AgentService.Watch:output_type -> docklet.agent.v1.WatchResponse
+	19, // 33: docklet.agent.v1.AgentService.Routes:output_type -> docklet.agent.v1.RoutesResponse
+	21, // 34: docklet.agent.v1.AgentService.SetProxy:output_type -> docklet.agent.v1.SetProxyResponse
+	29, // [29:35] is the sub-list for method output_type
+	23, // [23:29] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_docklet_agent_v1_agent_proto_init() }
@@ -1413,7 +2151,7 @@ func file_docklet_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_docklet_agent_v1_agent_proto_rawDesc), len(file_docklet_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   15,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

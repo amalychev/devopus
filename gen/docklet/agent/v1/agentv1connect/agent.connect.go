@@ -45,6 +45,10 @@ const (
 	AgentServiceDownProcedure = "/docklet.agent.v1.AgentService/Down"
 	// AgentServiceWatchProcedure is the fully-qualified name of the AgentService's Watch RPC.
 	AgentServiceWatchProcedure = "/docklet.agent.v1.AgentService/Watch"
+	// AgentServiceRoutesProcedure is the fully-qualified name of the AgentService's Routes RPC.
+	AgentServiceRoutesProcedure = "/docklet.agent.v1.AgentService/Routes"
+	// AgentServiceSetProxyProcedure is the fully-qualified name of the AgentService's SetProxy RPC.
+	AgentServiceSetProxyProcedure = "/docklet.agent.v1.AgentService/SetProxy"
 )
 
 // AgentServiceClient is a client for the docklet.agent.v1.AgentService service.
@@ -57,6 +61,10 @@ type AgentServiceClient interface {
 	Down(context.Context, *connect.Request[v1.DownRequest]) (*connect.Response[v1.DownResponse], error)
 	// Watch streams environment status: the current status first, then every change.
 	Watch(context.Context, *connect.Request[v1.WatchRequest]) (*connect.ServerStreamForClient[v1.WatchResponse], error)
+	// Routes is the proxy's routing table.
+	Routes(context.Context, *connect.Request[v1.RoutesRequest]) (*connect.Response[v1.RoutesResponse], error)
+	// SetProxy changes the device's proxy settings: coexistence with a dev server, restart.
+	SetProxy(context.Context, *connect.Request[v1.SetProxyRequest]) (*connect.Response[v1.SetProxyResponse], error)
 }
 
 // NewAgentServiceClient constructs a client for the docklet.agent.v1.AgentService service. By
@@ -94,15 +102,29 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(agentServiceMethods.ByName("Watch")),
 			connect.WithClientOptions(opts...),
 		),
+		routes: connect.NewClient[v1.RoutesRequest, v1.RoutesResponse](
+			httpClient,
+			baseURL+AgentServiceRoutesProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("Routes")),
+			connect.WithClientOptions(opts...),
+		),
+		setProxy: connect.NewClient[v1.SetProxyRequest, v1.SetProxyResponse](
+			httpClient,
+			baseURL+AgentServiceSetProxyProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("SetProxy")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // agentServiceClient implements AgentServiceClient.
 type agentServiceClient struct {
-	status *connect.Client[v1.StatusRequest, v1.StatusResponse]
-	up     *connect.Client[v1.UpRequest, v1.UpResponse]
-	down   *connect.Client[v1.DownRequest, v1.DownResponse]
-	watch  *connect.Client[v1.WatchRequest, v1.WatchResponse]
+	status   *connect.Client[v1.StatusRequest, v1.StatusResponse]
+	up       *connect.Client[v1.UpRequest, v1.UpResponse]
+	down     *connect.Client[v1.DownRequest, v1.DownResponse]
+	watch    *connect.Client[v1.WatchRequest, v1.WatchResponse]
+	routes   *connect.Client[v1.RoutesRequest, v1.RoutesResponse]
+	setProxy *connect.Client[v1.SetProxyRequest, v1.SetProxyResponse]
 }
 
 // Status calls docklet.agent.v1.AgentService.Status.
@@ -125,6 +147,16 @@ func (c *agentServiceClient) Watch(ctx context.Context, req *connect.Request[v1.
 	return c.watch.CallServerStream(ctx, req)
 }
 
+// Routes calls docklet.agent.v1.AgentService.Routes.
+func (c *agentServiceClient) Routes(ctx context.Context, req *connect.Request[v1.RoutesRequest]) (*connect.Response[v1.RoutesResponse], error) {
+	return c.routes.CallUnary(ctx, req)
+}
+
+// SetProxy calls docklet.agent.v1.AgentService.SetProxy.
+func (c *agentServiceClient) SetProxy(ctx context.Context, req *connect.Request[v1.SetProxyRequest]) (*connect.Response[v1.SetProxyResponse], error) {
+	return c.setProxy.CallUnary(ctx, req)
+}
+
 // AgentServiceHandler is an implementation of the docklet.agent.v1.AgentService service.
 type AgentServiceHandler interface {
 	// Status reports the agent, the container runtime and every environment.
@@ -135,6 +167,10 @@ type AgentServiceHandler interface {
 	Down(context.Context, *connect.Request[v1.DownRequest]) (*connect.Response[v1.DownResponse], error)
 	// Watch streams environment status: the current status first, then every change.
 	Watch(context.Context, *connect.Request[v1.WatchRequest], *connect.ServerStream[v1.WatchResponse]) error
+	// Routes is the proxy's routing table.
+	Routes(context.Context, *connect.Request[v1.RoutesRequest]) (*connect.Response[v1.RoutesResponse], error)
+	// SetProxy changes the device's proxy settings: coexistence with a dev server, restart.
+	SetProxy(context.Context, *connect.Request[v1.SetProxyRequest]) (*connect.Response[v1.SetProxyResponse], error)
 }
 
 // NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -168,6 +204,18 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(agentServiceMethods.ByName("Watch")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentServiceRoutesHandler := connect.NewUnaryHandler(
+		AgentServiceRoutesProcedure,
+		svc.Routes,
+		connect.WithSchema(agentServiceMethods.ByName("Routes")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServiceSetProxyHandler := connect.NewUnaryHandler(
+		AgentServiceSetProxyProcedure,
+		svc.SetProxy,
+		connect.WithSchema(agentServiceMethods.ByName("SetProxy")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/docklet.agent.v1.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentServiceStatusProcedure:
@@ -178,6 +226,10 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 			agentServiceDownHandler.ServeHTTP(w, r)
 		case AgentServiceWatchProcedure:
 			agentServiceWatchHandler.ServeHTTP(w, r)
+		case AgentServiceRoutesProcedure:
+			agentServiceRoutesHandler.ServeHTTP(w, r)
+		case AgentServiceSetProxyProcedure:
+			agentServiceSetProxyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -201,4 +253,12 @@ func (UnimplementedAgentServiceHandler) Down(context.Context, *connect.Request[v
 
 func (UnimplementedAgentServiceHandler) Watch(context.Context, *connect.Request[v1.WatchRequest], *connect.ServerStream[v1.WatchResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("docklet.agent.v1.AgentService.Watch is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) Routes(context.Context, *connect.Request[v1.RoutesRequest]) (*connect.Response[v1.RoutesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("docklet.agent.v1.AgentService.Routes is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) SetProxy(context.Context, *connect.Request[v1.SetProxyRequest]) (*connect.Response[v1.SetProxyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("docklet.agent.v1.AgentService.SetProxy is not implemented"))
 }

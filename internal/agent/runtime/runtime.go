@@ -159,10 +159,17 @@ func (d *Docker) Networks(ctx context.Context) ([]Network, error) {
 // ErrSubnetTaken means the runtime refused the subnet: something else uses it.
 var ErrSubnetTaken = errors.New("subnet overlaps an existing network")
 
+// CreateNetwork creates a bridge network. Docker hands out addresses only from the
+// lower half of the subnet; the upper half is for the fixed addresses the agent
+// assigns (the proxy, the DNS server, modules that must keep their IP across restarts).
 func (d *Docker) CreateNetwork(ctx context.Context, name string, subnet netip.Prefix, labels map[string]string) (string, error) {
+	ipam := network.IPAMConfig{Subnet: subnet}
+	if subnet.Addr().Is4() && subnet.Bits() < 31 {
+		ipam.IPRange = netip.PrefixFrom(subnet.Masked().Addr(), subnet.Bits()+1)
+	}
 	res, err := d.cli.NetworkCreate(ctx, name, client.NetworkCreateOptions{
 		Driver: "bridge",
-		IPAM:   &network.IPAM{Config: []network.IPAMConfig{{Subnet: subnet}}},
+		IPAM:   &network.IPAM{Config: []network.IPAMConfig{ipam}},
 		Labels: labels,
 	})
 	if err != nil {

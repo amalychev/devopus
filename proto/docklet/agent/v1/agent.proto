@@ -16,6 +16,10 @@ service AgentService {
   rpc Down(DownRequest) returns (DownResponse);
   // Watch streams environment status: the current status first, then every change.
   rpc Watch(WatchRequest) returns (stream WatchResponse);
+  // Routes is the proxy's routing table.
+  rpc Routes(RoutesRequest) returns (RoutesResponse);
+  // SetProxy changes the device's proxy settings: coexistence with a dev server, restart.
+  rpc SetProxy(SetProxyRequest) returns (SetProxyResponse);
 }
 
 // DesiredState is what must exist on this device. Revision grows with every change.
@@ -23,6 +27,17 @@ message DesiredState {
   uint64 revision = 1;
   repeated ProjectSpec projects = 2;
   repeated EnvironmentSpec environments = 3;
+  DeviceSettings device = 4;
+}
+
+// DeviceSettings are per device, not per project.
+message DeviceSettings {
+  // Coexistence (local-networking.md §1): a dev server moved off 80/443 to these host
+  // ports gets every host Docklet does not serve. 0: off.
+  uint32 coexist_http_port = 1;
+  uint32 coexist_https_port = 2;
+  // Bumping it recreates the proxy container, which probes the ports again.
+  uint64 proxy_generation = 3;
 }
 
 message ProjectSpec {
@@ -126,6 +141,83 @@ message StatusResponse {
   RuntimeInfo runtime = 3;
   repeated ProjectSpec projects = 4;
   repeated EnvironmentStatus environments = 5;
+  ProxyStatus proxy = 6;
+  CAInfo ca = 7;
+}
+
+message PortConflict {
+  // 127.0.0.1:80, [::1]:443…
+  string address = 1;
+  string owner = 2;
+  int32 pid = 3;
+  // A dev server that can coexist (nginx, Laravel Herd…) or "runtime".
+  string kind = 4;
+  string hint = 5;
+}
+
+message ProxyStatus {
+  // absent (no environments), starting, running, error.
+  string state = 1;
+  // default, coexist or fallback.
+  string mode = 2;
+  uint32 http_port = 3;
+  uint32 https_port = 4;
+  string error = 5;
+  // Why the proxy is not on 80/443, or why it cannot start.
+  repeated PortConflict conflicts = 6;
+  // Envoy holds the xDS stream.
+  bool connected = 7;
+  string config_version = 8;
+  // Envoy's last rejection of the configuration, if any.
+  string rejected = 9;
+  string container = 10;
+  uint32 coexist_http_port = 11;
+  uint32 coexist_https_port = 12;
+  // Loopback addresses the agent relays itself because the runtime does not publish
+  // them (Colima: [::1] for ports above 1024).
+  repeated string relays = 13;
+}
+
+message CAInfo {
+  // The root certificate people add to their trust stores.
+  string root_path = 1;
+  // SHA-256 of the root, as keychains show it.
+  string fingerprint = 2;
+  google.protobuf.Timestamp not_after = 3;
+}
+
+message Route {
+  string host = 1;
+  string environment_id = 2;
+  string project = 3;
+  // Path prefix; "/" for everything.
+  string path = 4;
+  // What serves it: a module, or a page of the proxy until modules run (M4).
+  string target = 5;
+  string url = 6;
+}
+
+message RoutesRequest {
+  // Empty: every environment.
+  string environment_id = 1;
+}
+
+message RoutesResponse {
+  repeated Route routes = 1;
+  ProxyStatus proxy = 2;
+}
+
+message SetProxyRequest {
+  // 0 turns coexistence off.
+  uint32 coexist_http_port = 1;
+  uint32 coexist_https_port = 2;
+  // Recreate the proxy container: it probes 80/443 again. Changing coexistence
+  // restarts it too, since that is when 80/443 become free.
+  bool restart = 3;
+}
+
+message SetProxyResponse {
+  uint64 revision = 1;
 }
 
 message UpRequest {

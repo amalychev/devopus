@@ -24,6 +24,8 @@ import (
 	"github.com/docklet/docklet/internal/agent"
 	"github.com/docklet/docklet/internal/agent/client"
 	"github.com/docklet/docklet/internal/agent/paths"
+	"github.com/docklet/docklet/internal/agent/pki"
+	"github.com/docklet/docklet/internal/trust"
 )
 
 func (a *app) agentCmd() *cobra.Command {
@@ -103,13 +105,15 @@ func (a *app) printStatus(s *agentv1.StatusResponse) {
 		}
 		fmt.Fprintf(a.stdout, "Runtime  %s — %s\n", rt.Name, msg)
 	}
+	a.printProxy(s.Proxy)
+	a.printCA(s.Ca)
 	if len(s.Projects) == 0 {
 		fmt.Fprintln(a.stdout, "\nNo projects. Run 'docklet up' in a folder with workspace.yaml.")
 		return
 	}
 	fmt.Fprintln(a.stdout)
 	w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "PROJECT\tENV\tKIND\tPHASE\tNETWORK\tROOT")
+	fmt.Fprintln(w, "PROJECT\tENV\tKIND\tPHASE\tURL\tNETWORK")
 	byProject := map[string][]*agentv1.EnvironmentStatus{}
 	for _, e := range s.Environments {
 		byProject[e.Project] = append(byProject[e.Project], e)
@@ -117,7 +121,7 @@ func (a *app) printStatus(s *agentv1.StatusResponse) {
 	for _, p := range s.Projects {
 		envs := byProject[p.Name]
 		if len(envs) == 0 {
-			fmt.Fprintf(w, "%s\t-\t-\tpending\t-\t%s\n", p.Name, p.Root)
+			fmt.Fprintf(w, "%s\t-\t-\tpending\t-\t-\n", p.Name)
 		}
 		for _, e := range envs {
 			net := "-"
@@ -128,10 +132,39 @@ func (a *app) printStatus(s *agentv1.StatusResponse) {
 			if e.Error != "" {
 				phase += ": " + e.Error
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", p.Name, e.Id, kindName(e.Kind), phase, net, p.Root)
+			url := e.Url
+			if url == "" {
+				url = "-"
+			}
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", p.Name, e.Id, kindName(e.Kind), phase, url, net)
 		}
 	}
 	w.Flush()
+}
+
+// printCA shows where the local CA is and whether this machine trusts it.
+func (a *app) printCA(ca *agentv1.CAInfo) {
+	if ca.GetRootPath() == "" {
+		return
+	}
+	state := "trusted"
+	if loaded, err := pki.LoadCA(filepath.Dir(ca.RootPath)); err != nil {
+		state = err.Error()
+	} else if ok, err := trust.Trusted(loaded); err != nil || !ok {
+		state = "not trusted: 'docklet doctor --fix'"
+	}
+	fmt.Fprintf(a.stdout, "CA       %s · %s\n", ca.RootPath, state)
+}
+
+// trustHint tells people why the browser warns, once per command.
+func (a *app) trustHint() {
+	ca, err := pki.LoadCA(paths.CA())
+	if err != nil {
+		return
+	}
+	if ok, err := trust.Trusted(ca); err == nil && !ok {
+		fmt.Fprintln(a.stderr, "Browsers will warn about the certificate until you trust the local CA: docklet doctor --fix")
+	}
 }
 
 func (a *app) upCmd() *cobra.Command {
@@ -188,7 +221,8 @@ func (a *app) upCmd() *cobra.Command {
 			if a.json {
 				return a.writeProto(final[envID])
 			}
-			fmt.Fprintf(a.stdout, "%s is up: environment %s.\n", res.Workspace.Project, envID)
+			fmt.Fprintf(a.stdout, "%s is up: %s (environment %s)\n", res.Workspace.Project, final[envID].Url, envID)
+			a.trustHint()
 			return nil
 		},
 	}

@@ -23,6 +23,9 @@ type Backend interface {
 	Statuses() []*agentv1.EnvironmentStatus
 	Runtime() *agentv1.RuntimeInfo
 	Version() string
+	Proxy() *agentv1.ProxyStatus
+	Routes() []*agentv1.Route
+	CA() *agentv1.CAInfo
 }
 
 type Server struct {
@@ -46,7 +49,39 @@ func (s *Server) Status(context.Context, *connect.Request[agentv1.StatusRequest]
 		Runtime:         s.b.Runtime(),
 		Projects:        projects,
 		Environments:    s.b.Statuses(),
+		Proxy:           s.b.Proxy(),
+		Ca:              s.b.CA(),
 	}), nil
+}
+
+func (s *Server) Routes(_ context.Context, req *connect.Request[agentv1.RoutesRequest]) (*connect.Response[agentv1.RoutesResponse], error) {
+	var out []*agentv1.Route
+	for _, r := range s.b.Routes() {
+		if req.Msg.EnvironmentId == "" || r.EnvironmentId == req.Msg.EnvironmentId {
+			out = append(out, r)
+		}
+	}
+	return connect.NewResponse(&agentv1.RoutesResponse{Routes: out, Proxy: s.b.Proxy()}), nil
+}
+
+func (s *Server) SetProxy(_ context.Context, req *connect.Request[agentv1.SetProxyRequest]) (*connect.Response[agentv1.SetProxyResponse], error) {
+	m := req.Msg
+	for _, p := range []uint32{m.CoexistHttpPort, m.CoexistHttpsPort} {
+		if p > 65535 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("port %d is out of range", p))
+		}
+		if p == 80 || p == 443 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("the dev server must move off 80/443 for Docklet to take them; pick other ports such as 8080 and 8443"))
+		}
+	}
+	if m.CoexistHttpPort == 0 && m.CoexistHttpsPort != 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("coexistence needs the HTTP port too"))
+	}
+	rev, err := s.b.Store().SetProxy(m.CoexistHttpPort, m.CoexistHttpsPort, m.Restart)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&agentv1.SetProxyResponse{Revision: rev}), nil
 }
 
 func (s *Server) Up(_ context.Context, req *connect.Request[agentv1.UpRequest]) (*connect.Response[agentv1.UpResponse], error) {

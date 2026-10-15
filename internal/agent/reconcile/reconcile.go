@@ -16,7 +16,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	agentv1 "github.com/docklet/docklet/gen/docklet/agent/v1"
+	"github.com/docklet/docklet/internal/agent/pki"
+	"github.com/docklet/docklet/internal/agent/proxy"
 	"github.com/docklet/docklet/internal/agent/runtime"
+	"github.com/docklet/docklet/internal/workspace"
 )
 
 // Runtime is the part of the container runtime the reconciler uses.
@@ -24,28 +27,70 @@ type Runtime interface {
 	Networks(ctx context.Context) ([]runtime.Network, error)
 	CreateNetwork(ctx context.Context, name string, subnet netip.Prefix, labels map[string]string) (string, error)
 	RemoveNetwork(ctx context.Context, id string) error
+	Containers(ctx context.Context, instance string) ([]runtime.Container, error)
+	EnsureImage(ctx context.Context, ref string) error
+	CreateContainer(ctx context.Context, spec runtime.ContainerSpec) (string, error)
+	StartContainer(ctx context.Context, id string) error
+	RemoveContainer(ctx context.Context, id string) error
+	ConnectNetwork(ctx context.Context, networkID, containerID string, ip netip.Addr) error
+	DisconnectNetwork(ctx context.Context, networkID, containerID string) error
+	ContainerLogs(ctx context.Context, id string, lines int) string
+}
+
+// XDS is the configuration server Envoy follows.
+type XDS interface {
+	Set(ctx context.Context, cfg proxy.Config) (string, error)
+	State() proxy.XDSState
+	Port() int
 }
 
 // Pool is the address pool of environment networks: 256 networks of /24 that do not
 // collide with Docker's default 172.17–172.31 or typical corporate VPNs (ADR-0006).
 var Pool = netip.MustParsePrefix("10.213.0.0/16")
 
+// Options are the reconciler's collaborators besides the runtime.
+type Options struct {
+	// Instance labels every resource; resources of other instances are invisible.
+	Instance string
+	// ProxyName is the name of the Envoy container.
+	ProxyName string
+	CA        *pki.CA
+	Leaves    pki.Leaves
+	Control   *pki.Control
+	XDS       XDS
+	// ChoosePorts probes the host and picks the proxy's ports.
+	ChoosePorts func(ctx context.Context) (proxy.Ports, []proxy.Conflict, error)
+	// Probe checks that the proxy serves host; nil skips the check.
+	Probe func(ctx context.Context, host string, ports proxy.Ports) error
+	// ProbeTimeout bounds how long a pass waits for Envoy to serve a new site.
+	ProbeTimeout time.Duration
+	// Relays covers [::1] where the runtime publishes 127.0.0.1 only; nil skips it.
+	Relays *proxy.Relays
+}
+
 type Reconciler struct {
 	rt      Runtime
+	opt     Options
 	pool    netip.Prefix
 	publish func(*agentv1.EnvironmentStatus)
 	now     func() time.Time
 
 	mu     sync.Mutex
 	status map[string]*agentv1.EnvironmentStatus
+	proxy  *agentv1.ProxyStatus
+	routes []*agentv1.Route
 }
 
 // New makes a reconciler; publish receives a copy of every status that changed.
-func New(rt Runtime, publish func(*agentv1.EnvironmentStatus)) *Reconciler {
+func New(rt Runtime, opt Options, publish func(*agentv1.EnvironmentStatus)) *Reconciler {
 	if publish == nil {
 		publish = func(*agentv1.EnvironmentStatus) {}
 	}
-	return &Reconciler{rt: rt, pool: Pool, publish: publish, now: time.Now, status: map[string]*agentv1.EnvironmentStatus{}}
+	if opt.ProbeTimeout == 0 {
+		opt.ProbeTimeout = 30 * time.Second
+	}
+	return &Reconciler{rt: rt, opt: opt, pool: Pool, publish: publish, now: time.Now,
+		status: map[string]*agentv1.EnvironmentStatus{}, proxy: &agentv1.ProxyStatus{State: "absent"}}
 }
 
 // Statuses returns copies of the current statuses, ordered by project and ID.
@@ -65,56 +110,129 @@ func (r *Reconciler) Statuses() []*agentv1.EnvironmentStatus {
 	return out
 }
 
+// Proxy returns the proxy's status, with the xDS link as it is right now.
+func (r *Reconciler) Proxy() *agentv1.ProxyStatus {
+	r.mu.Lock()
+	p := proto.Clone(r.proxy).(*agentv1.ProxyStatus)
+	r.mu.Unlock()
+	if r.opt.XDS != nil {
+		st := r.opt.XDS.State()
+		p.Connected, p.ConfigVersion, p.Rejected = st.Connected, st.Version, st.Rejected
+	}
+	return p
+}
+
+// Routes returns the routing table the proxy was last given.
+func (r *Reconciler) Routes() []*agentv1.Route {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]*agentv1.Route, len(r.routes))
+	for i, rt := range r.routes {
+		out[i] = proto.Clone(rt).(*agentv1.Route)
+	}
+	return out
+}
+
 // NetworkName is the network of an environment; the same name is the compose project.
 func NetworkName(project, envID string) string { return project + "-env-" + envID }
+
+// DNSName is the DNS container of an environment.
+func DNSName(project, envID string) string { return NetworkName(project, envID) + "-dns" }
+
+// observed is what one pass sees in the runtime.
+type observed struct {
+	nets    []runtime.Network
+	managed map[string]runtime.Network // by environment ID
+	byEnv   map[string][]runtime.Container
+	proxy   *runtime.Container
+}
+
+func (r *Reconciler) observe(ctx context.Context) (*observed, error) {
+	nets, err := r.rt.Networks(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("observe networks: %w", err)
+	}
+	ctrs, err := r.rt.Containers(ctx, r.opt.Instance)
+	if err != nil {
+		return nil, fmt.Errorf("observe containers: %w", err)
+	}
+	o := &observed{nets: nets, managed: map[string]runtime.Network{}, byEnv: map[string][]runtime.Container{}}
+	for _, n := range nets {
+		if r.ours(n.Labels) && n.Labels[runtime.LabelEnv] != "" {
+			o.managed[n.Labels[runtime.LabelEnv]] = n
+		}
+	}
+	for i, c := range ctrs {
+		if !r.ours(c.Labels) {
+			continue
+		}
+		switch {
+		case c.Labels[runtime.LabelRole] == "proxy":
+			o.proxy = &ctrs[i]
+		case c.Labels[runtime.LabelEnv] != "":
+			o.byEnv[c.Labels[runtime.LabelEnv]] = append(o.byEnv[c.Labels[runtime.LabelEnv]], c)
+		}
+	}
+	return o, nil
+}
+
+func (r *Reconciler) ours(labels map[string]string) bool {
+	return labels[runtime.LabelManaged] == "true" && labels[runtime.LabelInstance] == r.opt.Instance
+}
+
+func (r *Reconciler) labels(env *agentv1.EnvironmentSpec) map[string]string {
+	l := map[string]string{runtime.LabelManaged: "true", runtime.LabelInstance: r.opt.Instance}
+	if env != nil {
+		l[runtime.LabelProject] = env.Project
+		l[runtime.LabelEnv] = env.Id
+		l[runtime.LabelKind] = kindLabel(env.Kind)
+	}
+	return l
+}
 
 // Reconcile runs one pass. Errors of single environments end up in their status; the
 // returned error means the pass could not observe the runtime or left work undone.
 func (r *Reconciler) Reconcile(ctx context.Context, desired *agentv1.DesiredState) error {
-	nets, err := r.rt.Networks(ctx)
+	o, err := r.observe(ctx)
 	if err != nil {
-		return fmt.Errorf("observe networks: %w", err)
+		return err
 	}
-	managed := map[string]runtime.Network{}
-	for _, n := range nets {
-		if n.Labels[runtime.LabelManaged] == "true" && n.Labels[runtime.LabelEnv] != "" {
-			managed[n.Labels[runtime.LabelEnv]] = n
-		}
-	}
-
 	var errs []error
-	wanted := map[string]bool{}
 	envs := append([]*agentv1.EnvironmentSpec{}, desired.Environments...)
 	sort.Slice(envs, func(i, j int) bool { return envs[i].Id < envs[j].Id })
-	for _, env := range envs {
-		wanted[env.Id] = true
-		if err := r.reconcileEnv(ctx, desired.Revision, env, managed, nets); err != nil {
-			errs = append(errs, fmt.Errorf("environment %s: %w", env.Id, err))
+	workspaces := parseProjects(desired.Projects)
+
+	// The proxy serves every environment of the device; it exists while any does.
+	var px *proxyState
+	var proxyErr error
+	if len(envs) > 0 {
+		px, proxyErr = r.ensureProxy(ctx, o.proxy, desired.Device)
+		if proxyErr != nil {
+			errs = append(errs, fmt.Errorf("proxy: %w", proxyErr))
 		}
 	}
 
-	// GC: only resources labelled as ours whose environment left the desired state.
-	for id, n := range managed {
-		if wanted[id] {
-			continue
+	wanted := map[string]bool{}
+	var preps []*prepared
+	for _, env := range envs {
+		wanted[env.Id] = true
+		p := r.prepareEnv(ctx, desired.Revision, env, workspaces[env.Project], o, px, proxyErr)
+		if p.err != nil {
+			errs = append(errs, fmt.Errorf("environment %s: %w", env.Id, p.err))
 		}
-		r.update(id, func(s *agentv1.EnvironmentStatus) {
-			if s.Project == "" {
-				s.Project = n.Labels[runtime.LabelProject]
-			}
-			s.Phase = agentv1.Phase_PHASE_DELETING
-		})
-		if err := r.rt.RemoveNetwork(ctx, n.ID); err != nil {
-			r.update(id, func(s *agentv1.EnvironmentStatus) { s.Error = "remove network: " + err.Error() })
-			errs = append(errs, fmt.Errorf("gc %s: %w", n.Name, err))
-			continue
-		}
-		r.forget(id, desired.Revision)
+		preps = append(preps, p)
 	}
-	// Environments that were wanted but never got resources.
-	for _, s := range r.Statuses() {
-		if _, has := managed[s.Id]; !wanted[s.Id] && !has {
-			r.forget(s.Id, desired.Revision)
+
+	if px != nil {
+		if err := r.applyRoutes(ctx, desired, preps, px); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	errs = append(errs, r.collect(ctx, desired.Revision, wanted, o, px)...)
+	if len(envs) == 0 {
+		if err := r.removeProxy(ctx, o.proxy); err != nil {
+			errs = append(errs, err)
 		}
 	}
 	return errors.Join(errs...)
@@ -126,35 +244,77 @@ type step struct {
 	run  func(ctx context.Context) (string, error)
 }
 
-func (r *Reconciler) reconcileEnv(ctx context.Context, rev uint64, env *agentv1.EnvironmentSpec, managed map[string]runtime.Network, all []runtime.Network) error {
+// prepared is an environment brought up to its routes, or stopped by err on the way.
+// With a certificate the proxy keeps serving its site even if a later step failed.
+type prepared struct {
+	env   *agentv1.EnvironmentSpec
+	hosts []string
+	leaf  *pki.Leaf
+	ws    *workspace.Workspace
+	err   error
+}
+
+func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.EnvironmentSpec, ws *parsed, o *observed, px *proxyState, proxyErr error) *prepared {
 	r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
 		s.Project, s.Kind, s.Slug = env.Project, env.Kind, env.Slug
 		if s.Phase == agentv1.Phase_PHASE_UNSPECIFIED {
 			s.Phase = agentv1.Phase_PHASE_CREATING
 		}
 	})
+	p := &prepared{env: env}
+	var nw runtime.Network
 	steps := []step{
-		{"network", func(ctx context.Context) (string, error) { return r.ensureNetwork(ctx, env, managed, all) }},
+		{"network", func(ctx context.Context) (string, error) {
+			n, err := r.ensureNetwork(ctx, env, o)
+			nw = n
+			return describe(n.Subnets), err
+		}},
+		{"certificate", func(ctx context.Context) (string, error) {
+			if ws == nil {
+				return "", errors.New("the project is not in the desired state")
+			}
+			if ws.err != nil {
+				return "", fmt.Errorf("workspace.yaml: %w", ws.err)
+			}
+			p.ws = ws.ws
+			p.hosts = Hosts(ws.ws, env)
+			leaf, msg, err := r.ensureCertificate(env.Id, p.hosts)
+			p.leaf = leaf
+			return msg, err
+		}},
+		{"proxy", func(ctx context.Context) (string, error) {
+			if px == nil {
+				return "", proxyErr
+			}
+			return r.attachProxy(ctx, px, nw)
+		}},
+	}
+	if env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
+		// A stopped environment keeps its network and data; its DNS server has no clients.
+		if err := r.removeAll(ctx, o.byEnv[env.Id], "dns"); err != nil {
+			p.err = err
+			r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
+				s.Phase, s.Error, s.AppliedRevision = agentv1.Phase_PHASE_ERROR, "dns: "+err.Error(), rev
+			})
+			return p
+		}
+	} else {
+		steps = append(steps, step{"dns", func(ctx context.Context) (string, error) {
+			return r.ensureDNS(ctx, env, nw, o.byEnv[env.Id])
+		}})
 	}
 	for _, st := range steps {
 		if err := r.runStep(ctx, env.Id, st); err != nil {
 			r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
 				s.Phase = agentv1.Phase_PHASE_ERROR
 				s.Error = st.name + ": " + err.Error()
+				s.AppliedRevision = rev
 			})
-			return err
+			p.err = err
+			return p
 		}
 	}
-	r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
-		s.Error = ""
-		s.AppliedRevision = rev
-		if env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
-			s.Phase = agentv1.Phase_PHASE_STOPPED
-		} else {
-			s.Phase = agentv1.Phase_PHASE_RUNNING
-		}
-	})
-	return nil
+	return p
 }
 
 // runStep records progress only on transitions, so a converged environment does not
@@ -174,7 +334,9 @@ func (r *Reconciler) runStep(ctx context.Context, envID string, st step) error {
 		p := findStep(s, st.name)
 		switch {
 		case err != nil:
-			p.State, p.Message, p.FinishedAt = agentv1.StepState_STEP_STATE_FAILED, err.Error(), timestamppb.New(r.now())
+			if p.State != agentv1.StepState_STEP_STATE_FAILED || p.Message != err.Error() {
+				p.State, p.Message, p.FinishedAt = agentv1.StepState_STEP_STATE_FAILED, err.Error(), timestamppb.New(r.now())
+			}
 		case p.State != agentv1.StepState_STEP_STATE_DONE || p.Message != msg:
 			p.State, p.Message, p.FinishedAt = agentv1.StepState_STEP_STATE_DONE, msg, timestamppb.New(r.now())
 		}
@@ -193,46 +355,195 @@ func findStep(s *agentv1.EnvironmentStatus, name string) *agentv1.StepProgress {
 	return p
 }
 
-func (r *Reconciler) ensureNetwork(ctx context.Context, env *agentv1.EnvironmentSpec, managed map[string]runtime.Network, all []runtime.Network) (string, error) {
+func (r *Reconciler) ensureNetwork(ctx context.Context, env *agentv1.EnvironmentSpec, o *observed) (runtime.Network, error) {
 	name := NetworkName(env.Project, env.Id)
-	if n, ok := managed[env.Id]; ok {
+	if n, ok := o.managed[env.Id]; ok {
 		r.setNetwork(env.Id, n.Name, n.Subnets)
-		return describe(n.Subnets), nil
+		return n, nil
 	}
 	var used []netip.Prefix
-	for _, n := range all {
+	for _, n := range o.nets {
 		used = append(used, n.Subnets...)
-	}
-	labels := map[string]string{
-		runtime.LabelManaged: "true",
-		runtime.LabelProject: env.Project,
-		runtime.LabelEnv:     env.Id,
-		runtime.LabelKind:    kindLabel(env.Kind),
 	}
 	// Another runtime user may take a subnet between our observation and the create.
 	for attempt := 0; attempt < 8; attempt++ {
 		subnet, ok := FreeSubnet(r.pool, used)
 		if !ok {
-			return "", fmt.Errorf("address pool %s is exhausted (256 environments)", r.pool)
+			return runtime.Network{}, fmt.Errorf("address pool %s is exhausted (256 environments)", r.pool)
 		}
-		_, err := r.rt.CreateNetwork(ctx, name, subnet, labels)
+		id, err := r.rt.CreateNetwork(ctx, name, subnet, r.labels(env))
 		if errors.Is(err, runtime.ErrSubnetTaken) {
 			used = append(used, subnet)
 			continue
 		}
 		if err != nil {
-			return "", err
+			return runtime.Network{}, err
 		}
-		r.setNetwork(env.Id, name, []netip.Prefix{subnet})
-		return describe([]netip.Prefix{subnet}), nil
+		n := runtime.Network{ID: id, Name: name, Subnets: []netip.Prefix{subnet}, Labels: r.labels(env)}
+		o.managed[env.Id] = n
+		o.nets = append(o.nets, n)
+		r.setNetwork(env.Id, name, n.Subnets)
+		return n, nil
 	}
-	return "", errors.New("no free subnet after 8 attempts")
+	return runtime.Network{}, errors.New("no free subnet after 8 attempts")
 }
 
 func (r *Reconciler) setNetwork(envID, name string, subnets []netip.Prefix) {
 	r.update(envID, func(s *agentv1.EnvironmentStatus) {
 		s.Network = &agentv1.NetworkStatus{Name: name, Subnet: describe(subnets)}
 	})
+}
+
+// ensureCertificate reuses the stored certificate while it covers the hosts and is far
+// from expiry; otherwise it issues a new one. The proxy picks it up over SDS.
+func (r *Reconciler) ensureCertificate(envID string, hosts []string) (*pki.Leaf, string, error) {
+	if r.opt.CA == nil {
+		return nil, "", errors.New("no local CA")
+	}
+	leaf := r.opt.Leaves.Load(envID)
+	if !leaf.Fresh(hosts, r.now()) {
+		var err error
+		if leaf, err = r.opt.CA.Issue(hosts); err != nil {
+			return nil, "", err
+		}
+		if err := r.opt.Leaves.Save(envID, leaf); err != nil {
+			return nil, "", err
+		}
+	}
+	return leaf, fmt.Sprintf("%s (until %s)", joinHosts(leaf.Hosts), leaf.NotAfter.Format("2006-01-02")), nil
+}
+
+func (r *Reconciler) ensureDNS(ctx context.Context, env *agentv1.EnvironmentSpec, nw runtime.Network, ctrs []runtime.Container) (string, error) {
+	if len(nw.Subnets) == 0 {
+		return "", errors.New("the network has no subnet")
+	}
+	spec := proxy.DNSSpec(DNSName(env.Project, env.Id), nw.ID, nw.Subnets[0], r.labels(env))
+	ip := proxy.DNSIP(nw.Subnets[0]).String()
+	if err := r.ensureContainer(ctx, spec, pick(ctrs, "dns")); err != nil {
+		return "", err
+	}
+	return ip, nil
+}
+
+// ensureContainer makes a container match spec: recreated when its config label
+// differs, started when stopped, created when missing.
+func (r *Reconciler) ensureContainer(ctx context.Context, spec runtime.ContainerSpec, existing *runtime.Container) error {
+	if existing != nil && existing.Labels[runtime.LabelConfig] == spec.Labels[runtime.LabelConfig] {
+		if existing.Running {
+			return nil
+		}
+		if err := r.rt.StartContainer(ctx, existing.ID); err != nil {
+			return r.explain(ctx, existing.ID, err)
+		}
+		return nil
+	}
+	if existing != nil {
+		if err := r.rt.RemoveContainer(ctx, existing.ID); err != nil {
+			return err
+		}
+	}
+	if err := r.rt.EnsureImage(ctx, spec.Image); err != nil {
+		return err
+	}
+	id, err := r.rt.CreateContainer(ctx, spec)
+	if err != nil {
+		return err
+	}
+	if err := r.rt.StartContainer(ctx, id); err != nil {
+		return r.explain(ctx, id, err)
+	}
+	return nil
+}
+
+// explain adds the container's last output to a start error.
+func (r *Reconciler) explain(ctx context.Context, id string, err error) error {
+	if logs := r.rt.ContainerLogs(ctx, id, 5); logs != "" {
+		return fmt.Errorf("%w\n%s", err, logs)
+	}
+	return err
+}
+
+func pick(ctrs []runtime.Container, role string) *runtime.Container {
+	for i := range ctrs {
+		if ctrs[i].Labels[runtime.LabelRole] == role {
+			return &ctrs[i]
+		}
+	}
+	return nil
+}
+
+func (r *Reconciler) removeAll(ctx context.Context, ctrs []runtime.Container, role string) error {
+	var errs []error
+	for _, c := range ctrs {
+		if role == "" || c.Labels[runtime.LabelRole] == role {
+			errs = append(errs, r.rt.RemoveContainer(ctx, c.ID))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// collect removes what belongs to environments that left the desired state: their
+// containers, the proxy's link to their network, the network and the certificate.
+func (r *Reconciler) collect(ctx context.Context, rev uint64, wanted map[string]bool, o *observed, px *proxyState) []error {
+	var errs []error
+	gone := map[string]string{} // env → project
+	for id, n := range o.managed {
+		if !wanted[id] {
+			gone[id] = n.Labels[runtime.LabelProject]
+		}
+	}
+	for id, ctrs := range o.byEnv {
+		if !wanted[id] && len(ctrs) > 0 {
+			gone[id] = ctrs[0].Labels[runtime.LabelProject]
+		}
+	}
+	for id, project := range gone {
+		r.update(id, func(s *agentv1.EnvironmentStatus) {
+			if s.Project == "" {
+				s.Project = project
+			}
+			s.Phase = agentv1.Phase_PHASE_DELETING
+		})
+		err := r.removeAll(ctx, o.byEnv[id], "")
+		if n, ok := o.managed[id]; ok && err == nil {
+			proxyID := ""
+			if px != nil {
+				proxyID = px.id
+			} else if o.proxy != nil {
+				proxyID = o.proxy.ID
+			}
+			if proxyID != "" {
+				err = r.rt.DisconnectNetwork(ctx, n.ID, proxyID)
+			}
+			if err == nil {
+				err = r.rt.RemoveNetwork(ctx, n.ID)
+			}
+		}
+		if err == nil {
+			err = r.opt.Leaves.Remove(id)
+		}
+		if err != nil {
+			r.update(id, func(s *agentv1.EnvironmentStatus) { s.Error = "remove: " + err.Error() })
+			errs = append(errs, fmt.Errorf("gc %s: %w", id, err))
+			continue
+		}
+		r.forget(id, rev)
+	}
+	// Certificates of environments that are gone from everywhere else.
+	for _, name := range r.opt.Leaves.Names() {
+		if !wanted[name] {
+			_ = r.opt.Leaves.Remove(name)
+		}
+	}
+	// Environments that were wanted but never got resources.
+	for _, s := range r.Statuses() {
+		if !wanted[s.Id] {
+			if _, pending := gone[s.Id]; !pending {
+				r.forget(s.Id, rev)
+			}
+		}
+	}
+	return errs
 }
 
 func describe(subnets []netip.Prefix) string {

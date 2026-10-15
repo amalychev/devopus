@@ -76,6 +76,10 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		a.statusCmd(),
 		a.upCmd(),
 		a.downCmd(),
+		a.doctorCmd(),
+		a.routesCmd(),
+		a.openCmd(),
+		a.proxyCmd(),
 	)
 
 	err := root.Execute()

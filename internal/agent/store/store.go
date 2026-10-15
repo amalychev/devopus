@@ -130,6 +130,24 @@ func (s *Store) Down(name string, purge bool) (uint64, error) {
 	})
 }
 
+// SetProxy changes the device's proxy settings. Turning coexistence on or off, or
+// asking for a restart, bumps the proxy generation: the proxy is recreated and probes
+// 80/443 again, which is the point of moving a dev server off them.
+func (s *Store) SetProxy(coexistHTTP, coexistHTTPS uint32, restart bool) (uint64, error) {
+	return s.update(func(st *agentv1.DesiredState) error {
+		if st.Device == nil {
+			st.Device = &agentv1.DeviceSettings{}
+		}
+		d := st.Device
+		changed := d.CoexistHttpPort != coexistHTTP || d.CoexistHttpsPort != coexistHTTPS
+		d.CoexistHttpPort, d.CoexistHttpsPort = coexistHTTP, coexistHTTPS
+		if changed || restart {
+			d.ProxyGeneration++
+		}
+		return nil
+	})
+}
+
 func findProject(st *agentv1.DesiredState, name string) *agentv1.ProjectSpec {
 	for _, p := range st.Projects {
 		if p.Name == name {

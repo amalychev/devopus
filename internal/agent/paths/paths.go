@@ -2,6 +2,8 @@
 package paths
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 )
@@ -32,3 +34,33 @@ func Log() string { return filepath.Join(Home(), "agent.log") }
 
 // Ensure creates the data directory, readable only by the user.
 func Ensure() error { return os.MkdirAll(Home(), 0o700) }
+
+// CA is the local certificate authority: root.pem is what people trust.
+func CA() string { return filepath.Join(Home(), "ca") }
+
+// Certs keeps the issued server certificates, one pair per environment.
+func Certs() string { return filepath.Join(Home(), "certs") }
+
+// Proxy keeps the proxy's control material and its xDS port.
+func Proxy() string { return filepath.Join(Home(), "proxy") }
+
+// Instance tells agents with different data directories apart in Docker labels and
+// names. The default directory gets the plain names (docklet-proxy).
+func Instance() string {
+	sum := sha256.Sum256([]byte(Home()))
+	return hex.EncodeToString(sum[:])[:8]
+}
+
+// IsDefault reports whether the agent uses ~/.docklet.
+func IsDefault() bool {
+	h, err := os.UserHomeDir()
+	return err == nil && Home() == filepath.Join(h, ".docklet")
+}
+
+// ProxyName is the Envoy container of this instance.
+func ProxyName() string {
+	if IsDefault() {
+		return "docklet-proxy"
+	}
+	return "docklet-proxy-" + Instance()
+}
