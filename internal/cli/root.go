@@ -82,6 +82,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		a.logsCmd(),
 		a.execCmd(),
 		a.proxyCmd(),
+		a.featureCmd(),
 	)
 
 	err := root.Execute()

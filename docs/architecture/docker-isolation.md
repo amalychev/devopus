@@ -11,7 +11,7 @@
 | Volume | `<project>-<env-id>-<name>` | `shop-e7k2m9-mysql` |
 | Метки | `com.devopus.project=<id>`, `com.devopus.env=<id>`, `com.devopus.module=<name>` | — |
 | Слаг (только URL) | из ветки, с проверкой уникальности в проекте | `pay-123` |
-| Worktree | `<data-dir>/<project>/<env-id>/<module>` | — |
+| Worktree | `~/.devopus/src/<project>/<env-id>/<module>` (модуль с `repo`), `…/<env-id>/_repo` (репозиторий проекта для модулей с `path`) | — |
 
 Человекочитаемый слаг используется **только в URL**. `feature/a-b` и `feature/a_b` дают одинаковый слаг → при коллизии добавляется суффикс, а ресурсы всё равно разнесены по ID.
 

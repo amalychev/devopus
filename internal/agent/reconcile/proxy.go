@@ -355,16 +355,39 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 	}
 
 	var routes []*agentv1.Route
+	// A feature serves the paths of the modules it does not run from the base environment.
+	units := p.plan.Units
+	from := map[string]string{}
+	if p.iso != nil && p.base != nil && p.base.plan != nil {
+		own := map[string]bool{}
+		for _, u := range units {
+			own[u.Name] = true
+		}
+		for _, u := range p.base.plan.Units {
+			if !own[u.Name] && (u.Role == stack.RoleModule && len(u.Routes) > 0 || u.Expose != "") {
+				units = append(units, u)
+				from[u.Name] = " from " + p.base.env.Id
+			}
+		}
+		s.Shared = p.shared
+	}
+	upstream := func(u stack.Unit) proxy.Upstream {
+		name := u.Name
+		if from[u.Name] != "" {
+			name = "base-" + u.Name
+		}
+		return proxy.Upstream{Name: name, Addr: netip.AddrPortFrom(u.IP, uint16(u.Port))}
+	}
 	main := proxy.VHost{Hosts: []string{p.hosts[0]},
-		NotFound: proxy.Page{Status: 404, Title: "No module serves this path", Text: "Modules of <code>" + project + "</code> serve " + html.EscapeString(strings.Join(modulePaths(p.plan), ", ")) + "."}}
-	for _, u := range p.plan.Units {
+		NotFound: proxy.Page{Status: 404, Title: "No module serves this path", Text: "Modules of <code>" + project + "</code> serve " + html.EscapeString(strings.Join(modulePaths(units), ", ")) + "."}}
+	for _, u := range units {
 		if u.Role != stack.RoleModule || len(u.Routes) == 0 {
 			continue
 		}
-		up := proxy.Upstream{Name: u.Name, Addr: netip.AddrPortFrom(u.IP, uint16(u.Port))}
+		up := upstream(u)
 		for _, prefix := range u.Routes {
 			main.Routes = append(main.Routes, proxy.PathRoute{Prefix: prefix, Upstream: up})
-			routes = append(routes, route(p.hosts[0], prefix, fmt.Sprintf("module %s (%s)", u.Name, up.Addr)))
+			routes = append(routes, route(p.hosts[0], prefix, fmt.Sprintf("module %s (%s)%s", u.Name, up.Addr, from[u.Name])))
 		}
 	}
 	if len(main.Routes) == 0 {
@@ -372,22 +395,33 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 		routes = append(routes, route(p.hosts[0], "/", "proxy page: no routes"))
 	}
 	s.VHosts = append(s.VHosts, main)
-	for _, u := range p.plan.Units {
+	for _, u := range units {
 		if u.Expose == "" || u.Port == 0 {
 			continue
 		}
 		host := u.Expose + "." + p.hosts[0]
-		up := proxy.Upstream{Name: u.Name, Addr: netip.AddrPortFrom(u.IP, uint16(u.Port))}
+		up := upstream(u)
 		s.VHosts = append(s.VHosts, proxy.VHost{Hosts: []string{host}, Routes: []proxy.PathRoute{{Prefix: "/", Upstream: up}}})
-		routes = append(routes, route(host, "/", fmt.Sprintf("service %s (%s)", u.Name, up.Addr)))
+		routes = append(routes, route(host, "/", fmt.Sprintf("service %s (%s)%s", u.Name, up.Addr, from[u.Name])))
+	}
+	if sh := s.Shared; sh != nil {
+		// Inside the feature: logical names of the base environment's modules and services.
+		for _, t := range append(append([]proxy.SharedTarget{}, sh.Modules...), sh.Services...) {
+			scheme := "tcp"
+			if contains(p.iso.SharedModules, t.Name) {
+				scheme = "http"
+			}
+			routes = append(routes, &agentv1.Route{Host: t.Name, EnvironmentId: env.Id, Project: env.Project,
+				Url: fmt.Sprintf("%s://%s:%d", scheme, t.Name, t.Port), Target: fmt.Sprintf("%s (%s) from %s, inside the feature", t.Name, t.Addr, p.base.env.Id)})
+		}
 	}
 	// After a failed step what did start stays reachable; the status says what failed.
 	return s, routes
 }
 
-func modulePaths(plan *stack.Plan) []string {
+func modulePaths(units []stack.Unit) []string {
 	var out []string
-	for _, u := range plan.Units {
+	for _, u := range units {
 		if u.Role == stack.RoleModule {
 			out = append(out, u.Routes...)
 		}

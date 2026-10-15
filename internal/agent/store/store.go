@@ -10,6 +10,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
 	"sync"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -82,31 +85,188 @@ var ErrProjectConflict = errors.New("project name is taken")
 // ErrUnknownProject: no project with this name.
 var ErrUnknownProject = errors.New("unknown project")
 
-// Up registers or updates a project and wants its base environment running.
-// It returns the ID of the base environment.
+// Up registers or updates a project and wants its environments running: the base
+// one, and the features 'down' stopped. It returns the ID of the base environment.
 func (s *Store) Up(name, root string, config []byte) (envID string, rev uint64, err error) {
-	sum := sha256.Sum256(config)
 	rev, err = s.update(func(st *agentv1.DesiredState) error {
-		p := findProject(st, name)
-		if p != nil && p.Root != root {
-			return fmt.Errorf("%w: %q is already used by %s", ErrProjectConflict, name, p.Root)
+		base, err := register(st, name, root, config)
+		if err != nil {
+			return err
 		}
-		if p == nil {
-			p = &agentv1.ProjectSpec{Name: name, Root: root}
-			st.Projects = append(st.Projects, p)
+		for _, e := range st.Environments {
+			if e.Project == name {
+				e.Phase = agentv1.DesiredPhase_DESIRED_PHASE_RUNNING
+			}
 		}
-		p.Config, p.ConfigHash = config, hex.EncodeToString(sum[:])
-
-		env := baseEnv(st, name)
-		if env == nil {
-			env = &agentv1.EnvironmentSpec{Id: NewID(), Project: name, Kind: agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE}
-			st.Environments = append(st.Environments, env)
-		}
-		env.Phase = agentv1.DesiredPhase_DESIRED_PHASE_RUNNING
-		envID = env.Id
+		envID = base.Id
 		return nil
 	})
 	return envID, rev, err
+}
+
+// register adds or updates a project and makes sure it has a base environment.
+func register(st *agentv1.DesiredState, name, root string, config []byte) (*agentv1.EnvironmentSpec, error) {
+	sum := sha256.Sum256(config)
+	p := findProject(st, name)
+	if p != nil && p.Root != root {
+		return nil, fmt.Errorf("%w: %q is already used by %s", ErrProjectConflict, name, p.Root)
+	}
+	if p == nil {
+		p = &agentv1.ProjectSpec{Name: name, Root: root}
+		st.Projects = append(st.Projects, p)
+	}
+	p.Config, p.ConfigHash = config, hex.EncodeToString(sum[:])
+	env := baseEnv(st, name)
+	if env == nil {
+		env = &agentv1.EnvironmentSpec{Id: NewID(), Project: name, Kind: agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE}
+		st.Environments = append(st.Environments, env)
+	}
+	return env, nil
+}
+
+// ErrFeatureExists: the project already has a feature with this name.
+var ErrFeatureExists = errors.New("feature exists")
+
+// ErrUnknownFeature: no feature with this name, slug or ID.
+var ErrUnknownFeature = errors.New("unknown feature")
+
+// NewFeature is a feature to create.
+type NewFeature struct {
+	Name    string
+	Branch  string
+	Modules []string
+	// Reserved are names the slug must not take: the project's exposed web UIs live
+	// on <expose>.<domain>, as features do on <slug>.<domain>.
+	Reserved []string
+}
+
+// CreateFeature registers or updates the project, wants its base environment running
+// (the feature reaches the base's modules and services) and adds the feature.
+func (s *Store) CreateFeature(project, root string, config []byte, f NewFeature) (feature, base *agentv1.EnvironmentSpec, rev uint64, err error) {
+	rev, err = s.update(func(st *agentv1.DesiredState) error {
+		b, err := register(st, project, root, config)
+		if err != nil {
+			return err
+		}
+		b.Phase = agentv1.DesiredPhase_DESIRED_PHASE_RUNNING
+		if e := findFeature(st, project, f.Name); e != nil {
+			return fmt.Errorf("%w: %s already has feature %q (%s); 'devopus feature add' forks more modules in it", ErrFeatureExists, project, e.Name, e.Slug)
+		}
+		slug, err := uniqueSlug(st, project, f.Name, f.Reserved)
+		if err != nil {
+			return err
+		}
+		env := &agentv1.EnvironmentSpec{
+			Id: NewID(), Project: project, Kind: agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE,
+			Name: f.Name, Slug: slug, Branch: f.Branch, ForkedModules: sortedSet(f.Modules),
+			Phase: agentv1.DesiredPhase_DESIRED_PHASE_RUNNING,
+		}
+		st.Environments = append(st.Environments, env)
+		feature, base = proto.Clone(env).(*agentv1.EnvironmentSpec), proto.Clone(b).(*agentv1.EnvironmentSpec)
+		return nil
+	})
+	return feature, base, rev, err
+}
+
+// AddFeatureModules updates the project and forks more modules in a feature.
+func (s *Store) AddFeatureModules(project, root string, config []byte, feature string, modules []string) (env *agentv1.EnvironmentSpec, rev uint64, err error) {
+	rev, err = s.update(func(st *agentv1.DesiredState) error {
+		b, err := register(st, project, root, config)
+		if err != nil {
+			return err
+		}
+		e := findFeature(st, project, feature)
+		if e == nil {
+			return fmt.Errorf("%w %q in %s", ErrUnknownFeature, feature, project)
+		}
+		e.ForkedModules = sortedSet(append(e.ForkedModules, modules...))
+		e.Phase, b.Phase = agentv1.DesiredPhase_DESIRED_PHASE_RUNNING, agentv1.DesiredPhase_DESIRED_PHASE_RUNNING
+		env = proto.Clone(e).(*agentv1.EnvironmentSpec)
+		return nil
+	})
+	return env, rev, err
+}
+
+// Feature finds a feature of a project by name, slug or ID.
+func (s *Store) Feature(project, feature string) *agentv1.EnvironmentSpec {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if e := findFeature(s.state, project, feature); e != nil {
+		return proto.Clone(e).(*agentv1.EnvironmentSpec)
+	}
+	return nil
+}
+
+// RemoveFeature removes a feature from the desired state; the reconciler removes its
+// resources. check runs under the store's lock, so the feature cannot change between
+// the check and the removal.
+func (s *Store) RemoveFeature(project, feature string, check func(*agentv1.EnvironmentSpec) error) (env *agentv1.EnvironmentSpec, rev uint64, err error) {
+	rev, err = s.update(func(st *agentv1.DesiredState) error {
+		e := findFeature(st, project, feature)
+		if e == nil {
+			return fmt.Errorf("%w %q in %s", ErrUnknownFeature, feature, project)
+		}
+		if check != nil {
+			if err := check(e); err != nil {
+				return err
+			}
+		}
+		env = proto.Clone(e).(*agentv1.EnvironmentSpec)
+		st.Environments = filter(st.Environments, func(x *agentv1.EnvironmentSpec) bool { return x.Id != e.Id })
+		return nil
+	})
+	return env, rev, err
+}
+
+func findFeature(st *agentv1.DesiredState, project, key string) *agentv1.EnvironmentSpec {
+	for _, e := range st.Environments {
+		if e.Project == project && e.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE &&
+			(strings.EqualFold(e.Name, key) || e.Slug == key || e.Id == key) {
+			return e
+		}
+	}
+	return nil
+}
+
+var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
+
+// Slug makes the URL label of a feature name: PAY-123 → pay-123, feature/a_b → a-b.
+func Slug(name string) string {
+	s := nonSlug.ReplaceAllString(strings.ToLower(name), "-")
+	s = strings.Trim(s, "-")
+	if len(s) > 50 {
+		s = strings.TrimRight(s[:50], "-")
+	}
+	return s
+}
+
+// uniqueSlug resolves collisions like a-b and a_b with a suffix; resources never
+// collide anyway, they carry the ID (docs/architecture/docker-isolation.md).
+func uniqueSlug(st *agentv1.DesiredState, project, name string, reserved []string) (string, error) {
+	base := Slug(name)
+	if base == "" {
+		return "", fmt.Errorf("feature name %q has no letters or digits for its URL", name)
+	}
+	taken := map[string]bool{}
+	for _, r := range reserved {
+		taken[r] = true
+	}
+	for _, e := range st.Environments {
+		if e.Project == project && e.Slug != "" {
+			taken[e.Slug] = true
+		}
+	}
+	slug := base
+	for i := 2; taken[slug]; i++ {
+		slug = fmt.Sprintf("%s-%d", base, i)
+	}
+	return slug, nil
+}
+
+func sortedSet(list []string) []string {
+	out := slices.Clone(list)
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
 // Down stops the project's environments, or with purge removes the project and

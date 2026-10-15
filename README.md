@@ -68,6 +68,12 @@ go build -o devopus ./cmd/devopus      # бинарник
 ./devopus routes                       # таблица маршрутов прокси
 ./devopus logs api --follow            # вывод модуля или сервиса
 ./devopus exec api -- sh               # команда в контейнере модуля
+./devopus feature create PAY-1 -m api  # фича: worktree на feature/PAY-1, свой URL https://pay-1.<домен>
+./devopus feature add PAY-1 web        # форкнуть ещё модуль
+./devopus feature list                 # фичи проекта: фаза, URL, форки, что общее с main
+./devopus feature path PAY-1           # папка кода фичи (для IDE и AI-агентов)
+./devopus feature rm PAY-1             # удалить; откажет при несохранённой работе без --force
+./devopus logs PAY-1 api               # окружение — ID, слаг или имя фичи
 ./devopus doctor --fix                 # проверки; доверие к локальному CA
 ./devopus down                         # остановить (данные остаются)
 ./devopus down --volumes               # удалить окружения проекта с данными

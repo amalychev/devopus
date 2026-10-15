@@ -31,6 +31,7 @@ import (
 	"github.com/devopus/devopus/internal/agent/reconcile"
 	"github.com/devopus/devopus/internal/agent/runtime"
 	"github.com/devopus/devopus/internal/agent/store"
+	"github.com/devopus/devopus/internal/workspace"
 )
 
 // Intervals of the reconcile loop: a periodic pass catches changes made behind the
@@ -69,8 +70,13 @@ type Agent struct {
 func (a *Agent) Store() *store.Store                    { return a.store }
 func (a *Agent) Statuses() []*agentv1.EnvironmentStatus { return a.rec.Statuses() }
 func (a *Agent) Version() string                        { return a.opt.Version }
-func (a *Agent) Proxy() *agentv1.ProxyStatus            { return a.rec.Proxy() }
-func (a *Agent) Routes() []*agentv1.Route               { return a.rec.Routes() }
+func (a *Agent) Force(envID string)                     { a.rec.Force(envID) }
+
+func (a *Agent) Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *workspace.Workspace) (map[string]string, error) {
+	return a.rec.Unsaved(ctx, env, ws)
+}
+func (a *Agent) Proxy() *agentv1.ProxyStatus { return a.rec.Proxy() }
+func (a *Agent) Routes() []*agentv1.Route    { return a.rec.Routes() }
 
 func (a *Agent) CA() *agentv1.CAInfo {
 	return &agentv1.CAInfo{RootPath: a.ca.RootPath(), Fingerprint: a.ca.Fingerprint(), NotAfter: timestamppb.New(a.ca.Root.NotAfter)}

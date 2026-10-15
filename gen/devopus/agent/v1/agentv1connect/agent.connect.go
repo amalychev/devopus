@@ -49,6 +49,15 @@ const (
 	AgentServiceRoutesProcedure = "/devopus.agent.v1.AgentService/Routes"
 	// AgentServiceSetProxyProcedure is the fully-qualified name of the AgentService's SetProxy RPC.
 	AgentServiceSetProxyProcedure = "/devopus.agent.v1.AgentService/SetProxy"
+	// AgentServiceCreateFeatureProcedure is the fully-qualified name of the AgentService's
+	// CreateFeature RPC.
+	AgentServiceCreateFeatureProcedure = "/devopus.agent.v1.AgentService/CreateFeature"
+	// AgentServiceAddFeatureModulesProcedure is the fully-qualified name of the AgentService's
+	// AddFeatureModules RPC.
+	AgentServiceAddFeatureModulesProcedure = "/devopus.agent.v1.AgentService/AddFeatureModules"
+	// AgentServiceRemoveFeatureProcedure is the fully-qualified name of the AgentService's
+	// RemoveFeature RPC.
+	AgentServiceRemoveFeatureProcedure = "/devopus.agent.v1.AgentService/RemoveFeature"
 )
 
 // AgentServiceClient is a client for the devopus.agent.v1.AgentService service.
@@ -65,6 +74,13 @@ type AgentServiceClient interface {
 	Routes(context.Context, *connect.Request[v1.RoutesRequest]) (*connect.Response[v1.RoutesResponse], error)
 	// SetProxy changes the device's proxy settings: coexistence with a dev server, restart.
 	SetProxy(context.Context, *connect.Request[v1.SetProxyRequest]) (*connect.Response[v1.SetProxyResponse], error)
+	// CreateFeature adds a feature environment that forks some modules of a project.
+	CreateFeature(context.Context, *connect.Request[v1.CreateFeatureRequest]) (*connect.Response[v1.CreateFeatureResponse], error)
+	// AddFeatureModules forks more modules in an existing feature.
+	AddFeatureModules(context.Context, *connect.Request[v1.AddFeatureModulesRequest]) (*connect.Response[v1.AddFeatureModulesResponse], error)
+	// RemoveFeature removes a feature with its containers, data and worktrees. Without
+	// force it refuses while a worktree has work that exists nowhere else.
+	RemoveFeature(context.Context, *connect.Request[v1.RemoveFeatureRequest]) (*connect.Response[v1.RemoveFeatureResponse], error)
 }
 
 // NewAgentServiceClient constructs a client for the devopus.agent.v1.AgentService service. By
@@ -114,17 +130,38 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(agentServiceMethods.ByName("SetProxy")),
 			connect.WithClientOptions(opts...),
 		),
+		createFeature: connect.NewClient[v1.CreateFeatureRequest, v1.CreateFeatureResponse](
+			httpClient,
+			baseURL+AgentServiceCreateFeatureProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("CreateFeature")),
+			connect.WithClientOptions(opts...),
+		),
+		addFeatureModules: connect.NewClient[v1.AddFeatureModulesRequest, v1.AddFeatureModulesResponse](
+			httpClient,
+			baseURL+AgentServiceAddFeatureModulesProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("AddFeatureModules")),
+			connect.WithClientOptions(opts...),
+		),
+		removeFeature: connect.NewClient[v1.RemoveFeatureRequest, v1.RemoveFeatureResponse](
+			httpClient,
+			baseURL+AgentServiceRemoveFeatureProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("RemoveFeature")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // agentServiceClient implements AgentServiceClient.
 type agentServiceClient struct {
-	status   *connect.Client[v1.StatusRequest, v1.StatusResponse]
-	up       *connect.Client[v1.UpRequest, v1.UpResponse]
-	down     *connect.Client[v1.DownRequest, v1.DownResponse]
-	watch    *connect.Client[v1.WatchRequest, v1.WatchResponse]
-	routes   *connect.Client[v1.RoutesRequest, v1.RoutesResponse]
-	setProxy *connect.Client[v1.SetProxyRequest, v1.SetProxyResponse]
+	status            *connect.Client[v1.StatusRequest, v1.StatusResponse]
+	up                *connect.Client[v1.UpRequest, v1.UpResponse]
+	down              *connect.Client[v1.DownRequest, v1.DownResponse]
+	watch             *connect.Client[v1.WatchRequest, v1.WatchResponse]
+	routes            *connect.Client[v1.RoutesRequest, v1.RoutesResponse]
+	setProxy          *connect.Client[v1.SetProxyRequest, v1.SetProxyResponse]
+	createFeature     *connect.Client[v1.CreateFeatureRequest, v1.CreateFeatureResponse]
+	addFeatureModules *connect.Client[v1.AddFeatureModulesRequest, v1.AddFeatureModulesResponse]
+	removeFeature     *connect.Client[v1.RemoveFeatureRequest, v1.RemoveFeatureResponse]
 }
 
 // Status calls devopus.agent.v1.AgentService.Status.
@@ -157,6 +194,21 @@ func (c *agentServiceClient) SetProxy(ctx context.Context, req *connect.Request[
 	return c.setProxy.CallUnary(ctx, req)
 }
 
+// CreateFeature calls devopus.agent.v1.AgentService.CreateFeature.
+func (c *agentServiceClient) CreateFeature(ctx context.Context, req *connect.Request[v1.CreateFeatureRequest]) (*connect.Response[v1.CreateFeatureResponse], error) {
+	return c.createFeature.CallUnary(ctx, req)
+}
+
+// AddFeatureModules calls devopus.agent.v1.AgentService.AddFeatureModules.
+func (c *agentServiceClient) AddFeatureModules(ctx context.Context, req *connect.Request[v1.AddFeatureModulesRequest]) (*connect.Response[v1.AddFeatureModulesResponse], error) {
+	return c.addFeatureModules.CallUnary(ctx, req)
+}
+
+// RemoveFeature calls devopus.agent.v1.AgentService.RemoveFeature.
+func (c *agentServiceClient) RemoveFeature(ctx context.Context, req *connect.Request[v1.RemoveFeatureRequest]) (*connect.Response[v1.RemoveFeatureResponse], error) {
+	return c.removeFeature.CallUnary(ctx, req)
+}
+
 // AgentServiceHandler is an implementation of the devopus.agent.v1.AgentService service.
 type AgentServiceHandler interface {
 	// Status reports the agent, the container runtime and every environment.
@@ -171,6 +223,13 @@ type AgentServiceHandler interface {
 	Routes(context.Context, *connect.Request[v1.RoutesRequest]) (*connect.Response[v1.RoutesResponse], error)
 	// SetProxy changes the device's proxy settings: coexistence with a dev server, restart.
 	SetProxy(context.Context, *connect.Request[v1.SetProxyRequest]) (*connect.Response[v1.SetProxyResponse], error)
+	// CreateFeature adds a feature environment that forks some modules of a project.
+	CreateFeature(context.Context, *connect.Request[v1.CreateFeatureRequest]) (*connect.Response[v1.CreateFeatureResponse], error)
+	// AddFeatureModules forks more modules in an existing feature.
+	AddFeatureModules(context.Context, *connect.Request[v1.AddFeatureModulesRequest]) (*connect.Response[v1.AddFeatureModulesResponse], error)
+	// RemoveFeature removes a feature with its containers, data and worktrees. Without
+	// force it refuses while a worktree has work that exists nowhere else.
+	RemoveFeature(context.Context, *connect.Request[v1.RemoveFeatureRequest]) (*connect.Response[v1.RemoveFeatureResponse], error)
 }
 
 // NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -216,6 +275,24 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(agentServiceMethods.ByName("SetProxy")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentServiceCreateFeatureHandler := connect.NewUnaryHandler(
+		AgentServiceCreateFeatureProcedure,
+		svc.CreateFeature,
+		connect.WithSchema(agentServiceMethods.ByName("CreateFeature")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServiceAddFeatureModulesHandler := connect.NewUnaryHandler(
+		AgentServiceAddFeatureModulesProcedure,
+		svc.AddFeatureModules,
+		connect.WithSchema(agentServiceMethods.ByName("AddFeatureModules")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServiceRemoveFeatureHandler := connect.NewUnaryHandler(
+		AgentServiceRemoveFeatureProcedure,
+		svc.RemoveFeature,
+		connect.WithSchema(agentServiceMethods.ByName("RemoveFeature")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/devopus.agent.v1.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentServiceStatusProcedure:
@@ -230,6 +307,12 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 			agentServiceRoutesHandler.ServeHTTP(w, r)
 		case AgentServiceSetProxyProcedure:
 			agentServiceSetProxyHandler.ServeHTTP(w, r)
+		case AgentServiceCreateFeatureProcedure:
+			agentServiceCreateFeatureHandler.ServeHTTP(w, r)
+		case AgentServiceAddFeatureModulesProcedure:
+			agentServiceAddFeatureModulesHandler.ServeHTTP(w, r)
+		case AgentServiceRemoveFeatureProcedure:
+			agentServiceRemoveFeatureHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -261,4 +344,16 @@ func (UnimplementedAgentServiceHandler) Routes(context.Context, *connect.Request
 
 func (UnimplementedAgentServiceHandler) SetProxy(context.Context, *connect.Request[v1.SetProxyRequest]) (*connect.Response[v1.SetProxyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.SetProxy is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) CreateFeature(context.Context, *connect.Request[v1.CreateFeatureRequest]) (*connect.Response[v1.CreateFeatureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.CreateFeature is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) AddFeatureModules(context.Context, *connect.Request[v1.AddFeatureModulesRequest]) (*connect.Response[v1.AddFeatureModulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.AddFeatureModules is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) RemoveFeature(context.Context, *connect.Request[v1.RemoveFeatureRequest]) (*connect.Response[v1.RemoveFeatureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.RemoveFeature is not implemented"))
 }

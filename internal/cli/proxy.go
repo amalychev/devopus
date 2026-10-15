@@ -27,7 +27,15 @@ func (a *app) routesCmd() *cobra.Command {
 			c := client.New(paths.Socket())
 			req := &agentv1.RoutesRequest{}
 			if len(args) == 1 {
-				req.EnvironmentId = args[0]
+				st, err := a.agentStatus()
+				if err != nil {
+					return err
+				}
+				env, err := a.findEnv(st, args[0])
+				if err != nil {
+					return err
+				}
+				req.EnvironmentId = env.Id
 			}
 			res, err := c.Routes(ctx, connect.NewRequest(req))
 			if err != nil {

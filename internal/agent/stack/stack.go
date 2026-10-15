@@ -52,8 +52,14 @@ type Env struct {
 	ID      string
 	Project string
 	Slug    string
-	// Root is the repository root: the folder of workspace.yaml.
+	// Root is the repository root: the folder of workspace.yaml. Services mount files
+	// from it.
 	Root string
+	// CodeRoot is the checkout that modules with path come from: Root, or the
+	// feature's worktree of the repository. Empty means Root.
+	CodeRoot string
+	// Isolation is set for a feature: it runs only its modules and services.
+	Isolation *Isolation
 	// Network is the environment network's ID, Subnet its /24.
 	Network string
 	Subnet  netip.Prefix
@@ -164,6 +170,14 @@ func Active(w *workspace.Workspace) (modules, services []string) {
 // Build makes the plan of an environment.
 func Build(w *workspace.Workspace, env Env) (*Plan, error) {
 	modules, services := Active(w)
+	noMigrate := map[string]bool{}
+	if env.Isolation != nil {
+		modules, services = env.Isolation.Modules, env.Isolation.Services
+		noMigrate = set(env.Isolation.NoMigrate)
+	}
+	if env.CodeRoot == "" {
+		env.CodeRoot = env.Root
+	}
 	b := &builder{w: w, env: env, plan: &Plan{}, images: map[string]bool{}, volumes: map[string]bool{}}
 	ips, err := pinIPs(env.Subnet, append(append([]string{}, services...), modules...))
 	if err != nil {
@@ -204,7 +218,7 @@ func Build(w *workspace.Workspace, env Env) (*Plan, error) {
 			}
 			installs = append(installs, h)
 		}
-		if m.Hooks.Migrate != "" {
+		if m.Hooks.Migrate != "" && !noMigrate[u.Owner] {
 			h, err := b.hook(u, "migrate", m.Hooks.Migrate, env.Heads[u.Owner])
 			if err != nil {
 				return nil, err
@@ -288,7 +302,7 @@ func (b *builder) module(name string, m *workspace.Module) ([]Unit, error) {
 	case m.Runtime != "":
 		image = workspace.RuntimeImage(m.Runtime)
 	case m.Build != nil:
-		ctxDir := filepath.Join(b.env.Root, filepath.FromSlash(m.Build.Context))
+		ctxDir := filepath.Join(b.env.CodeRoot, filepath.FromSlash(m.Build.Context))
 		if m.Repo != "" {
 			ctxDir = filepath.Join(src, filepath.FromSlash(m.Build.Context))
 		}

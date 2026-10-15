@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"html"
 	"net/netip"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -84,6 +85,8 @@ type Site struct {
 	// Page on every host and path: before modules run, and while the environment is stopped.
 	VHosts []VHost
 	Page   Page
+	// Shared: a feature's way to the base environment's modules and services.
+	Shared *Shared
 }
 
 // VHost is a set of hosts with one route table.
@@ -222,13 +225,29 @@ func (c Config) Resources() (map[resource.Type][]types.Resource, string, error) 
 	if httpsPort == 0 {
 		httpsPort = 443
 	}
-	listeners := []types.Resource{&listenerv3.Listener{
+	shared, sharedRoutes, sharedClusters, err := sharedChains(sites, httpVHosts, map[uint32]bool{80: true, httpPort: true})
+	if err != nil {
+		return nil, "", err
+	}
+	clusters = append(clusters, sharedClusters...)
+	// Shared ports that the HTTP and HTTPS listeners hold go into them, told apart by
+	// the destination; the others get a listener each.
+	take := func(ports ...uint32) []*listenerv3.FilterChain {
+		var out []*listenerv3.FilterChain
+		for _, p := range ports {
+			out = append(out, shared[p]...)
+			delete(shared, p)
+		}
+		return out
+	}
+	httpListener := &listenerv3.Listener{
 		// The name carries the ports: Envoy does not change a listener's addresses in place.
 		Name:                listenerHTTP + "-" + fmt.Sprint(httpPort),
 		Address:             anyAddress(ContainerHTTPPort),
 		AdditionalAddresses: additional(ContainerHTTPPort, 80, httpPort),
-		FilterChains:        []*listenerv3.FilterChain{{Filters: []*listenerv3.Filter{httpHCM}}},
-	}}
+		FilterChains:        append([]*listenerv3.FilterChain{{Filters: []*listenerv3.Filter{httpHCM}}}, take(uniq(ContainerHTTPPort, 80, httpPort)...)...),
+	}
+	listeners := []types.Resource{httpListener}
 	inspector, err := anypb.New(&tlsinspectorv3.TlsInspector{})
 	if err != nil {
 		return nil, "", err
@@ -251,12 +270,27 @@ func (c Config) Resources() (map[resource.Type][]types.Resource, string, error) 
 	// An HTTPS listener without chains refuses every connection, which is what we want
 	// before the first environment, but Envoy rejects a listener with no chain at all.
 	routes := []types.Resource{&routev3.RouteConfiguration{Name: routesHTTP, VirtualHosts: httpVHosts}}
+	siteChains := len(https.FilterChains) > 0
+	https.FilterChains = append(https.FilterChains, take(uniq(ContainerHTTPSPort, 443, httpsPort)...)...)
 	if len(https.FilterChains) > 0 || https.DefaultFilterChain != nil {
 		listeners = append(listeners, https)
 		// Only a listener that references it may bring it: the snapshot must be consistent.
-		if len(https.FilterChains) > 0 {
+		if siteChains {
 			routes = append(routes, &routev3.RouteConfiguration{Name: routesHTTPS, VirtualHosts: httpsVHosts})
 		}
+	}
+	routes = append(routes, sharedRoutes...)
+	ports := make([]uint32, 0, len(shared))
+	for p := range shared {
+		ports = append(ports, p)
+	}
+	sort.Slice(ports, func(i, j int) bool { return ports[i] < ports[j] })
+	for _, p := range ports {
+		listeners = append(listeners, &listenerv3.Listener{
+			Name:         fmt.Sprintf("shared-%d", p),
+			Address:      anyAddress(p),
+			FilterChains: shared[p],
+		})
 	}
 
 	res := map[resource.Type][]types.Resource{
@@ -414,6 +448,16 @@ func additional(published uint32, ports ...uint32) []*listenerv3.AdditionalAddre
 		if !seen[p] {
 			seen[p] = true
 			out = append(out, &listenerv3.AdditionalAddress{Address: anyAddress(p)})
+		}
+	}
+	return out
+}
+
+func uniq(ports ...uint32) []uint32 {
+	var out []uint32
+	for _, p := range ports {
+		if !slices.Contains(out, p) {
+			out = append(out, p)
 		}
 	}
 	return out

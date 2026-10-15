@@ -7,12 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 
 	"connectrpc.com/connect"
 
 	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
 	"github.com/devopus/devopus/gen/devopus/agent/v1/agentv1connect"
+	"github.com/devopus/devopus/internal/agent/stack"
 	"github.com/devopus/devopus/internal/agent/store"
 	"github.com/devopus/devopus/internal/workspace"
 )
@@ -26,6 +29,10 @@ type Backend interface {
 	Proxy() *agentv1.ProxyStatus
 	Routes() []*agentv1.Route
 	CA() *agentv1.CAInfo
+	// Unsaved describes work in a feature's worktrees that exists nowhere else.
+	Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *workspace.Workspace) (map[string]string, error)
+	// Force lets the removal of a feature drop its worktrees even with work in them.
+	Force(envID string)
 }
 
 type Server struct {
@@ -85,35 +92,160 @@ func (s *Server) SetProxy(_ context.Context, req *connect.Request[agentv1.SetPro
 }
 
 func (s *Server) Up(_ context.Context, req *connect.Request[agentv1.UpRequest]) (*connect.Response[agentv1.UpResponse], error) {
-	path := req.Msg.WorkspacePath
+	ws, err := parseWorkspace(req.Msg.WorkspacePath, req.Msg.Config)
+	if err != nil {
+		return nil, err
+	}
+	envID, rev, err := s.b.Store().Up(ws.Project, filepath.Dir(req.Msg.WorkspacePath), req.Msg.Config)
+	if err != nil {
+		return nil, storeError(err)
+	}
+	return connect.NewResponse(&agentv1.UpResponse{EnvironmentId: envID, Revision: rev}), nil
+}
+
+// parseWorkspace checks workspace.yaml: the agent does it itself, the CLI may be older
+// or newer than the agent.
+func parseWorkspace(path string, config []byte) (*workspace.Workspace, error) {
 	if !filepath.IsAbs(path) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("workspace_path must be absolute, got %q", path))
 	}
-	// The agent checks the file itself: the CLI may be older or newer than the agent.
-	res, err := workspace.Parse(req.Msg.Config)
+	res, err := workspace.Parse(config)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s: %w", path, err))
 	}
 	if res.Diagnostics.HasErrors() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is invalid:\n%s", path, res.Diagnostics.Errors().Error()))
 	}
-	envID, rev, err := s.b.Store().Up(res.Workspace.Project, filepath.Dir(path), req.Msg.Config)
-	if errors.Is(err, store.ErrProjectConflict) {
-		return nil, connect.NewError(connect.CodeAlreadyExists, err)
+	return res.Workspace, nil
+}
+
+func storeError(err error) error {
+	switch {
+	case errors.Is(err, store.ErrProjectConflict), errors.Is(err, store.ErrFeatureExists):
+		return connect.NewError(connect.CodeAlreadyExists, err)
+	case errors.Is(err, store.ErrUnknownProject), errors.Is(err, store.ErrUnknownFeature):
+		return connect.NewError(connect.CodeNotFound, err)
 	}
+	var ce *connect.Error
+	if errors.As(err, &ce) {
+		return ce
+	}
+	return connect.NewError(connect.CodeInternal, err)
+}
+
+func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv1.CreateFeatureRequest]) (*connect.Response[agentv1.CreateFeatureResponse], error) {
+	m := req.Msg
+	ws, err := parseWorkspace(m.WorkspacePath, m.Config)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, err
 	}
-	return connect.NewResponse(&agentv1.UpResponse{EnvironmentId: envID, Revision: rev}), nil
+	if strings.TrimSpace(m.Name) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a feature needs a name"))
+	}
+	if _, err := stack.Feature(ws, m.Modules); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	branch := m.Branch
+	if branch == "" {
+		branch = ws.Policy().BranchPrefix + m.Name
+	}
+	if !validBranch(branch) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%q is not a valid branch name; pass --branch", branch))
+	}
+	var reserved []string
+	for _, n := range ws.ServiceNames() {
+		if e := ws.Services[n].Expose; e != "" {
+			reserved = append(reserved, e)
+		}
+	}
+	f, base, rev, err := s.b.Store().CreateFeature(ws.Project, filepath.Dir(m.WorkspacePath), m.Config,
+		store.NewFeature{Name: m.Name, Branch: branch, Modules: m.Modules, Reserved: reserved})
+	if err != nil {
+		return nil, storeError(err)
+	}
+	return connect.NewResponse(&agentv1.CreateFeatureResponse{EnvironmentId: f.Id, Slug: f.Slug, Branch: f.Branch, Revision: rev, BaseEnvironmentId: base.Id}), nil
+}
+
+func (s *Server) AddFeatureModules(_ context.Context, req *connect.Request[agentv1.AddFeatureModulesRequest]) (*connect.Response[agentv1.AddFeatureModulesResponse], error) {
+	m := req.Msg
+	ws, err := parseWorkspace(m.WorkspacePath, m.Config)
+	if err != nil {
+		return nil, err
+	}
+	if len(m.Modules) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name the modules to fork"))
+	}
+	if _, err := stack.Feature(ws, m.Modules); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	env, rev, err := s.b.Store().AddFeatureModules(ws.Project, filepath.Dir(m.WorkspacePath), m.Config, m.Feature, m.Modules)
+	if err != nil {
+		return nil, storeError(err)
+	}
+	return connect.NewResponse(&agentv1.AddFeatureModulesResponse{EnvironmentId: env.Id, Revision: rev}), nil
+}
+
+func (s *Server) RemoveFeature(ctx context.Context, req *connect.Request[agentv1.RemoveFeatureRequest]) (*connect.Response[agentv1.RemoveFeatureResponse], error) {
+	m := req.Msg
+	var ws *workspace.Workspace
+	for _, p := range s.b.Store().Snapshot().Projects {
+		if p.Name == m.Project {
+			if res, err := workspace.Parse(p.Config); err == nil {
+				ws = res.Workspace
+			}
+		}
+	}
+	env, rev, err := s.b.Store().RemoveFeature(m.Project, m.Feature, func(env *agentv1.EnvironmentSpec) error {
+		if m.Force {
+			return nil
+		}
+		unsaved, err := s.b.Unsaved(ctx, env, ws)
+		if err != nil {
+			return connect.NewError(connect.CodeInternal, err)
+		}
+		if len(unsaved) == 0 {
+			return nil
+		}
+		dirs := make([]string, 0, len(unsaved))
+		for d := range unsaved {
+			dirs = append(dirs, d)
+		}
+		sort.Strings(dirs)
+		var b strings.Builder
+		fmt.Fprintf(&b, "feature %s has work that exists nowhere else:", env.Name)
+		for _, d := range dirs {
+			fmt.Fprintf(&b, "\n  %s: %s", d, unsaved[d])
+		}
+		b.WriteString("\ncommit and push it, or remove the feature with --force (commits stay on the branch)")
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New(b.String()))
+	})
+	if err != nil {
+		return nil, storeError(err)
+	}
+	if m.Force {
+		s.b.Force(env.Id)
+	}
+	return connect.NewResponse(&agentv1.RemoveFeatureResponse{EnvironmentId: env.Id, Revision: rev}), nil
+}
+
+// validBranch is a rough git check-ref-format: what people type into a feature name.
+func validBranch(b string) bool {
+	if b == "" || strings.HasPrefix(b, "-") || strings.HasPrefix(b, "/") || strings.HasSuffix(b, "/") ||
+		strings.HasSuffix(b, ".lock") || strings.HasSuffix(b, ".") || strings.Contains(b, "..") || strings.Contains(b, "@{") || strings.Contains(b, "//") {
+		return false
+	}
+	for _, r := range b {
+		if r <= ' ' || r == 0x7f || strings.ContainsRune("~^:?*[\\", r) {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Server) Down(_ context.Context, req *connect.Request[agentv1.DownRequest]) (*connect.Response[agentv1.DownResponse], error) {
 	rev, err := s.b.Store().Down(req.Msg.Project, req.Msg.Purge)
-	if errors.Is(err, store.ErrUnknownProject) {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, storeError(err)
 	}
 	return connect.NewResponse(&agentv1.DownResponse{Revision: rev}), nil
 }

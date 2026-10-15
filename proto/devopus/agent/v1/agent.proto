@@ -20,6 +20,13 @@ service AgentService {
   rpc Routes(RoutesRequest) returns (RoutesResponse);
   // SetProxy changes the device's proxy settings: coexistence with a dev server, restart.
   rpc SetProxy(SetProxyRequest) returns (SetProxyResponse);
+  // CreateFeature adds a feature environment that forks some modules of a project.
+  rpc CreateFeature(CreateFeatureRequest) returns (CreateFeatureResponse);
+  // AddFeatureModules forks more modules in an existing feature.
+  rpc AddFeatureModules(AddFeatureModulesRequest) returns (AddFeatureModulesResponse);
+  // RemoveFeature removes a feature with its containers, data and worktrees. Without
+  // force it refuses while a worktree has work that exists nowhere else.
+  rpc RemoveFeature(RemoveFeatureRequest) returns (RemoveFeatureResponse);
 }
 
 // DesiredState is what must exist on this device. Revision grows with every change.
@@ -74,6 +81,8 @@ message EnvironmentSpec {
   string branch = 5;
   repeated string forked_modules = 6;
   DesiredPhase phase = 7;
+  // The feature's name as people typed it (PAY-123); the slug is derived from it.
+  string name = 8;
 }
 
 enum Phase {
@@ -123,6 +132,29 @@ message EnvironmentStatus {
   bool removed = 12;
   // Services, modules and workers of the environment.
   repeated UnitStatus units = 13;
+  // Features: the name, the branch and the forked modules from the desired state.
+  string name = 14;
+  string branch = 15;
+  repeated string forked_modules = 16;
+  // Where the code of each module of the environment is on the host.
+  repeated ModuleSource sources = 17;
+  // Modules and services a feature takes from the base environment.
+  repeated string shared = 18;
+  // Notes for people: migrations skipped on shared data and the like.
+  repeated string notes = 19;
+  // The project's folder in the feature's worktree of its repository; empty when the
+  // feature's modules all come from other repositories.
+  string code_root = 20;
+}
+
+message ModuleSource {
+  string module = 1;
+  // The module's folder.
+  string path = 2;
+  // The checkout it belongs to: a clone, a worktree or the project's repository.
+  string checkout = 3;
+  // Branch checked out there; empty when detached at the base branch's commit.
+  string branch = 4;
 }
 
 // UnitStatus is one container of an environment.
@@ -270,4 +302,48 @@ message WatchResponse {
   // Sent once, after the current statuses: from here on every change is delivered.
   // A client that changes the desired state waits for it to not miss progress.
   bool synced = 2;
+}
+
+message CreateFeatureRequest {
+  // Absolute path of workspace.yaml and its content, as for Up: the project is updated.
+  string workspace_path = 1;
+  bytes config = 2;
+  string name = 3;
+  repeated string modules = 4;
+  // Default: features.branch_prefix + name.
+  string branch = 5;
+}
+
+message CreateFeatureResponse {
+  string environment_id = 1;
+  string slug = 2;
+  string branch = 3;
+  uint64 revision = 4;
+  string base_environment_id = 5;
+}
+
+message AddFeatureModulesRequest {
+  string workspace_path = 1;
+  bytes config = 2;
+  // Name, slug or ID of the feature.
+  string feature = 3;
+  repeated string modules = 4;
+}
+
+message AddFeatureModulesResponse {
+  string environment_id = 1;
+  uint64 revision = 2;
+}
+
+message RemoveFeatureRequest {
+  string project = 1;
+  // Name, slug or ID of the feature.
+  string feature = 2;
+  // Remove even with uncommitted or unpushed work in its worktrees.
+  bool force = 3;
+}
+
+message RemoveFeatureResponse {
+  string environment_id = 1;
+  uint64 revision = 2;
 }

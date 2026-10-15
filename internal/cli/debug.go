@@ -28,14 +28,28 @@ func (a *app) agentStatus() (*agentv1.StatusResponse, error) {
 	return res.Msg, nil
 }
 
-// findEnv resolves an environment by ID or slug; empty means the base environment of
-// the project in the current folder.
+// findEnv resolves an environment by ID, or a feature by slug or name; empty means the
+// base environment of the project in the current folder.
 func (a *app) findEnv(st *agentv1.StatusResponse, arg string) (*agentv1.EnvironmentStatus, error) {
 	if arg != "" {
 		for _, e := range st.Environments {
-			if e.Id == arg || e.Slug == arg {
+			if e.Id == arg {
 				return e, nil
 			}
+		}
+		// A feature name may repeat across projects: prefer the current project's.
+		project := ""
+		if res, _, err := a.load(); err == nil && res.Workspace != nil {
+			project = res.Workspace.Project
+		}
+		var match *agentv1.EnvironmentStatus
+		for _, e := range st.Environments {
+			if e.Slug != "" && (e.Slug == arg || strings.EqualFold(e.Name, arg)) && (match == nil || e.Project == project) {
+				match = e
+			}
+		}
+		if match != nil {
+			return match, nil
 		}
 		return nil, fail(ExitInvalid, "no environment %q; 'devopus status' lists them", arg)
 	}

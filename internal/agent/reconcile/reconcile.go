@@ -103,6 +103,8 @@ type Reconciler struct {
 
 	mu     sync.Mutex
 	status map[string]*agentv1.EnvironmentStatus
+	// forced: environments whose worktrees go even with work in them.
+	forced map[string]bool
 	proxy  *agentv1.ProxyStatus
 	routes []*agentv1.Route
 }
@@ -129,7 +131,7 @@ func New(rt Runtime, opt Options, publish func(*agentv1.EnvironmentStatus)) *Rec
 		opt.ReadyTimeout = 90 * time.Second
 	}
 	return &Reconciler{rt: rt, opt: opt, pool: Pool, publish: publish, now: time.Now,
-		status: map[string]*agentv1.EnvironmentStatus{}, proxy: &agentv1.ProxyStatus{State: "absent"}}
+		status: map[string]*agentv1.EnvironmentStatus{}, forced: map[string]bool{}, proxy: &agentv1.ProxyStatus{State: "absent"}}
 }
 
 // Statuses returns copies of the current statuses, ordered by project and ID.
@@ -248,7 +250,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, desired *agentv1.DesiredStat
 	}
 	var errs []error
 	envs := append([]*agentv1.EnvironmentSpec{}, desired.Environments...)
-	sort.Slice(envs, func(i, j int) bool { return envs[i].Id < envs[j].Id })
+	// Base environments first: their features reach their modules and services.
+	sort.Slice(envs, func(i, j int) bool {
+		if envs[i].Kind != envs[j].Kind {
+			return envs[i].Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE
+		}
+		return envs[i].Id < envs[j].Id
+	})
 	workspaces := parseProjects(desired.Projects)
 
 	// The proxy serves every environment of the device; it exists while any does.
@@ -263,9 +271,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, desired *agentv1.DesiredStat
 
 	wanted := map[string]bool{}
 	var preps []*prepared
+	bases := map[string]*prepared{}
 	for _, env := range envs {
 		wanted[env.Id] = true
-		p := r.prepareEnv(ctx, desired.Revision, env, workspaces[env.Project], o, px, proxyErr)
+		p := r.prepareEnv(ctx, desired.Revision, env, workspaces[env.Project], o, px, proxyErr, bases[env.Project])
+		if env.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE {
+			bases[env.Project] = p
+		}
 		if p.err != nil {
 			errs = append(errs, fmt.Errorf("environment %s: %w", env.Id, p.err))
 		}
@@ -317,16 +329,28 @@ type prepared struct {
 	waiting bool
 	// started: this pass started or restarted a container of the environment.
 	started bool
+	// sources: where the code of each module is.
+	sources map[string]string
+	// Features: the base environment, what the feature runs itself and how it reaches
+	// the rest.
+	base   *prepared
+	iso    *stack.Isolation
+	shared *proxy.Shared
 }
 
-func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.EnvironmentSpec, ws *parsed, o *observed, px *proxyState, proxyErr error) *prepared {
+func isFeature(env *agentv1.EnvironmentSpec) bool {
+	return env.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE
+}
+
+func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.EnvironmentSpec, ws *parsed, o *observed, px *proxyState, proxyErr error, base *prepared) *prepared {
 	r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
 		s.Project, s.Kind, s.Slug = env.Project, env.Kind, env.Slug
+		s.Name, s.Branch, s.ForkedModules = env.Name, env.Branch, env.ForkedModules
 		if s.Phase == agentv1.Phase_PHASE_UNSPECIFIED {
 			s.Phase = agentv1.Phase_PHASE_CREATING
 		}
 	})
-	p := &prepared{env: env}
+	p := &prepared{env: env, base: base}
 	var nw runtime.Network
 	steps := []step{
 		{"network", func(ctx context.Context) (string, error) {
@@ -370,8 +394,19 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.En
 			return p
 		}
 	} else {
+		if isFeature(env) {
+			steps = append(steps, step{"isolation", func(ctx context.Context) (string, error) {
+				return r.isolate(env, p, nw, px)
+			}})
+		}
 		steps = append(steps, step{"dns", func(ctx context.Context) (string, error) {
-			return r.ensureDNS(ctx, env, nw, o.byEnv[env.Id])
+			var names []string
+			if p.shared != nil {
+				for _, t := range append(append([]proxy.SharedTarget{}, p.shared.Modules...), p.shared.Services...) {
+					names = append(names, t.Name)
+				}
+			}
+			return r.ensureDNS(ctx, env, nw, o.byEnv[env.Id], names)
 		}})
 		root := ""
 		if ws != nil {
@@ -527,11 +562,11 @@ func (r *Reconciler) ensureCertificate(envID string, hosts []string) (*pki.Leaf,
 	return leaf, fmt.Sprintf("%s (until %s)", joinHosts(leaf.Hosts), leaf.NotAfter.Format("2006-01-02")), nil
 }
 
-func (r *Reconciler) ensureDNS(ctx context.Context, env *agentv1.EnvironmentSpec, nw runtime.Network, ctrs []runtime.Container) (string, error) {
+func (r *Reconciler) ensureDNS(ctx context.Context, env *agentv1.EnvironmentSpec, nw runtime.Network, ctrs []runtime.Container, shared []string) (string, error) {
 	if len(nw.Subnets) == 0 {
 		return "", errors.New("the network has no subnet")
 	}
-	spec := proxy.DNSSpec(DNSName(env.Project, env.Id), nw.ID, nw.Subnets[0], r.labels(env))
+	spec := proxy.DNSSpec(DNSName(env.Project, env.Id), nw.ID, nw.Subnets[0], r.labels(env), shared)
 	ip := proxy.DNSIP(nw.Subnets[0]).String()
 	if err := r.ensureContainer(ctx, spec, pick(ctrs, "dns")); err != nil {
 		return "", err
@@ -601,17 +636,32 @@ func (r *Reconciler) removeAll(ctx context.Context, ctrs []runtime.Container, ro
 func (r *Reconciler) collect(ctx context.Context, rev uint64, wanted map[string]bool, o *observed, px *proxyState) []error {
 	var errs []error
 	gone := map[string]string{} // env → project
+	feature := map[string]bool{}
 	for id, n := range o.managed {
 		if !wanted[id] {
 			gone[id] = n.Labels[runtime.LabelProject]
+			feature[id] = n.Labels[runtime.LabelKind] == "feature"
 		}
 	}
 	for id, ctrs := range o.byEnv {
 		if !wanted[id] && len(ctrs) > 0 {
 			gone[id] = ctrs[0].Labels[runtime.LabelProject]
+			feature[id] = ctrs[0].Labels[runtime.LabelKind] == "feature"
 		}
 	}
-	for id, project := range gone {
+	// Features first: their worktrees must be gone before the base's clones they live in.
+	ids := make([]string, 0, len(gone))
+	for id := range gone {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		if feature[ids[i]] != feature[ids[j]] {
+			return feature[ids[i]]
+		}
+		return ids[i] < ids[j]
+	})
+	for _, id := range ids {
+		project := gone[id]
 		r.update(id, func(s *agentv1.EnvironmentStatus) {
 			if s.Project == "" {
 				s.Project = project
@@ -729,12 +779,32 @@ func (r *Reconciler) removeFiles(ctx context.Context, project, envID string) err
 	if err != nil {
 		return err
 	}
+	r.mu.Lock()
+	forced := r.forced[envID]
+	r.mu.Unlock()
 	kept := 0
 	for _, e := range entries {
 		src := filepath.Join(dir, e.Name())
-		if git.IsRepo(src) {
+		switch {
+		case git.IsWorktree(src):
+			// Commits on its branch stay with the branch; only what is nowhere else counts.
+			if lost, err := git.Lost(ctx, src); !forced && (err != nil || lost != "") {
+				r.opt.Log.Warn("kept a worktree with unsaved work", "path", src, "unsaved", lost, "error", err)
+				kept++
+				continue
+			}
+			if err := git.RemoveWorktree(ctx, src); err != nil {
+				return err
+			}
+			continue
+		case git.IsRepo(src):
 			if unsaved, err := git.Unsaved(ctx, src); err != nil || unsaved != "" {
 				r.opt.Log.Warn("kept a checkout with unsaved work", "path", src, "unsaved", unsaved, "error", err)
+				kept++
+				continue
+			}
+			if wts, err := git.LinkedWorktrees(ctx, src); err != nil || len(wts) > 0 {
+				r.opt.Log.Warn("kept a clone that worktrees still use", "path", src, "worktrees", wts, "error", err)
 				kept++
 				continue
 			}
@@ -742,6 +812,11 @@ func (r *Reconciler) removeFiles(ctx context.Context, project, envID string) err
 		if err := os.RemoveAll(src); err != nil {
 			return err
 		}
+	}
+	if kept == 0 {
+		r.mu.Lock()
+		delete(r.forced, envID)
+		r.mu.Unlock()
 	}
 	if kept == 0 {
 		_ = os.Remove(dir)

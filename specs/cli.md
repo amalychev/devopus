@@ -1,6 +1,6 @@
 # Спецификация: CLI агента (MVP)
 
-**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (M1), `agent run`, `status`, `up`, `down` (M2), `doctor [--fix]`, `routes`, `open`, `proxy restart`, `proxy coexist` (M3), `logs`, `exec` (M4; `up` поднимает сервисы и модули, `status` показывает их). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
+**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (M1), `agent run`, `status`, `up`, `down` (M2), `doctor [--fix]`, `routes`, `open`, `proxy restart`, `proxy coexist` (M3), `logs`, `exec` (M4; `up` поднимает сервисы и модули, `status` показывает их), `feature create/add/list/rm/path` (M5). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
 
 ## Установка и служба
 
@@ -32,12 +32,14 @@
 
 | Команда | Описание |
 |---|---|
-| `devopus feature create <name> --modules a,b [--branch …] [--from-task URL]` | Создать фичу; печатает подсказку про общие ресурсы по графу `uses` |
-| `devopus feature add <name> <module>` | Добавить модуль в фичу |
-| `devopus feature list` | Фичи, фазы, URL, ресурсы, общие/собственные данные |
-| `devopus feature sleep <name>`, `devopus feature wake <name>` | Ручное управление |
-| `devopus feature rm <name> [--force]` | Удалить; без `--force` откажет при незакоммиченных/незапушенных изменениях |
-| `devopus feature path <name> [module]` | Путь к worktree (для IDE и AI-агентов) |
+| `devopus feature create <name> -m a,b [--branch …] [-d]` | Создать фичу: worktree форков на ветке `features.branch_prefix + name` (или `--branch`; существующая локальная ветка или ветка из `origin` подхватываются), URL `https://<slug>.<domain>`. До создания печатает, что фича запускает сама, что берёт у базового окружения, и подсказку форкнуть общий модуль, который пишет в данные main. Затем — прогресс, как у `up`. Нужен запущенный или запускаемый `up` базовый вариант: `create` поднимает и его. *`--from-task URL` — этап 2+* |
+| `devopus feature add <name> <module>…` | Форкнуть ещё модули: worktree модуля переходит на ветку фичи, маршруты, DNS и контейнеры перестраиваются |
+| `devopus feature list [--all]` | Фичи проекта (или всех): фаза, URL, форки, ветка, что общее с main |
+| `devopus feature sleep <name>`, `devopus feature wake <name>` | Ручное управление *(M7)* |
+| `devopus feature rm <name> [--force]` | Удалить контейнеры, тома, сеть и worktree фичи. Без `--force` откажет, если в worktree есть незакоммиченные изменения или коммиты, которых нет ни на удалённом репозитории, ни в базовой ветке. Ветка остаётся в любом случае |
+| `devopus feature path <name> [module]` | Папка проекта в worktree фичи или папка модуля (для IDE и AI-агентов: `code $(devopus feature path PAY-123)`) |
+
+`[env]` в `logs`, `exec`, `routes`, `open` принимает ID окружения, слаг или имя фичи.
 
 ## Данные
 

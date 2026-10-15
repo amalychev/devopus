@@ -43,16 +43,22 @@ func (r *Reconciler) unitSteps(env *agentv1.EnvironmentSpec, root string, p *pre
 		{"source", func(ctx context.Context) (string, error) {
 			var msg string
 			var err error
-			sources, heads, msg, err = r.ensureSources(ctx, env, root, p.ws)
+			codeRoot := root
+			if isFeature(env) {
+				sources, heads, codeRoot, msg, err = r.ensureFeatureSources(ctx, env, root, p)
+			} else {
+				sources, heads, msg, err = r.ensureSources(ctx, env, root, p.ws)
+			}
 			if err != nil {
 				return "", err
 			}
+			p.sources = sources
 			secrets, err := readSecrets(filepath.Join(root, SecretsFile))
 			if err != nil {
 				return "", err
 			}
 			plan, err := stack.Build(p.ws, stack.Env{
-				ID: env.Id, Project: env.Project, Slug: slugOf(env), Root: root,
+				ID: env.Id, Project: env.Project, Slug: slugOf(env), Root: root, CodeRoot: codeRoot, Isolation: p.iso,
 				Network: nw.ID, Subnet: nw.Subnets[0], URL: p.url,
 				Sources: sources, Heads: heads, Secrets: secrets,
 				CA: r.caPEM(), Bundle: r.opt.Bundle,
@@ -147,7 +153,14 @@ func (r *Reconciler) ensureSources(ctx context.Context, env *agentv1.Environment
 			heads[name] = h
 		}
 	}
-	msg := fmt.Sprintf("%d modules", len(modules))
+	checkouts := map[string]string{}
+	for name, dir := range sources {
+		if ws.Modules[name].Repo != "" {
+			checkouts[name] = dir
+		}
+	}
+	r.setSources(ctx, env.Id, sources, checkouts)
+	msg := plural(len(modules), "module")
 	if len(cloned) > 0 {
 		msg += ", cloned " + strings.Join(cloned, ", ")
 	}
@@ -204,7 +217,7 @@ func (r *Reconciler) ensureImages(ctx context.Context, env *agentv1.EnvironmentS
 		}
 		pulled = append(pulled, img)
 	}
-	msg := fmt.Sprintf("%d images", len(plan.Images)+len(plan.Builds))
+	msg := plural(len(plan.Images)+len(plan.Builds), "image")
 	if len(pulled) > 0 {
 		msg += ", pulled " + strings.Join(pulled, ", ")
 	}

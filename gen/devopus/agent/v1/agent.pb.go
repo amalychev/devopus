@@ -454,6 +454,8 @@ type EnvironmentSpec struct {
 	Branch        string       `protobuf:"bytes,5,opt,name=branch,proto3" json:"branch,omitempty"`
 	ForkedModules []string     `protobuf:"bytes,6,rep,name=forked_modules,json=forkedModules,proto3" json:"forked_modules,omitempty"`
 	Phase         DesiredPhase `protobuf:"varint,7,opt,name=phase,proto3,enum=devopus.agent.v1.DesiredPhase" json:"phase,omitempty"`
+	// The feature's name as people typed it (PAY-123); the slug is derived from it.
+	Name          string `protobuf:"bytes,8,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -535,6 +537,13 @@ func (x *EnvironmentSpec) GetPhase() DesiredPhase {
 		return x.Phase
 	}
 	return DesiredPhase_DESIRED_PHASE_UNSPECIFIED
+}
+
+func (x *EnvironmentSpec) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 type StepProgress struct {
@@ -682,7 +691,20 @@ type EnvironmentStatus struct {
 	// The environment left the desired state and its resources are gone.
 	Removed bool `protobuf:"varint,12,opt,name=removed,proto3" json:"removed,omitempty"`
 	// Services, modules and workers of the environment.
-	Units         []*UnitStatus `protobuf:"bytes,13,rep,name=units,proto3" json:"units,omitempty"`
+	Units []*UnitStatus `protobuf:"bytes,13,rep,name=units,proto3" json:"units,omitempty"`
+	// Features: the name, the branch and the forked modules from the desired state.
+	Name          string   `protobuf:"bytes,14,opt,name=name,proto3" json:"name,omitempty"`
+	Branch        string   `protobuf:"bytes,15,opt,name=branch,proto3" json:"branch,omitempty"`
+	ForkedModules []string `protobuf:"bytes,16,rep,name=forked_modules,json=forkedModules,proto3" json:"forked_modules,omitempty"`
+	// Where the code of each module of the environment is on the host.
+	Sources []*ModuleSource `protobuf:"bytes,17,rep,name=sources,proto3" json:"sources,omitempty"`
+	// Modules and services a feature takes from the base environment.
+	Shared []string `protobuf:"bytes,18,rep,name=shared,proto3" json:"shared,omitempty"`
+	// Notes for people: migrations skipped on shared data and the like.
+	Notes []string `protobuf:"bytes,19,rep,name=notes,proto3" json:"notes,omitempty"`
+	// The project's folder in the feature's worktree of its repository; empty when the
+	// feature's modules all come from other repositories.
+	CodeRoot      string `protobuf:"bytes,20,opt,name=code_root,json=codeRoot,proto3" json:"code_root,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -808,6 +830,126 @@ func (x *EnvironmentStatus) GetUnits() []*UnitStatus {
 	return nil
 }
 
+func (x *EnvironmentStatus) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EnvironmentStatus) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *EnvironmentStatus) GetForkedModules() []string {
+	if x != nil {
+		return x.ForkedModules
+	}
+	return nil
+}
+
+func (x *EnvironmentStatus) GetSources() []*ModuleSource {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+func (x *EnvironmentStatus) GetShared() []string {
+	if x != nil {
+		return x.Shared
+	}
+	return nil
+}
+
+func (x *EnvironmentStatus) GetNotes() []string {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
+func (x *EnvironmentStatus) GetCodeRoot() string {
+	if x != nil {
+		return x.CodeRoot
+	}
+	return ""
+}
+
+type ModuleSource struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Module string                 `protobuf:"bytes,1,opt,name=module,proto3" json:"module,omitempty"`
+	// The module's folder.
+	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	// The checkout it belongs to: a clone, a worktree or the project's repository.
+	Checkout string `protobuf:"bytes,3,opt,name=checkout,proto3" json:"checkout,omitempty"`
+	// Branch checked out there; empty when detached at the base branch's commit.
+	Branch        string `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ModuleSource) Reset() {
+	*x = ModuleSource{}
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ModuleSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ModuleSource) ProtoMessage() {}
+
+func (x *ModuleSource) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ModuleSource.ProtoReflect.Descriptor instead.
+func (*ModuleSource) Descriptor() ([]byte, []int) {
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ModuleSource) GetModule() string {
+	if x != nil {
+		return x.Module
+	}
+	return ""
+}
+
+func (x *ModuleSource) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ModuleSource) GetCheckout() string {
+	if x != nil {
+		return x.Checkout
+	}
+	return ""
+}
+
+func (x *ModuleSource) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
 // UnitStatus is one container of an environment.
 type UnitStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -830,7 +972,7 @@ type UnitStatus struct {
 
 func (x *UnitStatus) Reset() {
 	*x = UnitStatus{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[7]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -842,7 +984,7 @@ func (x *UnitStatus) String() string {
 func (*UnitStatus) ProtoMessage() {}
 
 func (x *UnitStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[7]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -855,7 +997,7 @@ func (x *UnitStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnitStatus.ProtoReflect.Descriptor instead.
 func (*UnitStatus) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UnitStatus) GetName() string {
@@ -922,7 +1064,7 @@ type RuntimeInfo struct {
 
 func (x *RuntimeInfo) Reset() {
 	*x = RuntimeInfo{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -934,7 +1076,7 @@ func (x *RuntimeInfo) String() string {
 func (*RuntimeInfo) ProtoMessage() {}
 
 func (x *RuntimeInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -947,7 +1089,7 @@ func (x *RuntimeInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeInfo.ProtoReflect.Descriptor instead.
 func (*RuntimeInfo) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{8}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RuntimeInfo) GetName() string {
@@ -1000,7 +1142,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1012,7 +1154,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1025,7 +1167,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{9}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{10}
 }
 
 type StatusResponse struct {
@@ -1043,7 +1185,7 @@ type StatusResponse struct {
 
 func (x *StatusResponse) Reset() {
 	*x = StatusResponse{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[10]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1055,7 +1197,7 @@ func (x *StatusResponse) String() string {
 func (*StatusResponse) ProtoMessage() {}
 
 func (x *StatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[10]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1068,7 +1210,7 @@ func (x *StatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
 func (*StatusResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{10}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StatusResponse) GetAgentVersion() string {
@@ -1135,7 +1277,7 @@ type PortConflict struct {
 
 func (x *PortConflict) Reset() {
 	*x = PortConflict{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1147,7 +1289,7 @@ func (x *PortConflict) String() string {
 func (*PortConflict) ProtoMessage() {}
 
 func (x *PortConflict) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1160,7 +1302,7 @@ func (x *PortConflict) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PortConflict.ProtoReflect.Descriptor instead.
 func (*PortConflict) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{11}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PortConflict) GetAddress() string {
@@ -1226,7 +1368,7 @@ type ProxyStatus struct {
 
 func (x *ProxyStatus) Reset() {
 	*x = ProxyStatus{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1238,7 +1380,7 @@ func (x *ProxyStatus) String() string {
 func (*ProxyStatus) ProtoMessage() {}
 
 func (x *ProxyStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1251,7 +1393,7 @@ func (x *ProxyStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyStatus.ProtoReflect.Descriptor instead.
 func (*ProxyStatus) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{12}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ProxyStatus) GetState() string {
@@ -1358,7 +1500,7 @@ type CAInfo struct {
 
 func (x *CAInfo) Reset() {
 	*x = CAInfo{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1370,7 +1512,7 @@ func (x *CAInfo) String() string {
 func (*CAInfo) ProtoMessage() {}
 
 func (x *CAInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1383,7 +1525,7 @@ func (x *CAInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CAInfo.ProtoReflect.Descriptor instead.
 func (*CAInfo) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{13}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CAInfo) GetRootPath() string {
@@ -1423,7 +1565,7 @@ type Route struct {
 
 func (x *Route) Reset() {
 	*x = Route{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1435,7 +1577,7 @@ func (x *Route) String() string {
 func (*Route) ProtoMessage() {}
 
 func (x *Route) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1448,7 +1590,7 @@ func (x *Route) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Route.ProtoReflect.Descriptor instead.
 func (*Route) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{14}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Route) GetHost() string {
@@ -1503,7 +1645,7 @@ type RoutesRequest struct {
 
 func (x *RoutesRequest) Reset() {
 	*x = RoutesRequest{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[15]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1515,7 +1657,7 @@ func (x *RoutesRequest) String() string {
 func (*RoutesRequest) ProtoMessage() {}
 
 func (x *RoutesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[15]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1528,7 +1670,7 @@ func (x *RoutesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutesRequest.ProtoReflect.Descriptor instead.
 func (*RoutesRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{15}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RoutesRequest) GetEnvironmentId() string {
@@ -1548,7 +1690,7 @@ type RoutesResponse struct {
 
 func (x *RoutesResponse) Reset() {
 	*x = RoutesResponse{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[16]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1560,7 +1702,7 @@ func (x *RoutesResponse) String() string {
 func (*RoutesResponse) ProtoMessage() {}
 
 func (x *RoutesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[16]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1573,7 +1715,7 @@ func (x *RoutesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutesResponse.ProtoReflect.Descriptor instead.
 func (*RoutesResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{16}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RoutesResponse) GetRoutes() []*Route {
@@ -1604,7 +1746,7 @@ type SetProxyRequest struct {
 
 func (x *SetProxyRequest) Reset() {
 	*x = SetProxyRequest{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[17]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1616,7 +1758,7 @@ func (x *SetProxyRequest) String() string {
 func (*SetProxyRequest) ProtoMessage() {}
 
 func (x *SetProxyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[17]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1629,7 +1771,7 @@ func (x *SetProxyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetProxyRequest.ProtoReflect.Descriptor instead.
 func (*SetProxyRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{17}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SetProxyRequest) GetCoexistHttpPort() uint32 {
@@ -1662,7 +1804,7 @@ type SetProxyResponse struct {
 
 func (x *SetProxyResponse) Reset() {
 	*x = SetProxyResponse{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[18]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1674,7 +1816,7 @@ func (x *SetProxyResponse) String() string {
 func (*SetProxyResponse) ProtoMessage() {}
 
 func (x *SetProxyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[18]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1687,7 +1829,7 @@ func (x *SetProxyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetProxyResponse.ProtoReflect.Descriptor instead.
 func (*SetProxyResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{18}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SetProxyResponse) GetRevision() uint64 {
@@ -1708,7 +1850,7 @@ type UpRequest struct {
 
 func (x *UpRequest) Reset() {
 	*x = UpRequest{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[19]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1720,7 +1862,7 @@ func (x *UpRequest) String() string {
 func (*UpRequest) ProtoMessage() {}
 
 func (x *UpRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[19]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1733,7 +1875,7 @@ func (x *UpRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpRequest.ProtoReflect.Descriptor instead.
 func (*UpRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{19}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *UpRequest) GetWorkspacePath() string {
@@ -1760,7 +1902,7 @@ type UpResponse struct {
 
 func (x *UpResponse) Reset() {
 	*x = UpResponse{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[20]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1772,7 +1914,7 @@ func (x *UpResponse) String() string {
 func (*UpResponse) ProtoMessage() {}
 
 func (x *UpResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[20]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1785,7 +1927,7 @@ func (x *UpResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpResponse.ProtoReflect.Descriptor instead.
 func (*UpResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{20}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UpResponse) GetEnvironmentId() string {
@@ -1813,7 +1955,7 @@ type DownRequest struct {
 
 func (x *DownRequest) Reset() {
 	*x = DownRequest{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[21]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1825,7 +1967,7 @@ func (x *DownRequest) String() string {
 func (*DownRequest) ProtoMessage() {}
 
 func (x *DownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[21]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1838,7 +1980,7 @@ func (x *DownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownRequest.ProtoReflect.Descriptor instead.
 func (*DownRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{21}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DownRequest) GetProject() string {
@@ -1864,7 +2006,7 @@ type DownResponse struct {
 
 func (x *DownResponse) Reset() {
 	*x = DownResponse{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[22]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1876,7 +2018,7 @@ func (x *DownResponse) String() string {
 func (*DownResponse) ProtoMessage() {}
 
 func (x *DownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[22]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1889,7 +2031,7 @@ func (x *DownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownResponse.ProtoReflect.Descriptor instead.
 func (*DownResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{22}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *DownResponse) GetRevision() uint64 {
@@ -1909,7 +2051,7 @@ type WatchRequest struct {
 
 func (x *WatchRequest) Reset() {
 	*x = WatchRequest{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[23]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1921,7 +2063,7 @@ func (x *WatchRequest) String() string {
 func (*WatchRequest) ProtoMessage() {}
 
 func (x *WatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[23]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1934,7 +2076,7 @@ func (x *WatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchRequest.ProtoReflect.Descriptor instead.
 func (*WatchRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{23}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *WatchRequest) GetEnvironmentId() string {
@@ -1956,7 +2098,7 @@ type WatchResponse struct {
 
 func (x *WatchResponse) Reset() {
 	*x = WatchResponse{}
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[24]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1968,7 +2110,7 @@ func (x *WatchResponse) String() string {
 func (*WatchResponse) ProtoMessage() {}
 
 func (x *WatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_agent_v1_agent_proto_msgTypes[24]
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1981,7 +2123,7 @@ func (x *WatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchResponse.ProtoReflect.Descriptor instead.
 func (*WatchResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{24}
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *WatchResponse) GetStatus() *EnvironmentStatus {
@@ -1996,6 +2138,395 @@ func (x *WatchResponse) GetSynced() bool {
 		return x.Synced
 	}
 	return false
+}
+
+type CreateFeatureRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Absolute path of workspace.yaml and its content, as for Up: the project is updated.
+	WorkspacePath string   `protobuf:"bytes,1,opt,name=workspace_path,json=workspacePath,proto3" json:"workspace_path,omitempty"`
+	Config        []byte   `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	Name          string   `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Modules       []string `protobuf:"bytes,4,rep,name=modules,proto3" json:"modules,omitempty"`
+	// Default: features.branch_prefix + name.
+	Branch        string `protobuf:"bytes,5,opt,name=branch,proto3" json:"branch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateFeatureRequest) Reset() {
+	*x = CreateFeatureRequest{}
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateFeatureRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateFeatureRequest) ProtoMessage() {}
+
+func (x *CreateFeatureRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateFeatureRequest.ProtoReflect.Descriptor instead.
+func (*CreateFeatureRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *CreateFeatureRequest) GetWorkspacePath() string {
+	if x != nil {
+		return x.WorkspacePath
+	}
+	return ""
+}
+
+func (x *CreateFeatureRequest) GetConfig() []byte {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *CreateFeatureRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateFeatureRequest) GetModules() []string {
+	if x != nil {
+		return x.Modules
+	}
+	return nil
+}
+
+func (x *CreateFeatureRequest) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+type CreateFeatureResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId     string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	Slug              string                 `protobuf:"bytes,2,opt,name=slug,proto3" json:"slug,omitempty"`
+	Branch            string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	Revision          uint64                 `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	BaseEnvironmentId string                 `protobuf:"bytes,5,opt,name=base_environment_id,json=baseEnvironmentId,proto3" json:"base_environment_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *CreateFeatureResponse) Reset() {
+	*x = CreateFeatureResponse{}
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateFeatureResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateFeatureResponse) ProtoMessage() {}
+
+func (x *CreateFeatureResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateFeatureResponse.ProtoReflect.Descriptor instead.
+func (*CreateFeatureResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *CreateFeatureResponse) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *CreateFeatureResponse) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *CreateFeatureResponse) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *CreateFeatureResponse) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *CreateFeatureResponse) GetBaseEnvironmentId() string {
+	if x != nil {
+		return x.BaseEnvironmentId
+	}
+	return ""
+}
+
+type AddFeatureModulesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspacePath string                 `protobuf:"bytes,1,opt,name=workspace_path,json=workspacePath,proto3" json:"workspace_path,omitempty"`
+	Config        []byte                 `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	// Name, slug or ID of the feature.
+	Feature       string   `protobuf:"bytes,3,opt,name=feature,proto3" json:"feature,omitempty"`
+	Modules       []string `protobuf:"bytes,4,rep,name=modules,proto3" json:"modules,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddFeatureModulesRequest) Reset() {
+	*x = AddFeatureModulesRequest{}
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddFeatureModulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddFeatureModulesRequest) ProtoMessage() {}
+
+func (x *AddFeatureModulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddFeatureModulesRequest.ProtoReflect.Descriptor instead.
+func (*AddFeatureModulesRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *AddFeatureModulesRequest) GetWorkspacePath() string {
+	if x != nil {
+		return x.WorkspacePath
+	}
+	return ""
+}
+
+func (x *AddFeatureModulesRequest) GetConfig() []byte {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *AddFeatureModulesRequest) GetFeature() string {
+	if x != nil {
+		return x.Feature
+	}
+	return ""
+}
+
+func (x *AddFeatureModulesRequest) GetModules() []string {
+	if x != nil {
+		return x.Modules
+	}
+	return nil
+}
+
+type AddFeatureModulesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	Revision      uint64                 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddFeatureModulesResponse) Reset() {
+	*x = AddFeatureModulesResponse{}
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddFeatureModulesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddFeatureModulesResponse) ProtoMessage() {}
+
+func (x *AddFeatureModulesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddFeatureModulesResponse.ProtoReflect.Descriptor instead.
+func (*AddFeatureModulesResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *AddFeatureModulesResponse) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *AddFeatureModulesResponse) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+type RemoveFeatureRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	// Name, slug or ID of the feature.
+	Feature string `protobuf:"bytes,2,opt,name=feature,proto3" json:"feature,omitempty"`
+	// Remove even with uncommitted or unpushed work in its worktrees.
+	Force         bool `protobuf:"varint,3,opt,name=force,proto3" json:"force,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveFeatureRequest) Reset() {
+	*x = RemoveFeatureRequest{}
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveFeatureRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveFeatureRequest) ProtoMessage() {}
+
+func (x *RemoveFeatureRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveFeatureRequest.ProtoReflect.Descriptor instead.
+func (*RemoveFeatureRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *RemoveFeatureRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *RemoveFeatureRequest) GetFeature() string {
+	if x != nil {
+		return x.Feature
+	}
+	return ""
+}
+
+func (x *RemoveFeatureRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
+type RemoveFeatureResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	Revision      uint64                 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveFeatureResponse) Reset() {
+	*x = RemoveFeatureResponse{}
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveFeatureResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveFeatureResponse) ProtoMessage() {}
+
+func (x *RemoveFeatureResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveFeatureResponse.ProtoReflect.Descriptor instead.
+func (*RemoveFeatureResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *RemoveFeatureResponse) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *RemoveFeatureResponse) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
 }
 
 var File_devopus_agent_v1_agent_proto protoreflect.FileDescriptor
@@ -2017,7 +2548,7 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\x04root\x18\x02 \x01(\tR\x04root\x12\x16\n" +
 	"\x06config\x18\x03 \x01(\fR\x06config\x12\x1f\n" +
 	"\vconfig_hash\x18\x04 \x01(\tR\n" +
-	"configHash\"\xfb\x01\n" +
+	"configHash\"\x8f\x02\n" +
 	"\x0fEnvironmentSpec\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x125\n" +
@@ -2025,7 +2556,8 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\x04slug\x18\x04 \x01(\tR\x04slug\x12\x16\n" +
 	"\x06branch\x18\x05 \x01(\tR\x06branch\x12%\n" +
 	"\x0eforked_modules\x18\x06 \x03(\tR\rforkedModules\x124\n" +
-	"\x05phase\x18\a \x01(\x0e2\x1e.devopus.agent.v1.DesiredPhaseR\x05phase\"\xe7\x01\n" +
+	"\x05phase\x18\a \x01(\x0e2\x1e.devopus.agent.v1.DesiredPhaseR\x05phase\x12\x12\n" +
+	"\x04name\x18\b \x01(\tR\x04name\"\xe7\x01\n" +
 	"\fStepProgress\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x121\n" +
 	"\x05state\x18\x02 \x01(\x0e2\x1b.devopus.agent.v1.StepStateR\x05state\x12\x18\n" +
@@ -2036,7 +2568,7 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"finishedAt\";\n" +
 	"\rNetworkStatus\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06subnet\x18\x02 \x01(\tR\x06subnet\"\x84\x04\n" +
+	"\x06subnet\x18\x02 \x01(\tR\x06subnet\"\xdc\x05\n" +
 	"\x11EnvironmentStatus\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x125\n" +
@@ -2052,7 +2584,19 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x18\n" +
 	"\aremoved\x18\f \x01(\bR\aremoved\x122\n" +
-	"\x05units\x18\r \x03(\v2\x1c.devopus.agent.v1.UnitStatusR\x05units\"\xb0\x01\n" +
+	"\x05units\x18\r \x03(\v2\x1c.devopus.agent.v1.UnitStatusR\x05units\x12\x12\n" +
+	"\x04name\x18\x0e \x01(\tR\x04name\x12\x16\n" +
+	"\x06branch\x18\x0f \x01(\tR\x06branch\x12%\n" +
+	"\x0eforked_modules\x18\x10 \x03(\tR\rforkedModules\x128\n" +
+	"\asources\x18\x11 \x03(\v2\x1e.devopus.agent.v1.ModuleSourceR\asources\x12\x16\n" +
+	"\x06shared\x18\x12 \x03(\tR\x06shared\x12\x14\n" +
+	"\x05notes\x18\x13 \x03(\tR\x05notes\x12\x1b\n" +
+	"\tcode_root\x18\x14 \x01(\tR\bcodeRoot\"n\n" +
+	"\fModuleSource\x12\x16\n" +
+	"\x06module\x18\x01 \x01(\tR\x06module\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1a\n" +
+	"\bcheckout\x18\x03 \x01(\tR\bcheckout\x12\x16\n" +
+	"\x06branch\x18\x04 \x01(\tR\x06branch\"\xb0\x01\n" +
 	"\n" +
 	"UnitStatus\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
@@ -2138,7 +2682,34 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"d\n" +
 	"\rWatchResponse\x12;\n" +
 	"\x06status\x18\x01 \x01(\v2#.devopus.agent.v1.EnvironmentStatusR\x06status\x12\x16\n" +
-	"\x06synced\x18\x02 \x01(\bR\x06synced*l\n" +
+	"\x06synced\x18\x02 \x01(\bR\x06synced\"\x9b\x01\n" +
+	"\x14CreateFeatureRequest\x12%\n" +
+	"\x0eworkspace_path\x18\x01 \x01(\tR\rworkspacePath\x12\x16\n" +
+	"\x06config\x18\x02 \x01(\fR\x06config\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x18\n" +
+	"\amodules\x18\x04 \x03(\tR\amodules\x12\x16\n" +
+	"\x06branch\x18\x05 \x01(\tR\x06branch\"\xb6\x01\n" +
+	"\x15CreateFeatureResponse\x12%\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12\x12\n" +
+	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x1a\n" +
+	"\brevision\x18\x04 \x01(\x04R\brevision\x12.\n" +
+	"\x13base_environment_id\x18\x05 \x01(\tR\x11baseEnvironmentId\"\x8d\x01\n" +
+	"\x18AddFeatureModulesRequest\x12%\n" +
+	"\x0eworkspace_path\x18\x01 \x01(\tR\rworkspacePath\x12\x16\n" +
+	"\x06config\x18\x02 \x01(\fR\x06config\x12\x18\n" +
+	"\afeature\x18\x03 \x01(\tR\afeature\x12\x18\n" +
+	"\amodules\x18\x04 \x03(\tR\amodules\"^\n" +
+	"\x19AddFeatureModulesResponse\x12%\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x04R\brevision\"`\n" +
+	"\x14RemoveFeatureRequest\x12\x18\n" +
+	"\aproject\x18\x01 \x01(\tR\aproject\x12\x18\n" +
+	"\afeature\x18\x02 \x01(\tR\afeature\x12\x14\n" +
+	"\x05force\x18\x03 \x01(\bR\x05force\"Z\n" +
+	"\x15RemoveFeatureResponse\x12%\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x04R\brevision*l\n" +
 	"\x0fEnvironmentKind\x12 \n" +
 	"\x1cENVIRONMENT_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15ENVIRONMENT_KIND_BASE\x10\x01\x12\x1c\n" +
@@ -2159,14 +2730,17 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\x12STEP_STATE_PENDING\x10\x01\x12\x16\n" +
 	"\x12STEP_STATE_RUNNING\x10\x02\x12\x13\n" +
 	"\x0fSTEP_STATE_DONE\x10\x03\x12\x15\n" +
-	"\x11STEP_STATE_FAILED\x10\x042\xcf\x03\n" +
+	"\x11STEP_STATE_FAILED\x10\x042\x81\x06\n" +
 	"\fAgentService\x12K\n" +
 	"\x06Status\x12\x1f.devopus.agent.v1.StatusRequest\x1a .devopus.agent.v1.StatusResponse\x12?\n" +
 	"\x02Up\x12\x1b.devopus.agent.v1.UpRequest\x1a\x1c.devopus.agent.v1.UpResponse\x12E\n" +
 	"\x04Down\x12\x1d.devopus.agent.v1.DownRequest\x1a\x1e.devopus.agent.v1.DownResponse\x12J\n" +
 	"\x05Watch\x12\x1e.devopus.agent.v1.WatchRequest\x1a\x1f.devopus.agent.v1.WatchResponse0\x01\x12K\n" +
 	"\x06Routes\x12\x1f.devopus.agent.v1.RoutesRequest\x1a .devopus.agent.v1.RoutesResponse\x12Q\n" +
-	"\bSetProxy\x12!.devopus.agent.v1.SetProxyRequest\x1a\".devopus.agent.v1.SetProxyResponseB\xbd\x01\n" +
+	"\bSetProxy\x12!.devopus.agent.v1.SetProxyRequest\x1a\".devopus.agent.v1.SetProxyResponse\x12`\n" +
+	"\rCreateFeature\x12&.devopus.agent.v1.CreateFeatureRequest\x1a'.devopus.agent.v1.CreateFeatureResponse\x12l\n" +
+	"\x11AddFeatureModules\x12*.devopus.agent.v1.AddFeatureModulesRequest\x1a+.devopus.agent.v1.AddFeatureModulesResponse\x12`\n" +
+	"\rRemoveFeature\x12&.devopus.agent.v1.RemoveFeatureRequest\x1a'.devopus.agent.v1.RemoveFeatureResponseB\xbd\x01\n" +
 	"\x14com.devopus.agent.v1B\n" +
 	"AgentProtoP\x01Z7github.com/devopus/devopus/gen/devopus/agent/v1;agentv1\xa2\x02\x03DAX\xaa\x02\x10Devopus.Agent.V1\xca\x02\x10Devopus\\Agent\\V1\xe2\x02\x1cDevopus\\Agent\\V1\\GPBMetadata\xea\x02\x12Devopus::Agent::V1b\x06proto3"
 
@@ -2183,38 +2757,45 @@ func file_devopus_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_devopus_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_devopus_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_devopus_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_devopus_agent_v1_agent_proto_goTypes = []any{
-	(EnvironmentKind)(0),          // 0: devopus.agent.v1.EnvironmentKind
-	(DesiredPhase)(0),             // 1: devopus.agent.v1.DesiredPhase
-	(Phase)(0),                    // 2: devopus.agent.v1.Phase
-	(StepState)(0),                // 3: devopus.agent.v1.StepState
-	(*DesiredState)(nil),          // 4: devopus.agent.v1.DesiredState
-	(*DeviceSettings)(nil),        // 5: devopus.agent.v1.DeviceSettings
-	(*ProjectSpec)(nil),           // 6: devopus.agent.v1.ProjectSpec
-	(*EnvironmentSpec)(nil),       // 7: devopus.agent.v1.EnvironmentSpec
-	(*StepProgress)(nil),          // 8: devopus.agent.v1.StepProgress
-	(*NetworkStatus)(nil),         // 9: devopus.agent.v1.NetworkStatus
-	(*EnvironmentStatus)(nil),     // 10: devopus.agent.v1.EnvironmentStatus
-	(*UnitStatus)(nil),            // 11: devopus.agent.v1.UnitStatus
-	(*RuntimeInfo)(nil),           // 12: devopus.agent.v1.RuntimeInfo
-	(*StatusRequest)(nil),         // 13: devopus.agent.v1.StatusRequest
-	(*StatusResponse)(nil),        // 14: devopus.agent.v1.StatusResponse
-	(*PortConflict)(nil),          // 15: devopus.agent.v1.PortConflict
-	(*ProxyStatus)(nil),           // 16: devopus.agent.v1.ProxyStatus
-	(*CAInfo)(nil),                // 17: devopus.agent.v1.CAInfo
-	(*Route)(nil),                 // 18: devopus.agent.v1.Route
-	(*RoutesRequest)(nil),         // 19: devopus.agent.v1.RoutesRequest
-	(*RoutesResponse)(nil),        // 20: devopus.agent.v1.RoutesResponse
-	(*SetProxyRequest)(nil),       // 21: devopus.agent.v1.SetProxyRequest
-	(*SetProxyResponse)(nil),      // 22: devopus.agent.v1.SetProxyResponse
-	(*UpRequest)(nil),             // 23: devopus.agent.v1.UpRequest
-	(*UpResponse)(nil),            // 24: devopus.agent.v1.UpResponse
-	(*DownRequest)(nil),           // 25: devopus.agent.v1.DownRequest
-	(*DownResponse)(nil),          // 26: devopus.agent.v1.DownResponse
-	(*WatchRequest)(nil),          // 27: devopus.agent.v1.WatchRequest
-	(*WatchResponse)(nil),         // 28: devopus.agent.v1.WatchResponse
-	(*timestamppb.Timestamp)(nil), // 29: google.protobuf.Timestamp
+	(EnvironmentKind)(0),              // 0: devopus.agent.v1.EnvironmentKind
+	(DesiredPhase)(0),                 // 1: devopus.agent.v1.DesiredPhase
+	(Phase)(0),                        // 2: devopus.agent.v1.Phase
+	(StepState)(0),                    // 3: devopus.agent.v1.StepState
+	(*DesiredState)(nil),              // 4: devopus.agent.v1.DesiredState
+	(*DeviceSettings)(nil),            // 5: devopus.agent.v1.DeviceSettings
+	(*ProjectSpec)(nil),               // 6: devopus.agent.v1.ProjectSpec
+	(*EnvironmentSpec)(nil),           // 7: devopus.agent.v1.EnvironmentSpec
+	(*StepProgress)(nil),              // 8: devopus.agent.v1.StepProgress
+	(*NetworkStatus)(nil),             // 9: devopus.agent.v1.NetworkStatus
+	(*EnvironmentStatus)(nil),         // 10: devopus.agent.v1.EnvironmentStatus
+	(*ModuleSource)(nil),              // 11: devopus.agent.v1.ModuleSource
+	(*UnitStatus)(nil),                // 12: devopus.agent.v1.UnitStatus
+	(*RuntimeInfo)(nil),               // 13: devopus.agent.v1.RuntimeInfo
+	(*StatusRequest)(nil),             // 14: devopus.agent.v1.StatusRequest
+	(*StatusResponse)(nil),            // 15: devopus.agent.v1.StatusResponse
+	(*PortConflict)(nil),              // 16: devopus.agent.v1.PortConflict
+	(*ProxyStatus)(nil),               // 17: devopus.agent.v1.ProxyStatus
+	(*CAInfo)(nil),                    // 18: devopus.agent.v1.CAInfo
+	(*Route)(nil),                     // 19: devopus.agent.v1.Route
+	(*RoutesRequest)(nil),             // 20: devopus.agent.v1.RoutesRequest
+	(*RoutesResponse)(nil),            // 21: devopus.agent.v1.RoutesResponse
+	(*SetProxyRequest)(nil),           // 22: devopus.agent.v1.SetProxyRequest
+	(*SetProxyResponse)(nil),          // 23: devopus.agent.v1.SetProxyResponse
+	(*UpRequest)(nil),                 // 24: devopus.agent.v1.UpRequest
+	(*UpResponse)(nil),                // 25: devopus.agent.v1.UpResponse
+	(*DownRequest)(nil),               // 26: devopus.agent.v1.DownRequest
+	(*DownResponse)(nil),              // 27: devopus.agent.v1.DownResponse
+	(*WatchRequest)(nil),              // 28: devopus.agent.v1.WatchRequest
+	(*WatchResponse)(nil),             // 29: devopus.agent.v1.WatchResponse
+	(*CreateFeatureRequest)(nil),      // 30: devopus.agent.v1.CreateFeatureRequest
+	(*CreateFeatureResponse)(nil),     // 31: devopus.agent.v1.CreateFeatureResponse
+	(*AddFeatureModulesRequest)(nil),  // 32: devopus.agent.v1.AddFeatureModulesRequest
+	(*AddFeatureModulesResponse)(nil), // 33: devopus.agent.v1.AddFeatureModulesResponse
+	(*RemoveFeatureRequest)(nil),      // 34: devopus.agent.v1.RemoveFeatureRequest
+	(*RemoveFeatureResponse)(nil),     // 35: devopus.agent.v1.RemoveFeatureResponse
+	(*timestamppb.Timestamp)(nil),     // 36: google.protobuf.Timestamp
 }
 var file_devopus_agent_v1_agent_proto_depIdxs = []int32{
 	6,  // 0: devopus.agent.v1.DesiredState.projects:type_name -> devopus.agent.v1.ProjectSpec
@@ -2223,41 +2804,48 @@ var file_devopus_agent_v1_agent_proto_depIdxs = []int32{
 	0,  // 3: devopus.agent.v1.EnvironmentSpec.kind:type_name -> devopus.agent.v1.EnvironmentKind
 	1,  // 4: devopus.agent.v1.EnvironmentSpec.phase:type_name -> devopus.agent.v1.DesiredPhase
 	3,  // 5: devopus.agent.v1.StepProgress.state:type_name -> devopus.agent.v1.StepState
-	29, // 6: devopus.agent.v1.StepProgress.started_at:type_name -> google.protobuf.Timestamp
-	29, // 7: devopus.agent.v1.StepProgress.finished_at:type_name -> google.protobuf.Timestamp
+	36, // 6: devopus.agent.v1.StepProgress.started_at:type_name -> google.protobuf.Timestamp
+	36, // 7: devopus.agent.v1.StepProgress.finished_at:type_name -> google.protobuf.Timestamp
 	0,  // 8: devopus.agent.v1.EnvironmentStatus.kind:type_name -> devopus.agent.v1.EnvironmentKind
 	2,  // 9: devopus.agent.v1.EnvironmentStatus.phase:type_name -> devopus.agent.v1.Phase
 	8,  // 10: devopus.agent.v1.EnvironmentStatus.steps:type_name -> devopus.agent.v1.StepProgress
 	9,  // 11: devopus.agent.v1.EnvironmentStatus.network:type_name -> devopus.agent.v1.NetworkStatus
-	29, // 12: devopus.agent.v1.EnvironmentStatus.updated_at:type_name -> google.protobuf.Timestamp
-	11, // 13: devopus.agent.v1.EnvironmentStatus.units:type_name -> devopus.agent.v1.UnitStatus
-	12, // 14: devopus.agent.v1.StatusResponse.runtime:type_name -> devopus.agent.v1.RuntimeInfo
-	6,  // 15: devopus.agent.v1.StatusResponse.projects:type_name -> devopus.agent.v1.ProjectSpec
-	10, // 16: devopus.agent.v1.StatusResponse.environments:type_name -> devopus.agent.v1.EnvironmentStatus
-	16, // 17: devopus.agent.v1.StatusResponse.proxy:type_name -> devopus.agent.v1.ProxyStatus
-	17, // 18: devopus.agent.v1.StatusResponse.ca:type_name -> devopus.agent.v1.CAInfo
-	15, // 19: devopus.agent.v1.ProxyStatus.conflicts:type_name -> devopus.agent.v1.PortConflict
-	29, // 20: devopus.agent.v1.CAInfo.not_after:type_name -> google.protobuf.Timestamp
-	18, // 21: devopus.agent.v1.RoutesResponse.routes:type_name -> devopus.agent.v1.Route
-	16, // 22: devopus.agent.v1.RoutesResponse.proxy:type_name -> devopus.agent.v1.ProxyStatus
-	10, // 23: devopus.agent.v1.WatchResponse.status:type_name -> devopus.agent.v1.EnvironmentStatus
-	13, // 24: devopus.agent.v1.AgentService.Status:input_type -> devopus.agent.v1.StatusRequest
-	23, // 25: devopus.agent.v1.AgentService.Up:input_type -> devopus.agent.v1.UpRequest
-	25, // 26: devopus.agent.v1.AgentService.Down:input_type -> devopus.agent.v1.DownRequest
-	27, // 27: devopus.agent.v1.AgentService.Watch:input_type -> devopus.agent.v1.WatchRequest
-	19, // 28: devopus.agent.v1.AgentService.Routes:input_type -> devopus.agent.v1.RoutesRequest
-	21, // 29: devopus.agent.v1.AgentService.SetProxy:input_type -> devopus.agent.v1.SetProxyRequest
-	14, // 30: devopus.agent.v1.AgentService.Status:output_type -> devopus.agent.v1.StatusResponse
-	24, // 31: devopus.agent.v1.AgentService.Up:output_type -> devopus.agent.v1.UpResponse
-	26, // 32: devopus.agent.v1.AgentService.Down:output_type -> devopus.agent.v1.DownResponse
-	28, // 33: devopus.agent.v1.AgentService.Watch:output_type -> devopus.agent.v1.WatchResponse
-	20, // 34: devopus.agent.v1.AgentService.Routes:output_type -> devopus.agent.v1.RoutesResponse
-	22, // 35: devopus.agent.v1.AgentService.SetProxy:output_type -> devopus.agent.v1.SetProxyResponse
-	30, // [30:36] is the sub-list for method output_type
-	24, // [24:30] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	36, // 12: devopus.agent.v1.EnvironmentStatus.updated_at:type_name -> google.protobuf.Timestamp
+	12, // 13: devopus.agent.v1.EnvironmentStatus.units:type_name -> devopus.agent.v1.UnitStatus
+	11, // 14: devopus.agent.v1.EnvironmentStatus.sources:type_name -> devopus.agent.v1.ModuleSource
+	13, // 15: devopus.agent.v1.StatusResponse.runtime:type_name -> devopus.agent.v1.RuntimeInfo
+	6,  // 16: devopus.agent.v1.StatusResponse.projects:type_name -> devopus.agent.v1.ProjectSpec
+	10, // 17: devopus.agent.v1.StatusResponse.environments:type_name -> devopus.agent.v1.EnvironmentStatus
+	17, // 18: devopus.agent.v1.StatusResponse.proxy:type_name -> devopus.agent.v1.ProxyStatus
+	18, // 19: devopus.agent.v1.StatusResponse.ca:type_name -> devopus.agent.v1.CAInfo
+	16, // 20: devopus.agent.v1.ProxyStatus.conflicts:type_name -> devopus.agent.v1.PortConflict
+	36, // 21: devopus.agent.v1.CAInfo.not_after:type_name -> google.protobuf.Timestamp
+	19, // 22: devopus.agent.v1.RoutesResponse.routes:type_name -> devopus.agent.v1.Route
+	17, // 23: devopus.agent.v1.RoutesResponse.proxy:type_name -> devopus.agent.v1.ProxyStatus
+	10, // 24: devopus.agent.v1.WatchResponse.status:type_name -> devopus.agent.v1.EnvironmentStatus
+	14, // 25: devopus.agent.v1.AgentService.Status:input_type -> devopus.agent.v1.StatusRequest
+	24, // 26: devopus.agent.v1.AgentService.Up:input_type -> devopus.agent.v1.UpRequest
+	26, // 27: devopus.agent.v1.AgentService.Down:input_type -> devopus.agent.v1.DownRequest
+	28, // 28: devopus.agent.v1.AgentService.Watch:input_type -> devopus.agent.v1.WatchRequest
+	20, // 29: devopus.agent.v1.AgentService.Routes:input_type -> devopus.agent.v1.RoutesRequest
+	22, // 30: devopus.agent.v1.AgentService.SetProxy:input_type -> devopus.agent.v1.SetProxyRequest
+	30, // 31: devopus.agent.v1.AgentService.CreateFeature:input_type -> devopus.agent.v1.CreateFeatureRequest
+	32, // 32: devopus.agent.v1.AgentService.AddFeatureModules:input_type -> devopus.agent.v1.AddFeatureModulesRequest
+	34, // 33: devopus.agent.v1.AgentService.RemoveFeature:input_type -> devopus.agent.v1.RemoveFeatureRequest
+	15, // 34: devopus.agent.v1.AgentService.Status:output_type -> devopus.agent.v1.StatusResponse
+	25, // 35: devopus.agent.v1.AgentService.Up:output_type -> devopus.agent.v1.UpResponse
+	27, // 36: devopus.agent.v1.AgentService.Down:output_type -> devopus.agent.v1.DownResponse
+	29, // 37: devopus.agent.v1.AgentService.Watch:output_type -> devopus.agent.v1.WatchResponse
+	21, // 38: devopus.agent.v1.AgentService.Routes:output_type -> devopus.agent.v1.RoutesResponse
+	23, // 39: devopus.agent.v1.AgentService.SetProxy:output_type -> devopus.agent.v1.SetProxyResponse
+	31, // 40: devopus.agent.v1.AgentService.CreateFeature:output_type -> devopus.agent.v1.CreateFeatureResponse
+	33, // 41: devopus.agent.v1.AgentService.AddFeatureModules:output_type -> devopus.agent.v1.AddFeatureModulesResponse
+	35, // 42: devopus.agent.v1.AgentService.RemoveFeature:output_type -> devopus.agent.v1.RemoveFeatureResponse
+	34, // [34:43] is the sub-list for method output_type
+	25, // [25:34] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_devopus_agent_v1_agent_proto_init() }
@@ -2271,7 +2859,7 @@ func file_devopus_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_devopus_agent_v1_agent_proto_rawDesc), len(file_devopus_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   25,
+			NumMessages:   32,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

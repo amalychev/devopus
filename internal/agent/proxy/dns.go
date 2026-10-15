@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/netip"
+	"sort"
+	"strings"
 
 	"github.com/devopus/devopus/internal/agent/runtime"
 )
@@ -26,10 +28,24 @@ func hostAddr(subnet netip.Prefix, last byte) netip.Addr {
 // Corefile makes *.localhost resolve to the proxy's address in this network; everything
 // else goes to Docker's embedded DNS of the DNS container, which knows only this
 // network, so names of other environments never leak in (local-networking.md §2, P-6).
-func Corefile(proxyIP netip.Addr) string {
+// In a feature the names it shares with the base environment are the proxy too.
+func Corefile(proxyIP netip.Addr, shared []string) string {
+	hosts := ""
+	if len(shared) > 0 {
+		names := append([]string{}, shared...)
+		sort.Strings(names)
+		hosts = fmt.Sprintf(`    # Modules and services of the base environment: the proxy forwards to them.
+    hosts {
+        %s %s
+        ttl 60
+        no_reverse
+        fallthrough
+    }
+`, proxyIP, strings.Join(names, " "))
+	}
 	return fmt.Sprintf(`.:53 {
     errors
-    # Every name under localhost is the proxy. No AAAA on purpose: clients must not
+%s    # Every name under localhost is the proxy. No AAAA on purpose: clients must not
     # try ::1, which inside a container is the container itself.
     template IN A localhost {
         answer "{{ .Name }} 60 IN A %s"
@@ -40,12 +56,12 @@ func Corefile(proxyIP netip.Addr) string {
     forward . 127.0.0.11
     cache 30
 }
-`, proxyIP)
+`, hosts, proxyIP)
 }
 
 // DNSSpec describes the DNS container of an environment network.
-func DNSSpec(name, network string, subnet netip.Prefix, labels map[string]string) runtime.ContainerSpec {
-	corefile := Corefile(ProxyIP(subnet))
+func DNSSpec(name, network string, subnet netip.Prefix, labels map[string]string, shared []string) runtime.ContainerSpec {
+	corefile := Corefile(ProxyIP(subnet), shared)
 	sum := sha256.Sum256([]byte(DNSImage + "\n" + corefile))
 	all := map[string]string{}
 	for k, v := range labels {

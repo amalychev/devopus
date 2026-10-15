@@ -237,30 +237,38 @@ func (a *app) upCmd() *cobra.Command {
 			if detach {
 				return a.done(map[string]any{"environment_id": envID, "revision": rev}, "Environment %s of %s is coming up; 'devopus status' shows progress.\n", envID, res.Workspace.Project)
 			}
-			final, err := a.follow(w, []string{envID}, rev, true, func(s *agentv1.EnvironmentStatus) bool {
-				return s.Phase == agentv1.Phase_PHASE_RUNNING
-			})
-			if err != nil {
-				return err
-			}
-			if a.json {
-				return a.writeProto(final[envID])
-			}
-			fmt.Fprintf(a.stdout, "%s is up: %s (environment %s)\n", res.Workspace.Project, final[envID].Url, envID)
-			if routes, err := c.Routes(ctx, connect.NewRequest(&agentv1.RoutesRequest{EnvironmentId: envID})); err == nil {
-				w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
-				for _, r := range routes.Msg.Routes {
-					fmt.Fprintf(w, "  %s\t%s\n", r.Url, r.Target)
-				}
-				w.Flush()
-			}
-			a.trustHint()
-			return nil
+			return a.awaitRunning(ctx, c, w, envID, rev, res.Workspace.Project)
 		},
 	}
 	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "return without waiting for the environment")
 	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Minute, "how long to wait")
 	return cmd
+}
+
+// awaitRunning follows an environment until it runs, then prints its URL and routes.
+func (a *app) awaitRunning(ctx context.Context, c agentv1connect.AgentServiceClient, w *connect.ServerStreamForClient[agentv1.WatchResponse], envID string, rev uint64, what string) error {
+	final, err := a.follow(w, []string{envID}, rev, true, func(s *agentv1.EnvironmentStatus) bool {
+		return s.Phase == agentv1.Phase_PHASE_RUNNING
+	})
+	if err != nil {
+		return err
+	}
+	if a.json {
+		return a.writeProto(final[envID])
+	}
+	fmt.Fprintf(a.stdout, "%s is up: %s (environment %s)\n", what, final[envID].Url, envID)
+	if routes, err := c.Routes(ctx, connect.NewRequest(&agentv1.RoutesRequest{EnvironmentId: envID})); err == nil {
+		w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
+		for _, r := range routes.Msg.Routes {
+			fmt.Fprintf(w, "  %s\t%s\n", r.Url, r.Target)
+		}
+		w.Flush()
+	}
+	for _, n := range final[envID].Notes {
+		fmt.Fprintln(a.stdout, "  note: "+n)
+	}
+	a.trustHint()
+	return nil
 }
 
 func (a *app) downCmd() *cobra.Command {

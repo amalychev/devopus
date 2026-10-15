@@ -54,7 +54,8 @@ func TestAgentEndToEnd(t *testing.T) {
 	// Free high ports: a real agent may hold 80/443 or the fallback ports.
 	ports := proxy.Ports{HTTP: freePort(t), HTTPS: freePort(t)}
 	done := make(chan error, 1)
-	agentCtx, stop := context.WithCancel(ctx)
+	// Not the test's deadline: the agent must outlive it to clean up after a failure.
+	agentCtx, stop := context.WithCancel(context.Background())
 	go func() {
 		done <- Run(agentCtx, Options{Version: "test", Log: slog.New(slog.NewTextHandler(io.Discard, nil)), ProxyPorts: &ports})
 	}()
@@ -133,8 +134,7 @@ modules:
 	envID := up.Msg.EnvironmentId
 	t.Cleanup(func() {
 		// leave nothing behind even if the test fails half-way
-		_, _ = c.Down(context.Background(), connect.NewRequest(&agentv1.DownRequest{Project: project, Purge: true}))
-		time.Sleep(time.Second)
+		purge(t, rt, c, project)
 	})
 	st := waitFor(t, ctx, c, envID, func(s *agentv1.EnvironmentStatus) bool { return s.Phase == agentv1.Phase_PHASE_RUNNING })
 	if st.Network.GetSubnet() == "" {
@@ -258,6 +258,14 @@ func httpsGet(t *testing.T, ctx context.Context, ip string, port uint16, host st
 
 func httpsGetPath(t *testing.T, ctx context.Context, ip string, port uint16, host, path string, roots *x509.CertPool) (int, string) {
 	t.Helper()
+	code, body, err := httpsTry(ctx, ip, port, host, path, roots)
+	if err != nil {
+		t.Errorf("GET https://%s%s via %s: %v", host, path, ip, err)
+	}
+	return code, body
+}
+
+func httpsTry(ctx context.Context, ip string, port uint16, host, path string, roots *x509.CertPool) (int, string, error) {
 	addr := net.JoinHostPort(ip, fmt.Sprint(port))
 	c := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
 		TLSClientConfig: &tls.Config{RootCAs: roots, ServerName: host},
@@ -268,12 +276,11 @@ func httpsGetPath(t *testing.T, ctx context.Context, ip string, port uint16, hos
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+host+path, nil)
 	res, err := c.Do(req)
 	if err != nil {
-		t.Errorf("GET https://%s via %s: %v", host, addr, err)
-		return 0, ""
+		return 0, "", err
 	}
 	defer res.Body.Close()
 	b, _ := io.ReadAll(res.Body)
-	return res.StatusCode, string(b)
+	return res.StatusCode, string(b), nil
 }
 
 func running(t *testing.T, ctx context.Context, rt *runtime.Docker, name string) bool {
@@ -303,6 +310,20 @@ func containers(t *testing.T, ctx context.Context, rt *runtime.Docker, role stri
 		}
 	}
 	return out
+}
+
+// purge removes the project and waits until the agent's containers are gone.
+func purge(t *testing.T, rt *runtime.Docker, c agentv1connect.AgentServiceClient, project string) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	_, _ = c.Down(ctx, connect.NewRequest(&agentv1.DownRequest{Project: project, Purge: true}))
+	for ctx.Err() == nil {
+		if all, err := rt.Containers(ctx, paths.Instance()); err != nil || len(all) == 0 {
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	t.Logf("containers of %s are still there after a minute", project)
 }
 
 func freePort(t *testing.T) uint16 {

@@ -54,8 +54,8 @@ loop:
 ## Шаги создания окружения фичи
 
 1. Валидация конфига, вычисление набора форков и зависимостей по графу `uses`.
-2. `git fetch` + `git worktree add <path>/<env-id>/<module> -b feature/<slug>` для каждого форка.
-3. Сеть: подключение к сети проекта с алиасами (см. [docker-isolation.md](docker-isolation.md)).
+2. `git worktree add ~/.devopus/src/<project>/<env-id>/<module> -b <branch_prefix><имя>` для каждого форка (ветка из `origin` подхватывается после `git fetch`), detached-worktree для модулей, которые используют форки; монорепо — один worktree `_repo`.
+3. Сеть: своя сеть фичи; имена общих модулей и сервисов CoreDNS фичи отдаёт адресом прокси, прокси пересылает их в базовое окружение (см. [workspace-yaml.md](../../specs/workspace-yaml.md#как-агент-запускает-фичу)).
 4. Данные: клон БД из золотой копии для каждого `owned` ресурса.
 5. Генерация `.env`: логические имена, ссылки `${{module.url}}` (Simple Isolation), секреты.
 6. Образы: pull готовых или build; хуки `install` → `migrate` (только на клоне).
