@@ -74,10 +74,14 @@ func (r *Reconciler) unitSteps(env *agentv1.EnvironmentSpec, root string, p *pre
 			r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.Notes = notes })
 			return msg, nil
 		}},
-		{"images", func(ctx context.Context) (string, error) {
-			return r.ensureImages(ctx, env, p.plan)
-		}},
 	}
+	if r.asleep(env) {
+		// Its containers are stopped on purpose; the waker starts them.
+		return steps
+	}
+	steps = append(steps, step{"images", func(ctx context.Context) (string, error) {
+		return r.ensureImages(ctx, env, p.plan)
+	}})
 	if isFeature(env) {
 		steps = append(steps, step{"data", func(ctx context.Context) (string, error) {
 			return r.ensureData(ctx, env, p, o)

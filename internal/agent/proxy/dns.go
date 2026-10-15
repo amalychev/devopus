@@ -62,7 +62,7 @@ func Corefile(proxyIP netip.Addr, shared []string) string {
 // DNSSpec describes the DNS container of an environment network.
 func DNSSpec(name, network string, subnet netip.Prefix, labels map[string]string, shared []string) runtime.ContainerSpec {
 	corefile := Corefile(ProxyIP(subnet), shared)
-	sum := sha256.Sum256([]byte(DNSImage + "\n" + corefile))
+	sum := sha256.Sum256([]byte(DNSImage + "\n" + corefile + "\nmac-from-ip"))
 	all := map[string]string{}
 	for k, v := range labels {
 		all[k] = v

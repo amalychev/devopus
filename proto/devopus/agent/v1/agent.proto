@@ -30,6 +30,8 @@ service AgentService {
   // ResetData recreates a feature's databases from the golden copies, or refreshes the
   // golden copies of the base environment.
   rpc ResetData(ResetDataRequest) returns (ResetDataResponse);
+  // SetSleep puts a feature to sleep or wakes it up.
+  rpc SetSleep(SetSleepRequest) returns (SetSleepResponse);
 }
 
 // DesiredState is what must exist on this device. Revision grows with every change.
@@ -98,6 +100,8 @@ enum Phase {
   PHASE_STOPPED = 3;
   PHASE_ERROR = 4;
   PHASE_DELETING = 5;
+  // A feature with its containers stopped; its first request wakes it.
+  PHASE_SLEEPING = 6;
 }
 
 enum StepState {
@@ -153,6 +157,12 @@ message EnvironmentStatus {
   string code_root = 20;
   // Databases: golden copies in the base environment, their copies in a feature.
   repeated DataStatus data = 21;
+  // Features: when they were last in use, why and since when they sleep.
+  google.protobuf.Timestamp last_active = 22;
+  string sleep_reason = 23;
+  google.protobuf.Timestamp sleeping_since = 24;
+  // The feature's branch is merged into the base branch (cleanup: on_merge).
+  bool merged = 25;
 }
 
 message DataStatus {
@@ -381,4 +391,15 @@ message ResetDataResponse {
   string environment_id = 1;
   uint64 revision = 2;
   repeated string services = 3;
+}
+
+message SetSleepRequest {
+  string project = 1;
+  // Name, slug or ID of the feature.
+  string feature = 2;
+  bool asleep = 3;
+}
+
+message SetSleepResponse {
+  string environment_id = 1;
 }

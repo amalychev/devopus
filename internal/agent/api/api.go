@@ -34,6 +34,9 @@ type Backend interface {
 	Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *workspace.Workspace) (map[string]string, error)
 	// Force lets the removal of a feature drop its worktrees even with work in them.
 	Force(envID string)
+	// Sleep and Wake switch a feature; they return once it started switching.
+	Sleep(envID string) error
+	Wake(envID string) error
 }
 
 type Server struct {
@@ -287,6 +290,24 @@ func (s *Server) ResetData(_ context.Context, req *connect.Request[agentv1.Reset
 		return nil, storeError(err)
 	}
 	return connect.NewResponse(&agentv1.ResetDataResponse{EnvironmentId: env.Id, Revision: rev, Services: services}), nil
+}
+
+func (s *Server) SetSleep(_ context.Context, req *connect.Request[agentv1.SetSleepRequest]) (*connect.Response[agentv1.SetSleepResponse], error) {
+	f := s.b.Store().Feature(req.Msg.Project, req.Msg.Feature)
+	if f == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%w %q in %s", store.ErrUnknownFeature, req.Msg.Feature, req.Msg.Project))
+	}
+	if f.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("%s is stopped; 'devopus up' starts it", f.Name))
+	}
+	do := s.b.Wake
+	if req.Msg.Asleep {
+		do = s.b.Sleep
+	}
+	if err := do(f.Id); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&agentv1.SetSleepResponse{EnvironmentId: f.Id}), nil
 }
 
 // validBranch is a rough git check-ref-format: what people type into a feature name.

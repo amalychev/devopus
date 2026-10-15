@@ -65,6 +65,8 @@ type Config struct {
 	Sites     []Site
 	// Coexist sends hosts Devopus does not serve to a dev server moved off 80/443.
 	Coexist *Coexist
+	// WakerPort is the agent's waker on the host; 0 turns sleeping off.
+	WakerPort uint32
 }
 
 // Coexist is a dev server on the host (Herd, Valet, nginx) that gave 80/443 to Devopus.
@@ -87,6 +89,14 @@ type Site struct {
 	Page   Page
 	// Shared: a feature's way to the base environment's modules and services.
 	Shared *Shared
+	// Sleep is set for sites whose units sleep (features): Awake says whether the
+	// proxy sends their traffic to them or to the waker.
+	Sleep *Sleep
+}
+
+// Sleep is the state of a site whose units sleep.
+type Sleep struct {
+	Awake bool
 }
 
 // VHost is a set of hosts with one route table.
@@ -108,6 +118,8 @@ type Upstream struct {
 	// Name is unique within the site: the module or service.
 	Name string
 	Addr netip.AddrPort
+	// Sleeps: the unit belongs to the site and sleeps with it.
+	Sleeps bool
 }
 
 // Page is a direct response of the proxy.
@@ -123,6 +135,7 @@ func (c Config) Resources() (map[resource.Type][]types.Resource, string, error) 
 	sort.Slice(sites, func(i, j int) bool { return sites[i].Name < sites[j].Name })
 
 	var secrets, clusters []types.Resource
+	waker := false
 	var chains []*listenerv3.FilterChain
 	httpsVHosts := []*routev3.VirtualHost{}
 	httpVHosts := []*routev3.VirtualHost{}
@@ -176,6 +189,11 @@ func (c Config) Resources() (map[resource.Type][]types.Resource, string, error) 
 					upstreams[cluster] = true
 					clusters = append(clusters, staticCluster(cluster, rt.Upstream.Addr))
 				}
+				if c.WakerPort != 0 && s.Sleep != nil && rt.Upstream.Sleeps {
+					waker = true
+					v.Routes = append(v.Routes, sleepyRoutes(cluster, rt.Prefix, s.Name, rt.Upstream.Name, s.Sleep.Awake)...)
+					continue
+				}
 				v.Routes = append(v.Routes, &routev3.Route{
 					Match: prefixMatch(rt.Prefix),
 					// No timeout: dev servers compile on the first request, streams stay open.
@@ -202,6 +220,13 @@ func (c Config) Resources() (map[resource.Type][]types.Resource, string, error) 
 		known = append(known, s.Hosts...)
 	}
 
+	if waker {
+		w := hostCluster(clusterWaker, c.WakerPort)
+		// Colima forwards connections from its VM to the host one by one: a burst of
+		// requests to a sleeping feature may take seconds to connect.
+		w.ConnectTimeout = durationpb.New(15 * time.Second)
+		clusters = append(clusters, w)
+	}
 	unknown := Page{Status: 404, Title: "Nothing here", Text: unknownText(known)}
 	httpDefault := &routev3.VirtualHost{Name: "default", Domains: []string{"*"}, Routes: []*routev3.Route{pageRoute("/", unknown)}}
 	if c.Coexist != nil && c.Coexist.HTTPPort != 0 {

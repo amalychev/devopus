@@ -134,6 +134,8 @@ const (
 	Phase_PHASE_STOPPED     Phase = 3
 	Phase_PHASE_ERROR       Phase = 4
 	Phase_PHASE_DELETING    Phase = 5
+	// A feature with its containers stopped; its first request wakes it.
+	Phase_PHASE_SLEEPING Phase = 6
 )
 
 // Enum value maps for Phase.
@@ -145,6 +147,7 @@ var (
 		3: "PHASE_STOPPED",
 		4: "PHASE_ERROR",
 		5: "PHASE_DELETING",
+		6: "PHASE_SLEEPING",
 	}
 	Phase_value = map[string]int32{
 		"PHASE_UNSPECIFIED": 0,
@@ -153,6 +156,7 @@ var (
 		"PHASE_STOPPED":     3,
 		"PHASE_ERROR":       4,
 		"PHASE_DELETING":    5,
+		"PHASE_SLEEPING":    6,
 	}
 )
 
@@ -716,7 +720,13 @@ type EnvironmentStatus struct {
 	// feature's modules all come from other repositories.
 	CodeRoot string `protobuf:"bytes,20,opt,name=code_root,json=codeRoot,proto3" json:"code_root,omitempty"`
 	// Databases: golden copies in the base environment, their copies in a feature.
-	Data          []*DataStatus `protobuf:"bytes,21,rep,name=data,proto3" json:"data,omitempty"`
+	Data []*DataStatus `protobuf:"bytes,21,rep,name=data,proto3" json:"data,omitempty"`
+	// Features: when they were last in use, why and since when they sleep.
+	LastActive    *timestamppb.Timestamp `protobuf:"bytes,22,opt,name=last_active,json=lastActive,proto3" json:"last_active,omitempty"`
+	SleepReason   string                 `protobuf:"bytes,23,opt,name=sleep_reason,json=sleepReason,proto3" json:"sleep_reason,omitempty"`
+	SleepingSince *timestamppb.Timestamp `protobuf:"bytes,24,opt,name=sleeping_since,json=sleepingSince,proto3" json:"sleeping_since,omitempty"`
+	// The feature's branch is merged into the base branch (cleanup: on_merge).
+	Merged        bool `protobuf:"varint,25,opt,name=merged,proto3" json:"merged,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -896,6 +906,34 @@ func (x *EnvironmentStatus) GetData() []*DataStatus {
 		return x.Data
 	}
 	return nil
+}
+
+func (x *EnvironmentStatus) GetLastActive() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastActive
+	}
+	return nil
+}
+
+func (x *EnvironmentStatus) GetSleepReason() string {
+	if x != nil {
+		return x.SleepReason
+	}
+	return ""
+}
+
+func (x *EnvironmentStatus) GetSleepingSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SleepingSince
+	}
+	return nil
+}
+
+func (x *EnvironmentStatus) GetMerged() bool {
+	if x != nil {
+		return x.Merged
+	}
+	return false
 }
 
 type DataStatus struct {
@@ -2758,6 +2796,111 @@ func (x *ResetDataResponse) GetServices() []string {
 	return nil
 }
 
+type SetSleepRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	// Name, slug or ID of the feature.
+	Feature       string `protobuf:"bytes,2,opt,name=feature,proto3" json:"feature,omitempty"`
+	Asleep        bool   `protobuf:"varint,3,opt,name=asleep,proto3" json:"asleep,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetSleepRequest) Reset() {
+	*x = SetSleepRequest{}
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetSleepRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetSleepRequest) ProtoMessage() {}
+
+func (x *SetSleepRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetSleepRequest.ProtoReflect.Descriptor instead.
+func (*SetSleepRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *SetSleepRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *SetSleepRequest) GetFeature() string {
+	if x != nil {
+		return x.Feature
+	}
+	return ""
+}
+
+func (x *SetSleepRequest) GetAsleep() bool {
+	if x != nil {
+		return x.Asleep
+	}
+	return false
+}
+
+type SetSleepResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetSleepResponse) Reset() {
+	*x = SetSleepResponse{}
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetSleepResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetSleepResponse) ProtoMessage() {}
+
+func (x *SetSleepResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_agent_v1_agent_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetSleepResponse.ProtoReflect.Descriptor instead.
+func (*SetSleepResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_agent_v1_agent_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *SetSleepResponse) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
 var File_devopus_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_devopus_agent_v1_agent_proto_rawDesc = "" +
@@ -2802,7 +2945,7 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"finishedAt\";\n" +
 	"\rNetworkStatus\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06subnet\x18\x02 \x01(\tR\x06subnet\"\x8e\x06\n" +
+	"\x06subnet\x18\x02 \x01(\tR\x06subnet\"\xc9\a\n" +
 	"\x11EnvironmentStatus\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x125\n" +
@@ -2826,7 +2969,12 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\x06shared\x18\x12 \x03(\tR\x06shared\x12\x14\n" +
 	"\x05notes\x18\x13 \x03(\tR\x05notes\x12\x1b\n" +
 	"\tcode_root\x18\x14 \x01(\tR\bcodeRoot\x120\n" +
-	"\x04data\x18\x15 \x03(\v2\x1c.devopus.agent.v1.DataStatusR\x04data\"\xb7\x01\n" +
+	"\x04data\x18\x15 \x03(\v2\x1c.devopus.agent.v1.DataStatusR\x04data\x12;\n" +
+	"\vlast_active\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastActive\x12!\n" +
+	"\fsleep_reason\x18\x17 \x01(\tR\vsleepReason\x12A\n" +
+	"\x0esleeping_since\x18\x18 \x01(\v2\x1a.google.protobuf.TimestampR\rsleepingSince\x12\x16\n" +
+	"\x06merged\x18\x19 \x01(\bR\x06merged\"\xb7\x01\n" +
 	"\n" +
 	"DataStatus\x12\x18\n" +
 	"\aservice\x18\x01 \x01(\tR\aservice\x12\x16\n" +
@@ -2960,7 +3108,13 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\x11ResetDataResponse\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x04R\brevision\x12\x1a\n" +
-	"\bservices\x18\x03 \x03(\tR\bservices*l\n" +
+	"\bservices\x18\x03 \x03(\tR\bservices\"]\n" +
+	"\x0fSetSleepRequest\x12\x18\n" +
+	"\aproject\x18\x01 \x01(\tR\aproject\x12\x18\n" +
+	"\afeature\x18\x02 \x01(\tR\afeature\x12\x16\n" +
+	"\x06asleep\x18\x03 \x01(\bR\x06asleep\"9\n" +
+	"\x10SetSleepResponse\x12%\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId*l\n" +
 	"\x0fEnvironmentKind\x12 \n" +
 	"\x1cENVIRONMENT_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15ENVIRONMENT_KIND_BASE\x10\x01\x12\x1c\n" +
@@ -2968,20 +3122,21 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\fDesiredPhase\x12\x1d\n" +
 	"\x19DESIRED_PHASE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15DESIRED_PHASE_RUNNING\x10\x01\x12\x19\n" +
-	"\x15DESIRED_PHASE_STOPPED\x10\x02*}\n" +
+	"\x15DESIRED_PHASE_STOPPED\x10\x02*\x91\x01\n" +
 	"\x05Phase\x12\x15\n" +
 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0ePHASE_CREATING\x10\x01\x12\x11\n" +
 	"\rPHASE_RUNNING\x10\x02\x12\x11\n" +
 	"\rPHASE_STOPPED\x10\x03\x12\x0f\n" +
 	"\vPHASE_ERROR\x10\x04\x12\x12\n" +
-	"\x0ePHASE_DELETING\x10\x05*\x83\x01\n" +
+	"\x0ePHASE_DELETING\x10\x05\x12\x12\n" +
+	"\x0ePHASE_SLEEPING\x10\x06*\x83\x01\n" +
 	"\tStepState\x12\x1a\n" +
 	"\x16STEP_STATE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12STEP_STATE_PENDING\x10\x01\x12\x16\n" +
 	"\x12STEP_STATE_RUNNING\x10\x02\x12\x13\n" +
 	"\x0fSTEP_STATE_DONE\x10\x03\x12\x15\n" +
-	"\x11STEP_STATE_FAILED\x10\x042\xd7\x06\n" +
+	"\x11STEP_STATE_FAILED\x10\x042\xaa\a\n" +
 	"\fAgentService\x12K\n" +
 	"\x06Status\x12\x1f.devopus.agent.v1.StatusRequest\x1a .devopus.agent.v1.StatusResponse\x12?\n" +
 	"\x02Up\x12\x1b.devopus.agent.v1.UpRequest\x1a\x1c.devopus.agent.v1.UpResponse\x12E\n" +
@@ -2992,7 +3147,8 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\rCreateFeature\x12&.devopus.agent.v1.CreateFeatureRequest\x1a'.devopus.agent.v1.CreateFeatureResponse\x12l\n" +
 	"\x11AddFeatureModules\x12*.devopus.agent.v1.AddFeatureModulesRequest\x1a+.devopus.agent.v1.AddFeatureModulesResponse\x12`\n" +
 	"\rRemoveFeature\x12&.devopus.agent.v1.RemoveFeatureRequest\x1a'.devopus.agent.v1.RemoveFeatureResponse\x12T\n" +
-	"\tResetData\x12\".devopus.agent.v1.ResetDataRequest\x1a#.devopus.agent.v1.ResetDataResponseB\xbd\x01\n" +
+	"\tResetData\x12\".devopus.agent.v1.ResetDataRequest\x1a#.devopus.agent.v1.ResetDataResponse\x12Q\n" +
+	"\bSetSleep\x12!.devopus.agent.v1.SetSleepRequest\x1a\".devopus.agent.v1.SetSleepResponseB\xbd\x01\n" +
 	"\x14com.devopus.agent.v1B\n" +
 	"AgentProtoP\x01Z7github.com/devopus/devopus/gen/devopus/agent/v1;agentv1\xa2\x02\x03DAX\xaa\x02\x10Devopus.Agent.V1\xca\x02\x10Devopus\\Agent\\V1\xe2\x02\x1cDevopus\\Agent\\V1\\GPBMetadata\xea\x02\x12Devopus::Agent::V1b\x06proto3"
 
@@ -3009,7 +3165,7 @@ func file_devopus_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_devopus_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_devopus_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_devopus_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_devopus_agent_v1_agent_proto_goTypes = []any{
 	(EnvironmentKind)(0),              // 0: devopus.agent.v1.EnvironmentKind
 	(DesiredPhase)(0),                 // 1: devopus.agent.v1.DesiredPhase
@@ -3050,8 +3206,10 @@ var file_devopus_agent_v1_agent_proto_goTypes = []any{
 	(*RemoveFeatureResponse)(nil),     // 36: devopus.agent.v1.RemoveFeatureResponse
 	(*ResetDataRequest)(nil),          // 37: devopus.agent.v1.ResetDataRequest
 	(*ResetDataResponse)(nil),         // 38: devopus.agent.v1.ResetDataResponse
-	nil,                               // 39: devopus.agent.v1.EnvironmentSpec.DataResetsEntry
-	(*timestamppb.Timestamp)(nil),     // 40: google.protobuf.Timestamp
+	(*SetSleepRequest)(nil),           // 39: devopus.agent.v1.SetSleepRequest
+	(*SetSleepResponse)(nil),          // 40: devopus.agent.v1.SetSleepResponse
+	nil,                               // 41: devopus.agent.v1.EnvironmentSpec.DataResetsEntry
+	(*timestamppb.Timestamp)(nil),     // 42: google.protobuf.Timestamp
 }
 var file_devopus_agent_v1_agent_proto_depIdxs = []int32{
 	6,  // 0: devopus.agent.v1.DesiredState.projects:type_name -> devopus.agent.v1.ProjectSpec
@@ -3059,54 +3217,58 @@ var file_devopus_agent_v1_agent_proto_depIdxs = []int32{
 	5,  // 2: devopus.agent.v1.DesiredState.device:type_name -> devopus.agent.v1.DeviceSettings
 	0,  // 3: devopus.agent.v1.EnvironmentSpec.kind:type_name -> devopus.agent.v1.EnvironmentKind
 	1,  // 4: devopus.agent.v1.EnvironmentSpec.phase:type_name -> devopus.agent.v1.DesiredPhase
-	39, // 5: devopus.agent.v1.EnvironmentSpec.data_resets:type_name -> devopus.agent.v1.EnvironmentSpec.DataResetsEntry
+	41, // 5: devopus.agent.v1.EnvironmentSpec.data_resets:type_name -> devopus.agent.v1.EnvironmentSpec.DataResetsEntry
 	3,  // 6: devopus.agent.v1.StepProgress.state:type_name -> devopus.agent.v1.StepState
-	40, // 7: devopus.agent.v1.StepProgress.started_at:type_name -> google.protobuf.Timestamp
-	40, // 8: devopus.agent.v1.StepProgress.finished_at:type_name -> google.protobuf.Timestamp
+	42, // 7: devopus.agent.v1.StepProgress.started_at:type_name -> google.protobuf.Timestamp
+	42, // 8: devopus.agent.v1.StepProgress.finished_at:type_name -> google.protobuf.Timestamp
 	0,  // 9: devopus.agent.v1.EnvironmentStatus.kind:type_name -> devopus.agent.v1.EnvironmentKind
 	2,  // 10: devopus.agent.v1.EnvironmentStatus.phase:type_name -> devopus.agent.v1.Phase
 	8,  // 11: devopus.agent.v1.EnvironmentStatus.steps:type_name -> devopus.agent.v1.StepProgress
 	9,  // 12: devopus.agent.v1.EnvironmentStatus.network:type_name -> devopus.agent.v1.NetworkStatus
-	40, // 13: devopus.agent.v1.EnvironmentStatus.updated_at:type_name -> google.protobuf.Timestamp
+	42, // 13: devopus.agent.v1.EnvironmentStatus.updated_at:type_name -> google.protobuf.Timestamp
 	13, // 14: devopus.agent.v1.EnvironmentStatus.units:type_name -> devopus.agent.v1.UnitStatus
 	12, // 15: devopus.agent.v1.EnvironmentStatus.sources:type_name -> devopus.agent.v1.ModuleSource
 	11, // 16: devopus.agent.v1.EnvironmentStatus.data:type_name -> devopus.agent.v1.DataStatus
-	40, // 17: devopus.agent.v1.DataStatus.copied_at:type_name -> google.protobuf.Timestamp
-	14, // 18: devopus.agent.v1.StatusResponse.runtime:type_name -> devopus.agent.v1.RuntimeInfo
-	6,  // 19: devopus.agent.v1.StatusResponse.projects:type_name -> devopus.agent.v1.ProjectSpec
-	10, // 20: devopus.agent.v1.StatusResponse.environments:type_name -> devopus.agent.v1.EnvironmentStatus
-	18, // 21: devopus.agent.v1.StatusResponse.proxy:type_name -> devopus.agent.v1.ProxyStatus
-	19, // 22: devopus.agent.v1.StatusResponse.ca:type_name -> devopus.agent.v1.CAInfo
-	17, // 23: devopus.agent.v1.ProxyStatus.conflicts:type_name -> devopus.agent.v1.PortConflict
-	40, // 24: devopus.agent.v1.CAInfo.not_after:type_name -> google.protobuf.Timestamp
-	20, // 25: devopus.agent.v1.RoutesResponse.routes:type_name -> devopus.agent.v1.Route
-	18, // 26: devopus.agent.v1.RoutesResponse.proxy:type_name -> devopus.agent.v1.ProxyStatus
-	10, // 27: devopus.agent.v1.WatchResponse.status:type_name -> devopus.agent.v1.EnvironmentStatus
-	15, // 28: devopus.agent.v1.AgentService.Status:input_type -> devopus.agent.v1.StatusRequest
-	25, // 29: devopus.agent.v1.AgentService.Up:input_type -> devopus.agent.v1.UpRequest
-	27, // 30: devopus.agent.v1.AgentService.Down:input_type -> devopus.agent.v1.DownRequest
-	29, // 31: devopus.agent.v1.AgentService.Watch:input_type -> devopus.agent.v1.WatchRequest
-	21, // 32: devopus.agent.v1.AgentService.Routes:input_type -> devopus.agent.v1.RoutesRequest
-	23, // 33: devopus.agent.v1.AgentService.SetProxy:input_type -> devopus.agent.v1.SetProxyRequest
-	31, // 34: devopus.agent.v1.AgentService.CreateFeature:input_type -> devopus.agent.v1.CreateFeatureRequest
-	33, // 35: devopus.agent.v1.AgentService.AddFeatureModules:input_type -> devopus.agent.v1.AddFeatureModulesRequest
-	35, // 36: devopus.agent.v1.AgentService.RemoveFeature:input_type -> devopus.agent.v1.RemoveFeatureRequest
-	37, // 37: devopus.agent.v1.AgentService.ResetData:input_type -> devopus.agent.v1.ResetDataRequest
-	16, // 38: devopus.agent.v1.AgentService.Status:output_type -> devopus.agent.v1.StatusResponse
-	26, // 39: devopus.agent.v1.AgentService.Up:output_type -> devopus.agent.v1.UpResponse
-	28, // 40: devopus.agent.v1.AgentService.Down:output_type -> devopus.agent.v1.DownResponse
-	30, // 41: devopus.agent.v1.AgentService.Watch:output_type -> devopus.agent.v1.WatchResponse
-	22, // 42: devopus.agent.v1.AgentService.Routes:output_type -> devopus.agent.v1.RoutesResponse
-	24, // 43: devopus.agent.v1.AgentService.SetProxy:output_type -> devopus.agent.v1.SetProxyResponse
-	32, // 44: devopus.agent.v1.AgentService.CreateFeature:output_type -> devopus.agent.v1.CreateFeatureResponse
-	34, // 45: devopus.agent.v1.AgentService.AddFeatureModules:output_type -> devopus.agent.v1.AddFeatureModulesResponse
-	36, // 46: devopus.agent.v1.AgentService.RemoveFeature:output_type -> devopus.agent.v1.RemoveFeatureResponse
-	38, // 47: devopus.agent.v1.AgentService.ResetData:output_type -> devopus.agent.v1.ResetDataResponse
-	38, // [38:48] is the sub-list for method output_type
-	28, // [28:38] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	42, // 17: devopus.agent.v1.EnvironmentStatus.last_active:type_name -> google.protobuf.Timestamp
+	42, // 18: devopus.agent.v1.EnvironmentStatus.sleeping_since:type_name -> google.protobuf.Timestamp
+	42, // 19: devopus.agent.v1.DataStatus.copied_at:type_name -> google.protobuf.Timestamp
+	14, // 20: devopus.agent.v1.StatusResponse.runtime:type_name -> devopus.agent.v1.RuntimeInfo
+	6,  // 21: devopus.agent.v1.StatusResponse.projects:type_name -> devopus.agent.v1.ProjectSpec
+	10, // 22: devopus.agent.v1.StatusResponse.environments:type_name -> devopus.agent.v1.EnvironmentStatus
+	18, // 23: devopus.agent.v1.StatusResponse.proxy:type_name -> devopus.agent.v1.ProxyStatus
+	19, // 24: devopus.agent.v1.StatusResponse.ca:type_name -> devopus.agent.v1.CAInfo
+	17, // 25: devopus.agent.v1.ProxyStatus.conflicts:type_name -> devopus.agent.v1.PortConflict
+	42, // 26: devopus.agent.v1.CAInfo.not_after:type_name -> google.protobuf.Timestamp
+	20, // 27: devopus.agent.v1.RoutesResponse.routes:type_name -> devopus.agent.v1.Route
+	18, // 28: devopus.agent.v1.RoutesResponse.proxy:type_name -> devopus.agent.v1.ProxyStatus
+	10, // 29: devopus.agent.v1.WatchResponse.status:type_name -> devopus.agent.v1.EnvironmentStatus
+	15, // 30: devopus.agent.v1.AgentService.Status:input_type -> devopus.agent.v1.StatusRequest
+	25, // 31: devopus.agent.v1.AgentService.Up:input_type -> devopus.agent.v1.UpRequest
+	27, // 32: devopus.agent.v1.AgentService.Down:input_type -> devopus.agent.v1.DownRequest
+	29, // 33: devopus.agent.v1.AgentService.Watch:input_type -> devopus.agent.v1.WatchRequest
+	21, // 34: devopus.agent.v1.AgentService.Routes:input_type -> devopus.agent.v1.RoutesRequest
+	23, // 35: devopus.agent.v1.AgentService.SetProxy:input_type -> devopus.agent.v1.SetProxyRequest
+	31, // 36: devopus.agent.v1.AgentService.CreateFeature:input_type -> devopus.agent.v1.CreateFeatureRequest
+	33, // 37: devopus.agent.v1.AgentService.AddFeatureModules:input_type -> devopus.agent.v1.AddFeatureModulesRequest
+	35, // 38: devopus.agent.v1.AgentService.RemoveFeature:input_type -> devopus.agent.v1.RemoveFeatureRequest
+	37, // 39: devopus.agent.v1.AgentService.ResetData:input_type -> devopus.agent.v1.ResetDataRequest
+	39, // 40: devopus.agent.v1.AgentService.SetSleep:input_type -> devopus.agent.v1.SetSleepRequest
+	16, // 41: devopus.agent.v1.AgentService.Status:output_type -> devopus.agent.v1.StatusResponse
+	26, // 42: devopus.agent.v1.AgentService.Up:output_type -> devopus.agent.v1.UpResponse
+	28, // 43: devopus.agent.v1.AgentService.Down:output_type -> devopus.agent.v1.DownResponse
+	30, // 44: devopus.agent.v1.AgentService.Watch:output_type -> devopus.agent.v1.WatchResponse
+	22, // 45: devopus.agent.v1.AgentService.Routes:output_type -> devopus.agent.v1.RoutesResponse
+	24, // 46: devopus.agent.v1.AgentService.SetProxy:output_type -> devopus.agent.v1.SetProxyResponse
+	32, // 47: devopus.agent.v1.AgentService.CreateFeature:output_type -> devopus.agent.v1.CreateFeatureResponse
+	34, // 48: devopus.agent.v1.AgentService.AddFeatureModules:output_type -> devopus.agent.v1.AddFeatureModulesResponse
+	36, // 49: devopus.agent.v1.AgentService.RemoveFeature:output_type -> devopus.agent.v1.RemoveFeatureResponse
+	38, // 50: devopus.agent.v1.AgentService.ResetData:output_type -> devopus.agent.v1.ResetDataResponse
+	40, // 51: devopus.agent.v1.AgentService.SetSleep:output_type -> devopus.agent.v1.SetSleepResponse
+	41, // [41:52] is the sub-list for method output_type
+	30, // [30:41] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_devopus_agent_v1_agent_proto_init() }
@@ -3120,7 +3282,7 @@ func file_devopus_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_devopus_agent_v1_agent_proto_rawDesc), len(file_devopus_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   36,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

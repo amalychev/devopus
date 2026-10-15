@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/netip"
 	"os"
 	"path"
@@ -213,6 +214,9 @@ func (d *Docker) CreateContainer(ctx context.Context, spec ContainerSpec) (strin
 		ep := &network.EndpointSettings{Aliases: spec.Aliases}
 		if spec.IP.IsValid() {
 			ep.IPAMConfig = &network.EndpointIPAMConfig{IPv4Address: spec.IP}
+			// A MAC that follows the pinned IP survives docker stop/start: the neighbours'
+			// ARP caches stay right, and a woken container is reachable at once (P-2, M7).
+			ep.MacAddress = network.HardwareAddr(MACFor(spec.IP))
 		}
 		netCfg = &network.NetworkingConfig{EndpointsConfig: map[string]*network.EndpointSettings{spec.Network: ep}}
 	}
@@ -227,6 +231,13 @@ func (d *Docker) CreateContainer(ctx context.Context, spec ContainerSpec) (strin
 		}
 	}
 	return res.ID, nil
+}
+
+// MACFor is a locally administered MAC address made of an IPv4 address, like Docker's
+// classic 02:42:<ip> scheme.
+func MACFor(ip netip.Addr) net.HardwareAddr {
+	a := ip.As4()
+	return net.HardwareAddr{0x02, 0x42, a[0], a[1], a[2], a[3]}
 }
 
 // copyFiles writes files into the container through a tar stream: no bind mounts, so
@@ -307,6 +318,7 @@ func (d *Docker) ConnectNetwork(ctx context.Context, networkID, containerID stri
 	ep := &network.EndpointSettings{}
 	if ip.IsValid() {
 		ep.IPAMConfig = &network.EndpointIPAMConfig{IPv4Address: ip}
+		ep.MacAddress = network.HardwareAddr(MACFor(ip))
 	}
 	_, err := d.cli.NetworkConnect(ctx, networkID, client.NetworkConnectOptions{Container: containerID, EndpointConfig: ep})
 	return err

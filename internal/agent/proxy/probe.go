@@ -77,6 +77,16 @@ var ErrNoAnswer = errors.New("no answer")
 // through the proxy, whatever the status: Envoy sets x-envoy-upstream-service-time
 // only on responses that came from upstream, not on its own 503.
 func Answers(roots *x509.CertPool) func(ctx context.Context, host, path string, ports Ports) error {
+	return answers(roots, false)
+}
+
+// AnswersDirect is Answers past the waker: it reaches a unit of a sleeping feature
+// that is starting, before the proxy sends it traffic again.
+func AnswersDirect(roots *x509.CertPool) func(ctx context.Context, host, path string, ports Ports) error {
+	return answers(roots, true)
+}
+
+func answers(roots *x509.CertPool, direct bool) func(ctx context.Context, host, path string, ports Ports) error {
 	return func(ctx context.Context, host, path string, ports Ports) error {
 		addr := net.JoinHostPort("127.0.0.1", fmt.Sprint(ports.HTTPS))
 		// Long enough for a dev server that compiles on the first request.
@@ -84,6 +94,9 @@ func Answers(roots *x509.CertPool) func(ctx context.Context, host, path string, 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+host+path, nil)
 		if err != nil {
 			return err
+		}
+		if direct {
+			req.Header.Set(HeaderDirect, "1")
 		}
 		res, err := c.Do(req)
 		if err != nil {

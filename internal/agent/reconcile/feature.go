@@ -2,6 +2,7 @@ package reconcile
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
 	"github.com/devopus/devopus/internal/agent/git"
@@ -185,6 +187,7 @@ func (r *Reconciler) ensureFeatureSources(ctx context.Context, env *agentv1.Envi
 		}
 	}
 	r.setSources(ctx, env.Id, sources, checkouts)
+	r.checkMerged(ctx, env, p, checkouts)
 	if needRepo {
 		r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.CodeRoot = codeRoot })
 	}
@@ -308,4 +311,81 @@ func plural(n int, word string) string {
 		return "1 " + word
 	}
 	return fmt.Sprintf("%d %ss", n, word)
+}
+
+// mergeCheck is how often a feature's branch is checked against its base branch; the
+// check fetches the base branch from origin.
+const mergeCheck = 5 * time.Minute
+
+// forksFile keeps where each worktree of a feature started: a branch merged into its
+// base has commits of its own, and all of them are in the base.
+func (r *Reconciler) forksFile(envID string) string {
+	return filepath.Join(r.opt.EnvsDir, envID, "forks.json")
+}
+
+// checkMerged marks a feature whose branch is merged into its base branch, so people
+// can remove it (features.cleanup: on_merge). Squash merges keep no ancestry and are
+// not recognised.
+func (r *Reconciler) checkMerged(ctx context.Context, env *agentv1.EnvironmentSpec, p *prepared, checkouts map[string]string) {
+	if p.ws.Policy().Cleanup != "on_merge" || env.Branch == "" {
+		return
+	}
+	r.mu.Lock()
+	last, merged := r.mergeAt[env.Id], r.merged[env.Id]
+	r.mu.Unlock()
+	if r.now().Sub(last) < mergeCheck {
+		r.setMerged(env, merged)
+		return
+	}
+	forks := map[string]string{}
+	if b, err := os.ReadFile(r.forksFile(env.Id)); err == nil {
+		_ = json.Unmarshal(b, &forks)
+	}
+	changed := false
+	merged = false
+	seen := map[string]bool{}
+	for _, m := range env.ForkedModules {
+		dir := checkouts[m]
+		if dir == "" || seen[dir] {
+			continue
+		}
+		seen[dir] = true
+		if b, err := git.Branch(ctx, dir); err != nil || b != env.Branch {
+			continue
+		}
+		head, err := git.Head(ctx, dir)
+		if err != nil {
+			continue
+		}
+		if forks[dir] == "" {
+			forks[dir], changed = head, true
+			continue
+		}
+		base := p.ws.Modules[m].BaseBranch()
+		if git.FetchBranch(ctx, dir, base) == nil && git.HasRef(ctx, dir, "refs/remotes/origin/"+base) {
+			base = "origin/" + base
+		} else if !git.HasRef(ctx, dir, base) {
+			continue
+		}
+		own, err1 := git.Count(ctx, dir, forks[dir]+"..HEAD")
+		left, err2 := git.Count(ctx, dir, base+"..HEAD")
+		if err1 == nil && err2 == nil && own > 0 && left == 0 {
+			merged = true
+		}
+	}
+	if changed {
+		if b, err := json.Marshal(forks); err == nil && os.MkdirAll(filepath.Dir(r.forksFile(env.Id)), 0o700) == nil {
+			if err := os.WriteFile(r.forksFile(env.Id), b, 0o600); err != nil {
+				r.opt.Log.Warn("fork points", "env", env.Id, "error", err)
+			}
+		}
+	}
+	r.mu.Lock()
+	r.mergeAt[env.Id], r.merged[env.Id] = r.now(), merged
+	r.mu.Unlock()
+	r.setMerged(env, merged)
+}
+
+func (r *Reconciler) setMerged(env *agentv1.EnvironmentSpec, merged bool) {
+	r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.Merged = merged })
 }

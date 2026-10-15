@@ -735,6 +735,10 @@ func finish(spec *runtime.ContainerSpec) {
 	labels := spec.Labels
 	spec.Labels = nil
 	data, _ := json.Marshal(spec)
+	if spec.IP.IsValid() {
+		// The runtime pins the MAC to the IP; containers made before that get it once.
+		data = append(data, "mac-from-ip\n"...)
+	}
 	spec.Labels = labels
 	keys := make([]string, 0, len(labels))
 	for k := range labels {

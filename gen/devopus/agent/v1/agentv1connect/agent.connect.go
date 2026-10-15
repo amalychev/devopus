@@ -60,6 +60,8 @@ const (
 	AgentServiceRemoveFeatureProcedure = "/devopus.agent.v1.AgentService/RemoveFeature"
 	// AgentServiceResetDataProcedure is the fully-qualified name of the AgentService's ResetData RPC.
 	AgentServiceResetDataProcedure = "/devopus.agent.v1.AgentService/ResetData"
+	// AgentServiceSetSleepProcedure is the fully-qualified name of the AgentService's SetSleep RPC.
+	AgentServiceSetSleepProcedure = "/devopus.agent.v1.AgentService/SetSleep"
 )
 
 // AgentServiceClient is a client for the devopus.agent.v1.AgentService service.
@@ -86,6 +88,8 @@ type AgentServiceClient interface {
 	// ResetData recreates a feature's databases from the golden copies, or refreshes the
 	// golden copies of the base environment.
 	ResetData(context.Context, *connect.Request[v1.ResetDataRequest]) (*connect.Response[v1.ResetDataResponse], error)
+	// SetSleep puts a feature to sleep or wakes it up.
+	SetSleep(context.Context, *connect.Request[v1.SetSleepRequest]) (*connect.Response[v1.SetSleepResponse], error)
 }
 
 // NewAgentServiceClient constructs a client for the devopus.agent.v1.AgentService service. By
@@ -159,6 +163,12 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(agentServiceMethods.ByName("ResetData")),
 			connect.WithClientOptions(opts...),
 		),
+		setSleep: connect.NewClient[v1.SetSleepRequest, v1.SetSleepResponse](
+			httpClient,
+			baseURL+AgentServiceSetSleepProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("SetSleep")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -174,6 +184,7 @@ type agentServiceClient struct {
 	addFeatureModules *connect.Client[v1.AddFeatureModulesRequest, v1.AddFeatureModulesResponse]
 	removeFeature     *connect.Client[v1.RemoveFeatureRequest, v1.RemoveFeatureResponse]
 	resetData         *connect.Client[v1.ResetDataRequest, v1.ResetDataResponse]
+	setSleep          *connect.Client[v1.SetSleepRequest, v1.SetSleepResponse]
 }
 
 // Status calls devopus.agent.v1.AgentService.Status.
@@ -226,6 +237,11 @@ func (c *agentServiceClient) ResetData(ctx context.Context, req *connect.Request
 	return c.resetData.CallUnary(ctx, req)
 }
 
+// SetSleep calls devopus.agent.v1.AgentService.SetSleep.
+func (c *agentServiceClient) SetSleep(ctx context.Context, req *connect.Request[v1.SetSleepRequest]) (*connect.Response[v1.SetSleepResponse], error) {
+	return c.setSleep.CallUnary(ctx, req)
+}
+
 // AgentServiceHandler is an implementation of the devopus.agent.v1.AgentService service.
 type AgentServiceHandler interface {
 	// Status reports the agent, the container runtime and every environment.
@@ -250,6 +266,8 @@ type AgentServiceHandler interface {
 	// ResetData recreates a feature's databases from the golden copies, or refreshes the
 	// golden copies of the base environment.
 	ResetData(context.Context, *connect.Request[v1.ResetDataRequest]) (*connect.Response[v1.ResetDataResponse], error)
+	// SetSleep puts a feature to sleep or wakes it up.
+	SetSleep(context.Context, *connect.Request[v1.SetSleepRequest]) (*connect.Response[v1.SetSleepResponse], error)
 }
 
 // NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -319,6 +337,12 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(agentServiceMethods.ByName("ResetData")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentServiceSetSleepHandler := connect.NewUnaryHandler(
+		AgentServiceSetSleepProcedure,
+		svc.SetSleep,
+		connect.WithSchema(agentServiceMethods.ByName("SetSleep")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/devopus.agent.v1.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentServiceStatusProcedure:
@@ -341,6 +365,8 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 			agentServiceRemoveFeatureHandler.ServeHTTP(w, r)
 		case AgentServiceResetDataProcedure:
 			agentServiceResetDataHandler.ServeHTTP(w, r)
+		case AgentServiceSetSleepProcedure:
+			agentServiceSetSleepHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -388,4 +414,8 @@ func (UnimplementedAgentServiceHandler) RemoveFeature(context.Context, *connect.
 
 func (UnimplementedAgentServiceHandler) ResetData(context.Context, *connect.Request[v1.ResetDataRequest]) (*connect.Response[v1.ResetDataResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.ResetData is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) SetSleep(context.Context, *connect.Request[v1.SetSleepRequest]) (*connect.Response[v1.SetSleepResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.SetSleep is not implemented"))
 }

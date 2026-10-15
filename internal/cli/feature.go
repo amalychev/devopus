@@ -26,7 +26,8 @@ func (a *app) featureCmd() *cobra.Command {
 		Use:   "feature",
 		Short: "Environments for feature branches: create, add modules, list, remove",
 	}
-	cmd.AddCommand(a.featureCreateCmd(), a.featureAddCmd(), a.featureListCmd(), a.featureRmCmd(), a.featurePathCmd())
+	cmd.AddCommand(a.featureCreateCmd(), a.featureAddCmd(), a.featureListCmd(), a.featureRmCmd(), a.featurePathCmd(),
+		a.featureSleepCmd(true), a.featureSleepCmd(false))
 	return cmd
 }
 
@@ -286,16 +287,35 @@ func (a *app) featureListCmd() *cobra.Command {
 				return nil
 			}
 			w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "PROJECT\tFEATURE\tPHASE\tURL\tFORKED\tBRANCH\tSHARED")
+			fmt.Fprintln(w, "PROJECT\tFEATURE\tPHASE\tACTIVE\tURL\tFORKED\tBRANCH\tSHARED")
+			var merged []string
 			for _, e := range list {
 				phase := phaseName(e.Phase)
+				if e.Phase == agentv1.Phase_PHASE_SLEEPING && e.SleepReason != "" {
+					phase += " (" + e.SleepReason + ")"
+				}
 				if e.Error != "" {
 					phase += ": " + firstLine(e.Error)
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", e.Project, e.Name, phase, dash(e.Url),
-					dash(strings.Join(e.ForkedModules, ",")), dash(e.Branch), dash(strings.Join(e.Shared, ",")))
+				branch := dash(e.Branch)
+				if e.Merged {
+					branch += " (merged)"
+					merged = append(merged, e.Name)
+				}
+				active := "-"
+				if e.LastActive != nil {
+					active = ago(time.Since(e.LastActive.AsTime()))
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", e.Project, e.Name, phase, active, dash(e.Url),
+					dash(strings.Join(e.ForkedModules, ",")), branch, dash(strings.Join(e.Shared, ",")))
 			}
-			return w.Flush()
+			if err := w.Flush(); err != nil {
+				return err
+			}
+			for _, n := range merged {
+				fmt.Fprintf(a.stdout, "\nThe branch of %s is merged: 'devopus feature rm %s' removes the feature.\n", n, n)
+			}
+			return nil
 		},
 	}
 	cmd.Flags().StringVar(&project, "project", "", "project name (default: from workspace.yaml)")
@@ -415,4 +435,85 @@ func dash(s string) string {
 func firstLine(s string) string {
 	line, _, _ := strings.Cut(s, "\n")
 	return line
+}
+
+// ago is a duration for people: 45s, 12m, 3h, 2d.
+func ago(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("%ds ago", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	}
+	return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+}
+
+func (a *app) featureSleepCmd(asleep bool) *cobra.Command {
+	var project string
+	var timeout time.Duration
+	use, short, want := "wake <feature>", "Wake a sleeping feature", agentv1.Phase_PHASE_RUNNING
+	if asleep {
+		use, short, want = "sleep <feature>", "Put a feature to sleep: its containers stop, its first request wakes it", agentv1.Phase_PHASE_SLEEPING
+	}
+	cmd := &cobra.Command{
+		Use:   use,
+		Short: short,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			project, err := a.project(project)
+			if err != nil {
+				return err
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+			c := client.New(paths.Socket())
+			if err := client.Ping(ctx, c); err != nil {
+				return fail(ExitError, "%v", err)
+			}
+			res, err := c.SetSleep(ctx, connect.NewRequest(&agentv1.SetSleepRequest{Project: project, Feature: args[0], Asleep: asleep}))
+			if err != nil {
+				var ce *connect.Error
+				if errors.As(err, &ce) && ce.Code() == connect.CodeFailedPrecondition {
+					return fail(ExitError, "%s", ce.Message())
+				}
+				return rpcError(err)
+			}
+			// Sleep and wake happen outside passes: poll until the phase says so.
+			for {
+				st, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+				if err != nil {
+					return rpcError(err)
+				}
+				for _, e := range st.Msg.Environments {
+					if e.Id != res.Msg.EnvironmentId {
+						continue
+					}
+					if e.Phase == want {
+						if a.json {
+							return a.writeProto(e)
+						}
+						verb := "is asleep"
+						if !asleep {
+							verb = "is awake: " + e.Url
+						}
+						fmt.Fprintf(a.stdout, "Feature %s %s\n", e.Name, verb)
+						return nil
+					}
+					if e.Error != "" && !asleep && e.Phase == agentv1.Phase_PHASE_SLEEPING {
+						return fail(ExitError, "%s", e.Error)
+					}
+				}
+				select {
+				case <-ctx.Done():
+					return fail(ExitError, "timed out; 'devopus feature list' shows where it is")
+				case <-time.After(200 * time.Millisecond):
+				}
+			}
+		},
+	}
+	cmd.Flags().StringVar(&project, "project", "", "project name (default: from workspace.yaml)")
+	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Minute, "how long to wait")
+	return cmd
 }

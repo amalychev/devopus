@@ -92,7 +92,11 @@ type Options struct {
 	EnvsDir    string
 	// Bundle is the public roots plus the local CA, for modules' TLS clients.
 	Bundle []byte
-	Log    *slog.Logger
+	// Lifecycle puts features to sleep; WakerPort is where the proxy finds its waker.
+	// Without them features never sleep.
+	Lifecycle Lifecycle
+	WakerPort int
+	Log       *slog.Logger
 }
 
 type Reconciler struct {
@@ -106,10 +110,18 @@ type Reconciler struct {
 	status map[string]*agentv1.EnvironmentStatus
 	// forced: environments whose worktrees go even with work in them.
 	forced map[string]bool
+	// merged and mergeAt: whether a feature's branch is merged, and when that was checked.
+	merged  map[string]bool
+	mergeAt map[string]time.Time
 	// needGolden: per project, the databases running features copy; set by each pass.
 	needGolden map[string]map[string]bool
-	proxy      *agentv1.ProxyStatus
-	routes     []*agentv1.Route
+
+	// setMu orders the proxy configurations of passes and of sleep switches; lastCfg is
+	// the one the proxy has.
+	setMu   sync.Mutex
+	lastCfg proxy.Config
+	proxy   *agentv1.ProxyStatus
+	routes  []*agentv1.Route
 }
 
 // New makes a reconciler; publish receives a copy of every status that changed.
@@ -134,7 +146,7 @@ func New(rt Runtime, opt Options, publish func(*agentv1.EnvironmentStatus)) *Rec
 		opt.ReadyTimeout = 90 * time.Second
 	}
 	return &Reconciler{rt: rt, opt: opt, pool: Pool, publish: publish, now: time.Now,
-		status: map[string]*agentv1.EnvironmentStatus{}, forced: map[string]bool{}, proxy: &agentv1.ProxyStatus{State: "absent"}}
+		status: map[string]*agentv1.EnvironmentStatus{}, forced: map[string]bool{}, merged: map[string]bool{}, mergeAt: map[string]time.Time{}, proxy: &agentv1.ProxyStatus{State: "absent"}}
 }
 
 // Statuses returns copies of the current statuses, ordered by project and ID.
@@ -308,6 +320,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, desired *agentv1.DesiredStat
 			errs = append(errs, err)
 		}
 	}
+	r.tellLifecycle(preps)
 
 	errs = append(errs, r.collect(ctx, desired.Revision, wanted, o, px)...)
 	r.collectImages(ctx, desired, preps)
@@ -900,6 +913,17 @@ func (r *Reconciler) update(envID string, fn func(*agentv1.EnvironmentStatus)) {
 	out := proto.Clone(s).(*agentv1.EnvironmentStatus)
 	r.mu.Unlock()
 	r.publish(out)
+}
+
+// UpdateStatus changes an environment's status from outside a pass: the lifecycle
+// manager reports sleep and wake with it.
+func (r *Reconciler) UpdateStatus(envID string, fn func(*agentv1.EnvironmentStatus)) {
+	r.mu.Lock()
+	_, ok := r.status[envID]
+	r.mu.Unlock()
+	if ok {
+		r.update(envID, fn)
+	}
 }
 
 // forget drops a status and publishes its removal.

@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	metricsv3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"net/netip"
 	"sort"
 	"strings"
@@ -149,6 +151,16 @@ func Bootstrap(xdsPort int, ctl *pki.Control) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	sink, err := anypb.New(&metricsv3.MetricsServiceConfig{
+		TransportApiVersion: corev3.ApiVersion_V3,
+		GrpcService: &corev3.GrpcService{TargetSpecifier: &corev3.GrpcService_EnvoyGrpc_{
+			EnvoyGrpc: &corev3.GrpcService_EnvoyGrpc{ClusterName: "xds"},
+		}},
+		ReportCountersAsDeltas: wrapperspb.Bool(true),
+	})
+	if err != nil {
+		return nil, err
+	}
 	b := &bootstrapv3.Bootstrap{
 		Node: &corev3.Node{Id: NodeID, Cluster: "devopus"},
 		Admin: &bootstrapv3.Admin{
@@ -167,6 +179,18 @@ func Bootstrap(xdsPort int, ctl *pki.Control) ([]byte, error) {
 			LdsConfig: ads(),
 			CdsConfig: ads(),
 		},
+		// Request counters of the clusters go to the agent over the same link: they tell
+		// it which features are in use (agent.md, activity detector).
+		StatsSinks: []*metricsv3.StatsSink{{
+			Name:       "envoy.stat_sinks.metrics_service",
+			ConfigType: &metricsv3.StatsSink_TypedConfig{TypedConfig: sink},
+		}},
+		StatsFlushInterval: durationpb.New(StatsInterval),
+		StatsConfig: &metricsv3.StatsConfig{StatsMatcher: &metricsv3.StatsMatcher{StatsMatcher: &metricsv3.StatsMatcher_InclusionList{
+			InclusionList: &matcherv3.ListStringMatcher{Patterns: []*matcherv3.StringMatcher{{
+				MatchPattern: &matcherv3.StringMatcher_SafeRegex{SafeRegex: &matcherv3.RegexMatcher{Regex: `^cluster\..*\.upstream_rq_total$`}},
+			}}},
+		}}},
 		StaticResources: &bootstrapv3.Bootstrap_StaticResources{Clusters: []*clusterv3.Cluster{{
 			Name:                          "xds",
 			ConnectTimeout:                durationpb.New(2 * time.Second),

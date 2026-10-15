@@ -72,6 +72,8 @@ go build -o devopus ./cmd/devopus      # бинарник
 ./devopus feature add PAY-1 web        # форкнуть ещё модуль
 ./devopus feature list                 # фичи проекта: фаза, URL, форки, что общее с main
 ./devopus feature path PAY-1           # папка кода фичи (для IDE и AI-агентов)
+./devopus feature sleep PAY-1          # усыпить (сама засыпает после features.sleep_after); первый запрос будит
+./devopus feature wake PAY-1           # разбудить заранее
 ./devopus feature rm PAY-1             # удалить; откажет при несохранённой работе без --force
 ./devopus logs PAY-1 api               # окружение — ID, слаг или имя фичи
 ./devopus db lag                       # копии баз фич и золотые копии main

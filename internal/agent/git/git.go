@@ -201,6 +201,26 @@ func TopLevel(ctx context.Context, dir string) (top, prefix string, err error) {
 	return top, prefix, nil
 }
 
+// Count is the number of commits in a revision range such as base..branch.
+func Count(ctx context.Context, dir, rng string) (int, error) {
+	out, err := run(ctx, dir, nil, "rev-list", "--count", rng)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	_, err = fmt.Sscan(strings.TrimSpace(out), &n)
+	return n, err
+}
+
+// FetchBranch updates origin/<branch> from origin; a repository without origin or an
+// unreachable remote is not an error the caller can do anything about.
+func FetchBranch(ctx context.Context, dir, branch string) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	_, err := run(ctx, dir, nil, "fetch", "--quiet", "origin", "+refs/heads/"+branch+":refs/remotes/origin/"+branch)
+	return err
+}
+
 // IsWorktree reports whether dir is a linked worktree rather than a repository.
 func IsWorktree(dir string) bool {
 	st, err := os.Stat(filepath.Join(dir, ".git"))

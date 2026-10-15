@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
 	"github.com/devopus/devopus/internal/agent/proxy"
 	"github.com/devopus/devopus/internal/agent/runtime"
@@ -230,13 +232,16 @@ func (r *Reconciler) attachProxy(ctx context.Context, px *proxyState, nw runtime
 // applyRoutes gives the proxy every site, waits until the new sites are served and
 // finishes the environments.
 func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredState, preps []*prepared, px *proxyState) error {
-	cfg := proxy.Config{HTTPPort: uint32(px.ports.HTTP), HTTPSPort: uint32(px.ports.HTTPS), Coexist: px.coexist}
+	cfg := proxy.Config{HTTPPort: uint32(px.ports.HTTP), HTTPSPort: uint32(px.ports.HTTPS), Coexist: px.coexist, WakerPort: uint32(r.opt.WakerPort)}
 	var routes []*agentv1.Route
 	for _, p := range preps {
 		if p.leaf == nil {
 			continue
 		}
 		site, siteRoutes := site(p, px.ports)
+		if isFeature(p.env) && r.opt.Lifecycle != nil && p.plan != nil && p.env.Phase != agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
+			site.Sleep = &proxy.Sleep{Awake: !r.asleep(p.env)}
+		}
 		cfg.Sites = append(cfg.Sites, site)
 		routes = append(routes, siteRoutes...)
 	}
@@ -247,7 +252,7 @@ func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredSt
 		return routes[i].Path < routes[j].Path
 	})
 
-	_, setErr := r.opt.XDS.Set(ctx, cfg)
+	_, setErr := r.setConfig(ctx, cfg)
 	if setErr == nil {
 		r.mu.Lock()
 		r.routes = routes
@@ -295,7 +300,8 @@ func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredSt
 		}
 		// Modules are asked only after something started: a converged environment does not
 		// get a request from the agent on every pass.
-		if env.Phase != agentv1.DesiredPhase_DESIRED_PHASE_STOPPED && p.plan != nil && (p.started || !r.stepDone(env.Id, "ready")) {
+		sleeping := r.asleep(env)
+		if env.Phase != agentv1.DesiredPhase_DESIRED_PHASE_STOPPED && !sleeping && p.plan != nil && (p.started || !r.stepDone(env.Id, "ready")) {
 			if stepErr := r.runStep(ctx, env.Id, step{"ready", func(ctx context.Context) (string, error) { return r.waitAnswers(ctx, p, px.ports) }}); stepErr != nil {
 				if errors.Is(stepErr, errWaiting) {
 					p.waiting = true
@@ -313,10 +319,21 @@ func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredSt
 		}
 		r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
 			s.Error, s.Url, s.AppliedRevision = "", url, desired.Revision
-			if env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
+			switch {
+			case env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED:
 				s.Phase = agentv1.Phase_PHASE_STOPPED
-			} else {
+			case sleeping && !r.opt.Lifecycle.Settled(env.Id):
+				// Going to sleep or waking up: the lifecycle manager says when it is done.
+			case sleeping:
+				s.Phase = agentv1.Phase_PHASE_SLEEPING
+			default:
 				s.Phase = agentv1.Phase_PHASE_RUNNING
+				s.SleepReason, s.SleepingSince = "", nil
+			}
+			if isFeature(env) && r.opt.Lifecycle != nil {
+				if t := r.opt.Lifecycle.LastActive(env.Id); !t.IsZero() {
+					s.LastActive = timestamppb.New(t)
+				}
 			}
 		})
 	}
@@ -385,6 +402,7 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 			continue
 		}
 		up := upstream(u)
+		up.Sleeps = from[u.Name] == ""
 		for _, prefix := range u.Routes {
 			main.Routes = append(main.Routes, proxy.PathRoute{Prefix: prefix, Upstream: up})
 			routes = append(routes, route(p.hosts[0], prefix, fmt.Sprintf("module %s (%s)%s", u.Name, up.Addr, from[u.Name])))
@@ -401,6 +419,7 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 		}
 		host := u.Expose + "." + p.hosts[0]
 		up := upstream(u)
+		up.Sleeps = from[u.Name] == ""
 		s.VHosts = append(s.VHosts, proxy.VHost{Hosts: []string{host}, Routes: []proxy.PathRoute{{Prefix: "/", Upstream: up}}})
 		routes = append(routes, route(host, "/", fmt.Sprintf("service %s (%s)%s", u.Name, up.Addr, from[u.Name])))
 	}

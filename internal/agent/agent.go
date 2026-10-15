@@ -25,6 +25,7 @@ import (
 	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
 	"github.com/devopus/devopus/gen/devopus/agent/v1/agentv1connect"
 	"github.com/devopus/devopus/internal/agent/api"
+	"github.com/devopus/devopus/internal/agent/lifecycle"
 	"github.com/devopus/devopus/internal/agent/paths"
 	"github.com/devopus/devopus/internal/agent/pki"
 	"github.com/devopus/devopus/internal/agent/proxy"
@@ -62,9 +63,42 @@ type Agent struct {
 	hub   *api.Hub
 	ca    *pki.CA
 
+	life *lifecycle.Manager
+	// kick asks the loop for a pass now.
+	kick chan struct{}
+
 	mu      sync.Mutex
 	rtInfo  *agentv1.RuntimeInfo
 	lastErr error
+}
+
+// Sleep puts a feature to sleep in the background.
+func (a *Agent) Sleep(envID string) error {
+	if !a.life.Known(envID) {
+		return errors.New("the feature is not running yet")
+	}
+	go func() {
+		if err := a.life.Sleep(context.Background(), envID, lifecycle.ReasonManual); err != nil {
+			a.log.Warn("sleep", "env", envID, "error", err)
+		}
+	}()
+	return nil
+}
+
+// Wake wakes a feature in the background.
+func (a *Agent) Wake(envID string) error {
+	if !a.life.Known(envID) {
+		return errors.New("the feature is not running yet")
+	}
+	a.life.Wake(envID)
+	return nil
+}
+
+func (a *Agent) kickLoop() {
+	select {
+	case a.kick <- struct{}{}:
+	default:
+	}
 }
 
 func (a *Agent) Store() *store.Store                    { return a.store }
@@ -146,7 +180,28 @@ func Run(ctx context.Context, opt Options) error {
 	relays := &proxy.Relays{}
 	defer relays.Close()
 
-	a := &Agent{opt: opt, log: log, store: st, rt: rt, hub: api.NewHub(), ca: ca}
+	a := &Agent{opt: opt, log: log, store: st, rt: rt, hub: api.NewHub(), ca: ca, kick: make(chan struct{}, 1)}
+	wakerLn, err := listenPinned(filepath.Join(paths.Proxy(), "waker-port"), lifecycle.ListenWaker)
+	if err != nil {
+		return fmt.Errorf("waker: %w", err)
+	}
+	direct := proxy.AnswersDirect(roots)
+	proxyPorts := func() proxy.Ports {
+		p := a.rec.Proxy()
+		return proxy.Ports{HTTP: uint16(p.HttpPort), HTTPS: uint16(p.HttpsPort)}
+	}
+	a.life = lifecycle.New(rt, lifecycle.Options{
+		Instance: paths.Instance(),
+		File:     filepath.Join(paths.Home(), "lifecycle.json"),
+		SetAwake: func(ctx context.Context, envID string, awake bool) error { return a.rec.SetAwake(ctx, envID, awake) },
+		Answers: func(ctx context.Context, host, path string) error {
+			return direct(ctx, host, path, proxyPorts())
+		},
+		Publish: func(envID string, fn func(*agentv1.EnvironmentStatus)) { a.rec.UpdateStatus(envID, fn) },
+		Kick:    a.kickLoop,
+		Log:     log,
+	})
+	xds.OnRequests(a.life.OnRequests)
 	a.rec = reconcile.New(rt, reconcile.Options{
 		Instance:    paths.Instance(),
 		ProxyName:   paths.ProxyName(),
@@ -162,10 +217,20 @@ func Run(ctx context.Context, opt Options) error {
 		EnvsDir:     paths.Envs(),
 		Bundle:      bundle(ca),
 		Log:         log,
+		Lifecycle:   a.life,
+		WakerPort:   wakerLn.Addr().(*net.TCPAddr).Port,
 	}, func(s *agentv1.EnvironmentStatus) {
 		log.Info("environment", "id", s.Id, "project", s.Project, "phase", s.Phase.String(), "error", s.Error, "removed", s.Removed)
 		a.hub.Publish(s)
 	})
+
+	waker := lifecycle.NewWaker(a.life, roots, proxyPorts)
+	go func() {
+		if err := waker.Serve(ctx, wakerLn); err != nil {
+			log.Error("waker", "error", err)
+		}
+	}()
+	go a.life.Run(ctx, 5*time.Second)
 
 	ln, err := listen(paths.Socket())
 	if err != nil {
@@ -214,6 +279,7 @@ func (a *Agent) loop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-a.store.Changed():
+		case <-a.kick:
 		case <-timer.C:
 		}
 		desired := a.store.Snapshot()
@@ -315,6 +381,25 @@ func (a *Agent) report(err error) {
 		a.log.Error("reconcile", "error", err)
 	}
 	a.lastErr = err
+}
+
+// listenPinned opens a loopback port and keeps it across agent restarts in file, so
+// a restarted agent gives the proxy the same configuration.
+func listenPinned(file string, listen func(addr string) (net.Listener, error)) (net.Listener, error) {
+	if b, err := os.ReadFile(file); err == nil {
+		if ln, err := listen("127.0.0.1:" + strings.TrimSpace(string(b))); err == nil {
+			return ln, nil
+		}
+	}
+	ln, err := listen("127.0.0.1:0")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(file, []byte(strconv.Itoa(ln.Addr().(*net.TCPAddr).Port)+"\n"), 0o600); err != nil {
+		ln.Close()
+		return nil, err
+	}
+	return ln, nil
 }
 
 // listenXDS keeps the xDS port across agent restarts: it is baked into the proxy's
