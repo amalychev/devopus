@@ -1,6 +1,6 @@
-# Docklet — платформа локальных dev-окружений
+# Devcorb — платформа локальных dev-окружений
 
-> Название продукта — **Docklet** (решено 14.10.2026; домен ещё не выбран). Источники: «Платформа локальных dev-окружений: архитектура и онбординг» и «Технические проблемы платформы локальных dev-окружений и их решения» (оба от 14.10.2026).
+> Название продукта — **Devcorb** (решено 14.10.2026; домен ещё не выбран). Источники: «Платформа локальных dev-окружений: архитектура и онбординг» и «Технические проблемы платформы локальных dev-окружений и их решения» (оба от 14.10.2026).
 
 **Одной фразой:** параллельные изолированные окружения на каждую ветку и каждого AI-агента, с данными, для всей команды — локально в Docker, с единой веб-панелью.
 
@@ -56,17 +56,17 @@
 
 ```bash
 go test ./...                          # все тесты
-go build -o docklet ./cmd/docklet      # бинарник
+go build -o devcorb ./cmd/devcorb      # бинарник
 
-./docklet init                         # workspace.yaml из compose-файла в текущей папке
-./docklet validate                     # проверка по схеме и правилам, с номерами строк
-./docklet export compose -o out.yml    # обратно в docker-compose
-./docklet schema                       # JSON Schema для редактора
-./docklet up                           # поднять базовое окружение (стартует агента в фоне)
-./docklet status                       # агент, runtime, окружения
-./docklet down --volumes               # удалить окружения проекта
+./devcorb init                         # workspace.yaml из compose-файла в текущей папке
+./devcorb validate                     # проверка по схеме и правилам, с номерами строк
+./devcorb export compose -o out.yml    # обратно в docker-compose
+./devcorb schema                       # JSON Schema для редактора
+./devcorb up                           # поднять базовое окружение (стартует агента в фоне)
+./devcorb status                       # агент, runtime, окружения
+./devcorb down --volumes               # удалить окружения проекта
 
 go tool -modfile=tools/go.mod buf generate   # после правок proto/
 ```
 
-Данные агента — в `~/.docklet` (или `$DOCKLET_HOME`).
+Данные агента — в `~/.devcorb` (или `$DEVCORB_HOME`).

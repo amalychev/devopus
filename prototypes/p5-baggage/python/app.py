@@ -33,7 +33,7 @@ def checkout_raw():
 def queue_for(feature):
     # Platform-provided routing table: a feature gets its own queue only if it runs its own
     # worker; otherwise the job goes to the base queue and keeps the baggage in the message.
-    with open("/etc/docklet/forks.json") as f:
+    with open("/etc/devcorb/forks.json") as f:
         forks = json.load(f)
     if feature and "worker" in forks.get(feature, []):
         return f"jobs:{feature}"

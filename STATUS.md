@@ -16,7 +16,7 @@
 - Проверено на Docker Desktop, Colima и OrbStack (macOS 26, Apple Silicon).
 - Выводы прототипов внесены в [PRD MVP](specs/mvp-prd.md#решения-из-прототипов-этапа-0) и [спецификацию `workspace.yaml`](specs/workspace-yaml.md).
 - Комплект для интервью и пилотов — [docs/stage-0/](docs/stage-0/README.md).
-- Решения: лицензия агента — Apache 2.0 (ADR-0010), название — Docklet.
+- Решения: лицензия агента — Apache 2.0 (ADR-0010), название — Devcorb.
 
 ## Что делать дальше
 
@@ -38,7 +38,7 @@
 | По итогам интервью (Г2, А7) | Решить по гибридному режиму (приложение на хосте) и по Windows (риск R15) — правки в roadmap и PRD |
 | Пришли compose-файлы команд | Повторить прогон P-8 (`prototypes/p8-compose-import`) на их файлах |
 | 5 LOI подписаны | Этап 0 закрыт формально (разработка этапа 1 уже идёт) |
-| Пришли compose-файлы команд | Прогнать `docklet init` на них (как корпус P-8) |
+| Пришли compose-файлы команд | Прогнать `devcorb init` на них (как корпус P-8) |
 
 ### Не блокирует, но нужно до этапа 1–2
 
@@ -48,8 +48,8 @@
 ## Состояние окружения
 
 - Docker-контекст: `desktop-linux`.
-- Репозиторий: https://github.com/amalychev/docklet (приватный).
+- Репозиторий: https://github.com/amalychev/devcorb (приватный).
 - Colima и OrbStack установлены, VM остановлены (`colima start` / `orb start`, если понадобятся). `colima start` и `orb start` переключают Docker-контекст на себя — после них вернуть `docker context use desktop-linux`. Тесты на них запускать через `DOCKER_HOST` (`~/.colima/default/docker.sock`, `~/.orbstack/run/docker.sock`).
-- На этой машине 80/443 занимает brew-nginx, поэтому прокси Docklet работает на 18080/18443 (fallback).
-- `~/.docklet` создан: CA (`ca/root.pem`, добавлен в связку ключей входа 15.10.2026), агент может работать в фоне (`pkill -f 'docklet agent run'` — остановить).
+- На этой машине 80/443 занимает brew-nginx, поэтому прокси Devcorb работает на 18080/18443 (fallback).
+- `~/.devcorb` создан: CA (`ca/root.pem`, добавлен в связку ключей входа 15.10.2026), агент может работать в фоне (`pkill -f 'devcorb agent run'` — остановить).
 - Опубликованный roadmap: https://claude.ai/artifact/XXRWjdCqmh1wb7WVczCjK7

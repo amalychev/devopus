@@ -48,7 +48,7 @@ func loadOrCreateCA() (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber:                serial(),
-		Subject:                     pkix.Name{CommonName: "Docklet prototype local CA", Organization: []string{"Docklet"}},
+		Subject:                     pkix.Name{CommonName: "Devcorb prototype local CA", Organization: []string{"Devcorb"}},
 		NotBefore:                   time.Now().Add(-time.Hour),
 		NotAfter:                    time.Now().AddDate(5, 0, 0),
 		IsCA:                        true,

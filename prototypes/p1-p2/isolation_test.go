@@ -19,7 +19,7 @@ import (
 
 func TestIsolation(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("DOCKLET_HOME", home)
+	t.Setenv("DEVCORB_HOME", home)
 	repo := filepath.Join(t.TempDir(), "shop")
 	copyDir(t, "example/shop", repo)
 	sh(t, repo, "git", "init", "-q", "-b", "main")
@@ -29,7 +29,7 @@ func TestIsolation(t *testing.T) {
 	cli := func(t *testing.T, args ...string) {
 		t.Helper()
 		if err := run(args, testWriter{t}); err != nil {
-			t.Fatalf("docklet %s: %v", strings.Join(args, " "), err)
+			t.Fatalf("devcorb %s: %v", strings.Join(args, " "), err)
 		}
 	}
 	t.Cleanup(func() { _ = run([]string{"down", "--purge", "--force"}, io.Discard) })
@@ -133,7 +133,7 @@ func TestIsolation(t *testing.T) {
 	})
 
 	t.Run("docker resources are namespaced and not published", func(t *testing.T) {
-		out, err := docker("ps", "-a", "--filter", "label="+labelProject+"=shop", "--format", `{{.Names}}|{{.Label "com.docklet.env"}}|{{.Ports}}`)
+		out, err := docker("ps", "-a", "--filter", "label="+labelProject+"=shop", "--format", `{{.Names}}|{{.Label "com.devcorb.env"}}|{{.Ports}}`)
 		if err != nil {
 			t.Fatal(err)
 		}

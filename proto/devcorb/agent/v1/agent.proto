@@ -1,9 +1,9 @@
-// Local API of the Docklet agent (stage 1). The CLI and the local panel talk to the
+// Local API of the Devcorb agent (stage 1). The CLI and the local panel talk to the
 // agent over a unix socket. DesiredState and EnvironmentStatus are the messages of
 // specs/agent-protocol.md: the cloud link of stage 2 reuses them (ADR-0001).
 syntax = "proto3";
 
-package docklet.agent.v1;
+package devcorb.agent.v1;
 
 import "google/protobuf/timestamp.proto";
 
@@ -33,7 +33,7 @@ message DesiredState {
 // DeviceSettings are per device, not per project.
 message DeviceSettings {
   // Coexistence (local-networking.md §1): a dev server moved off 80/443 to these host
-  // ports gets every host Docklet does not serve. 0: off.
+  // ports gets every host Devcorb does not serve. 0: off.
   uint32 coexist_http_port = 1;
   uint32 coexist_https_port = 2;
   // Bumping it recreates the proxy container, which probes the ports again.

@@ -76,5 +76,5 @@ OIDC (GitHub, Google), SAML · OAuth Device Flow · X25519 (age/libsodium) · Si
 
 | Репозиторий | Содержимое | Лицензия |
 |---|---|---|
-| `docklet` (monorepo) или раздельно | `agent/`, `proto/` (Buf), `schema/` (JSON Schema `workspace.yaml`), `docs/` | Open-source (см. ADR-0010) |
-| `docklet-cloud` | Core, Agent gateway, Tunnel, панель | Проприетарная |
+| `devcorb` (monorepo) или раздельно | `agent/`, `proto/` (Buf), `schema/` (JSON Schema `workspace.yaml`), `docs/` | Open-source (см. ADR-0010) |
+| `devcorb-cloud` | Core, Agent gateway, Tunnel, панель | Проприетарная |

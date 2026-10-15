@@ -132,7 +132,7 @@ modules:
 
 func TestNoWorkspaceAndBadArgs(t *testing.T) {
 	dir := t.TempDir()
-	if code, _, errOut := run(t, dir, "validate"); code != ExitInvalid || !strings.Contains(errOut, "docklet init") {
+	if code, _, errOut := run(t, dir, "validate"); code != ExitInvalid || !strings.Contains(errOut, "devcorb init") {
 		t.Errorf("exit %d: %s", code, errOut)
 	}
 	if code, _, _ := run(t, dir, "validate", "--nope"); code != ExitInvalid {

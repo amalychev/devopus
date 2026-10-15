@@ -1,4 +1,4 @@
-module github.com/docklet/proto-p8
+module github.com/devcorb/proto-p8
 
 go 1.27.2
 

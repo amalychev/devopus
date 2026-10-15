@@ -19,8 +19,8 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 
-	"github.com/docklet/docklet/internal/agent/pki"
-	"github.com/docklet/docklet/internal/agent/runtime"
+	"github.com/devcorb/devcorb/internal/agent/pki"
+	"github.com/devcorb/devcorb/internal/agent/runtime"
 )
 
 func TestResourcesAreConsistentAndStable(t *testing.T) {
@@ -82,7 +82,7 @@ func TestEnvoyServesSites(t *testing.T) {
 	defer x.Close()
 
 	ports := Ports{HTTP: freePort(t), HTTPS: freePort(t)}
-	spec, err := ContainerSpec(fmt.Sprintf("docklet-proxy-test-%d", ports.HTTPS), map[string]string{runtime.LabelManaged: "true", runtime.LabelInstance: "test"}, ports, x.Port(), ctl)
+	spec, err := ContainerSpec(fmt.Sprintf("devcorb-proxy-test-%d", ports.HTTPS), map[string]string{runtime.LabelManaged: "true", runtime.LabelInstance: "test"}, ports, x.Port(), ctl)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestEnvoyServesSites(t *testing.T) {
 	waitBody(t, ctx, ports.HTTPS, "pay.shop.localhost", roots, "second")
 	waitBody(t, ctx, ports.HTTPS, "shop.localhost", roots, "first")
 
-	// Coexistence: a dev server on the host gets every host Docklet does not serve,
+	// Coexistence: a dev server on the host gets every host Devcorb does not serve,
 	// HTTP as is and TLS untouched (its own certificate reaches the client).
 	devHTTP := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "dev server: "+r.Host) }))
 	defer devHTTP.Close()

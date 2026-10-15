@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:docklet:workspace:v1",
-  "title": "Docklet workspace.yaml v1",
+  "$id": "urn:devcorb:workspace:v1",
+  "title": "Devcorb workspace.yaml v1",
   "description": "One file describes the whole project: services, modules and the feature policy.",
   "type": "object",
   "additionalProperties": false,

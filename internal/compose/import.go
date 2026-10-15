@@ -16,7 +16,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/sirupsen/logrus"
 
-	"github.com/docklet/docklet/internal/workspace"
+	"github.com/devcorb/devcorb/internal/workspace"
 )
 
 // Options of an import.

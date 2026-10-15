@@ -18,13 +18,13 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/docklet/docklet/gen/docklet/agent/v1"
-	"github.com/docklet/docklet/gen/docklet/agent/v1/agentv1connect"
-	"github.com/docklet/docklet/internal/agent/client"
-	"github.com/docklet/docklet/internal/agent/paths"
-	"github.com/docklet/docklet/internal/agent/proxy"
-	"github.com/docklet/docklet/internal/agent/runtime"
-	"github.com/docklet/docklet/internal/agent/store"
+	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
+	"github.com/devcorb/devcorb/gen/devcorb/agent/v1/agentv1connect"
+	"github.com/devcorb/devcorb/internal/agent/client"
+	"github.com/devcorb/devcorb/internal/agent/paths"
+	"github.com/devcorb/devcorb/internal/agent/proxy"
+	"github.com/devcorb/devcorb/internal/agent/runtime"
+	"github.com/devcorb/devcorb/internal/agent/store"
 )
 
 // TestAgentEndToEnd runs the agent against the real runtime: up creates the
@@ -46,7 +46,7 @@ func TestAgentEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(home) })
-	t.Setenv("DOCKLET_HOME", home)
+	t.Setenv("DEVCORB_HOME", home)
 
 	project := "e2e-" + store.NewID()
 	// Free high ports: a real agent may hold 80/443 or the fallback ports.

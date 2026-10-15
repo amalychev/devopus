@@ -15,11 +15,11 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 
-	"github.com/docklet/docklet/internal/agent/pki"
+	"github.com/devcorb/devcorb/internal/agent/pki"
 )
 
 // NodeID is the node Envoy announces in its bootstrap.
-const NodeID = "docklet-proxy"
+const NodeID = "devcorb-proxy"
 
 // XDS serves Envoy's configuration over ADS with mutual TLS. It listens on the host's
 // loopback only; Envoy reaches it through host.docker.internal.

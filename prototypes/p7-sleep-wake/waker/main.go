@@ -109,8 +109,8 @@ func wakeAndServe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unknown environment "+r.Host, http.StatusNotFound)
 		return
 	}
-	w.Header().Set("X-Docklet-Waker", "1")
-	if r.Header.Get("X-Docklet-Probe") != "" {
+	w.Header().Set("X-Devcorb-Waker", "1")
+	if r.Header.Get("X-Devcorb-Probe") != "" {
 		http.Error(w, "probe reached the waker", http.StatusServiceUnavailable)
 		return
 	}
@@ -145,9 +145,9 @@ func wakeAndServe(w http.ResponseWriter, r *http.Request) {
 	// Replay straight to the module Envoy named in the route, not back through Envoy:
 	// Envoy's workers switch back to the module at slightly different moments, and a replay
 	// through the edge can land on the waker again or on the container's old IP.
-	upstream := r.Header.Get("X-Docklet-Upstream")
+	upstream := r.Header.Get("X-Devcorb-Upstream")
 	if upstream == "" {
-		http.Error(w, "route has no x-docklet-upstream", http.StatusBadGateway)
+		http.Error(w, "route has no x-devcorb-upstream", http.StatusBadGateway)
 		return
 	}
 	target, _ := url.Parse("http://" + upstream)
@@ -156,7 +156,7 @@ func wakeAndServe(w http.ResponseWriter, r *http.Request) {
 	proxy.Director = func(req *http.Request) {
 		director(req)
 		req.Host = r.Host
-		req.Header.Del("X-Docklet-Upstream")
+		req.Header.Del("X-Devcorb-Upstream")
 	}
 	proxy.ServeHTTP(w, r)
 }
@@ -347,14 +347,14 @@ func envoyStats() map[string]int {
 func routedToEnv(e *Env) bool {
 	req, _ := http.NewRequest(http.MethodHead, envoyEdge+"/", nil)
 	req.Host = e.Host
-	req.Header.Set("X-Docklet-Probe", "1")
+	req.Header.Set("X-Devcorb-Probe", "1")
 	resp, err := (&http.Client{Timeout: 2 * time.Second}).Do(req)
 	if err != nil {
 		return false
 	}
 	resp.Body.Close()
 	// Any answer from the module counts, even 501 for HEAD: only who answered matters.
-	return resp.Header.Get("X-Docklet-Waker") == ""
+	return resp.Header.Get("X-Devcorb-Waker") == ""
 }
 
 var skipDirs = map[string]bool{".git": true, "node_modules": true, "vendor": true}

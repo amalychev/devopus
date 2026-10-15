@@ -1,5 +1,5 @@
 # P-7 stand: main (never sleeps) and two features managed by the waker.
-name: docklet-p7
+name: devcorb-p7
 
 # The agent allocates a subnet per environment anyway (prototype P-1/P-2), so it can pin
 # container IPs: Envoy then uses static endpoints and never routes to a stale address.

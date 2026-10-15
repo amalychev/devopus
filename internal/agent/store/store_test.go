@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	agentv1 "github.com/docklet/docklet/gen/docklet/agent/v1"
+	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
 )
 
 func TestUpDownPersist(t *testing.T) {

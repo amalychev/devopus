@@ -3,7 +3,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/docklet/docklet/gen
+      value: github.com/devcorb/devcorb/gen
 plugins:
   - local: [go, tool, -modfile=tools/go.mod, protoc-gen-go]
     out: gen

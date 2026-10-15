@@ -12,9 +12,9 @@
 | Часть | Как в прототипе | Как будет в агенте |
 |---|---|---|
 | Конфиг | Подмножество `workspace.yaml` v1: модули — папки одного репозитория (`path`), `image`/`build`, `routes`, `uses`, `env`, `hooks.migrate`; сервисы с `port`, `volume`, `expose` | Полный формат, JSON Schema, модули из разных репозиториев |
-| Состояние | JSON-файл в `DOCKLET_HOME` (по умолчанию `~/.docklet-proto`) | DesiredState от сервера / локальный кэш |
+| Состояние | JSON-файл в `DEVCORB_HOME` (по умолчанию `~/.devcorb-proto`) | DesiredState от сервера / локальный кэш |
 | Docker | Сгенерированный compose-файл на окружение + `docker` CLI | Docker Engine API, compose-go |
-| Изоляция | Compose project `shop-env-<id>`, свои сеть и тома, метки `com.docklet.*`, модули не публикуют порты | То же |
+| Изоляция | Compose project `shop-env-<id>`, свои сеть и тома, метки `com.devcorb.*`, модули не публикуют порты | То же |
 | Сети | Сеть на окружение из пула `10.213.N.0/24`, у Envoy в каждой сети адрес `.254` | Решить в ADR-0006 (см. выводы) |
 | Simple Isolation | Фича запускает форки и всех, кто от них транзитивно зависит (`uses`). Общие модули и сервисы — сетевые алиасы Envoy в сети фичи, Envoy проксирует их в main (HTTP по имени хоста, TCP по порту) | То же; позже — Contextual Isolation |
 | Данные | `database: clone` — у фичи свой экземпляр сервиса БД. Сейчас он пустой: только миграции, без копирования данных main | Логическая БД из золотой копии (P-3) |
@@ -27,20 +27,20 @@
 
 ```bash
 cd prototypes/p1-p2
-go build -o docklet .
+go build -o devcorb .
 
 # пример — отдельный git-репозиторий
 cp -R example/shop /tmp/shop && cd /tmp/shop
 git init -q -b main && git add -A && git commit -qm init
 
-docklet doctor
-docklet up
-docklet feature create PAY-123 --modules payments
-docklet list
-docklet routes
-curl --cacert ~/.docklet-proto/ca/ca.pem 'https://pay-123.shop.localhost:18443/api/checkout?amount=7'
-docklet feature rm PAY-123 --force
-docklet down --purge
+devcorb doctor
+devcorb up
+devcorb feature create PAY-123 --modules payments
+devcorb list
+devcorb routes
+curl --cacert ~/.devcorb-proto/ca/ca.pem 'https://pay-123.shop.localhost:18443/api/checkout?amount=7'
+devcorb feature rm PAY-123 --force
+devcorb down --purge
 ```
 
 Порт 18443 — запасной режим: на этой машине 80/443 занимает nginx.

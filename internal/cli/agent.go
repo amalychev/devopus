@@ -19,25 +19,25 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	agentv1 "github.com/docklet/docklet/gen/docklet/agent/v1"
-	"github.com/docklet/docklet/gen/docklet/agent/v1/agentv1connect"
-	"github.com/docklet/docklet/internal/agent"
-	"github.com/docklet/docklet/internal/agent/client"
-	"github.com/docklet/docklet/internal/agent/paths"
-	"github.com/docklet/docklet/internal/agent/pki"
-	"github.com/docklet/docklet/internal/trust"
+	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
+	"github.com/devcorb/devcorb/gen/devcorb/agent/v1/agentv1connect"
+	"github.com/devcorb/devcorb/internal/agent"
+	"github.com/devcorb/devcorb/internal/agent/client"
+	"github.com/devcorb/devcorb/internal/agent/paths"
+	"github.com/devcorb/devcorb/internal/agent/pki"
+	"github.com/devcorb/devcorb/internal/trust"
 )
 
 func (a *app) agentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "agent",
-		Short: "Run the Docklet agent",
+		Short: "Run the Devcorb agent",
 	}
 	cmd.AddCommand(&cobra.Command{
 		Use:   "run",
 		Short: "Run the agent in the foreground",
 		Long: "Runs the agent in the foreground until interrupted. Commands that need the agent\n" +
-			"start it in the background on their own; 'docklet install' will register it as a service.",
+			"start it in the background on their own; 'devcorb install' will register it as a service.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -79,7 +79,7 @@ func (a *app) statusCmd() *cobra.Command {
 					if a.json {
 						return a.writeJSON(map[string]any{"agent": "not running"})
 					}
-					fmt.Fprintln(a.stdout, "Agent: not running. 'docklet up' starts it.")
+					fmt.Fprintln(a.stdout, "Agent: not running. 'devcorb up' starts it.")
 					return nil
 				}
 				return fail(ExitError, "%v", err)
@@ -108,7 +108,7 @@ func (a *app) printStatus(s *agentv1.StatusResponse) {
 	a.printProxy(s.Proxy)
 	a.printCA(s.Ca)
 	if len(s.Projects) == 0 {
-		fmt.Fprintln(a.stdout, "\nNo projects. Run 'docklet up' in a folder with workspace.yaml.")
+		fmt.Fprintln(a.stdout, "\nNo projects. Run 'devcorb up' in a folder with workspace.yaml.")
 		return
 	}
 	fmt.Fprintln(a.stdout)
@@ -151,7 +151,7 @@ func (a *app) printCA(ca *agentv1.CAInfo) {
 	if loaded, err := pki.LoadCA(filepath.Dir(ca.RootPath)); err != nil {
 		state = err.Error()
 	} else if ok, err := trust.Trusted(loaded); err != nil || !ok {
-		state = "not trusted: 'docklet doctor --fix'"
+		state = "not trusted: 'devcorb doctor --fix'"
 	}
 	fmt.Fprintf(a.stdout, "CA       %s · %s\n", ca.RootPath, state)
 }
@@ -163,7 +163,7 @@ func (a *app) trustHint() {
 		return
 	}
 	if ok, err := trust.Trusted(ca); err == nil && !ok {
-		fmt.Fprintln(a.stderr, "Browsers will warn about the certificate until you trust the local CA: docklet doctor --fix")
+		fmt.Fprintln(a.stderr, "Browsers will warn about the certificate until you trust the local CA: devcorb doctor --fix")
 	}
 }
 
@@ -182,7 +182,7 @@ func (a *app) upCmd() *cobra.Command {
 			a.printDiagnostics(file, res.Diagnostics.Warnings())
 			if res.Diagnostics.HasErrors() {
 				a.printDiagnostics(file, res.Diagnostics.Errors())
-				return fail(ExitInvalid, "fix the errors above, then run 'docklet up' again")
+				return fail(ExitInvalid, "fix the errors above, then run 'devcorb up' again")
 			}
 			abs, err := filepath.Abs(file)
 			if err != nil {
@@ -210,7 +210,7 @@ func (a *app) upCmd() *cobra.Command {
 			}
 			envID, rev := up.Msg.EnvironmentId, up.Msg.Revision
 			if detach {
-				return a.done(map[string]any{"environment_id": envID, "revision": rev}, "Environment %s of %s is coming up; 'docklet status' shows progress.\n", envID, res.Workspace.Project)
+				return a.done(map[string]any{"environment_id": envID, "revision": rev}, "Environment %s of %s is coming up; 'devcorb status' shows progress.\n", envID, res.Workspace.Project)
 			}
 			final, err := a.follow(w, []string{envID}, rev, func(s *agentv1.EnvironmentStatus) bool {
 				return s.Phase == agentv1.Phase_PHASE_RUNNING
@@ -349,7 +349,7 @@ func (a *app) follow(w *connect.ServerStreamForClient[agentv1.WatchResponse], id
 	}
 	if err := w.Err(); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) || connect.CodeOf(err) == connect.CodeDeadlineExceeded {
-			return nil, fail(ExitError, "timed out; 'docklet status' shows where it stopped")
+			return nil, fail(ExitError, "timed out; 'devcorb status' shows where it stopped")
 		}
 		return nil, rpcError(err)
 	}

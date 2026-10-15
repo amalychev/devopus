@@ -8,16 +8,16 @@ import (
 	"path/filepath"
 )
 
-// Home is the agent's data directory: $DOCKLET_HOME or ~/.docklet.
+// Home is the agent's data directory: $DEVCORB_HOME or ~/.devcorb.
 func Home() string {
-	if h := os.Getenv("DOCKLET_HOME"); h != "" {
+	if h := os.Getenv("DEVCORB_HOME"); h != "" {
 		return h
 	}
 	h, err := os.UserHomeDir()
 	if err != nil {
-		return ".docklet"
+		return ".devcorb"
 	}
-	return filepath.Join(h, ".docklet")
+	return filepath.Join(h, ".devcorb")
 }
 
 // Socket is the unix socket of the local API.
@@ -45,22 +45,22 @@ func Certs() string { return filepath.Join(Home(), "certs") }
 func Proxy() string { return filepath.Join(Home(), "proxy") }
 
 // Instance tells agents with different data directories apart in Docker labels and
-// names. The default directory gets the plain names (docklet-proxy).
+// names. The default directory gets the plain names (devcorb-proxy).
 func Instance() string {
 	sum := sha256.Sum256([]byte(Home()))
 	return hex.EncodeToString(sum[:])[:8]
 }
 
-// IsDefault reports whether the agent uses ~/.docklet.
+// IsDefault reports whether the agent uses ~/.devcorb.
 func IsDefault() bool {
 	h, err := os.UserHomeDir()
-	return err == nil && Home() == filepath.Join(h, ".docklet")
+	return err == nil && Home() == filepath.Join(h, ".devcorb")
 }
 
 // ProxyName is the Envoy container of this instance.
 func ProxyName() string {
 	if IsDefault() {
-		return "docklet-proxy"
+		return "devcorb-proxy"
 	}
-	return "docklet-proxy-" + Instance()
+	return "devcorb-proxy-" + Instance()
 }

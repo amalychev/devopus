@@ -22,10 +22,10 @@ import (
 
 // Labels on everything the agent creates. GC only ever touches resources with Managed.
 const (
-	LabelManaged = "com.docklet.managed"
-	LabelProject = "com.docklet.project"
-	LabelEnv     = "com.docklet.env"
-	LabelKind    = "com.docklet.kind"
+	LabelManaged = "com.devcorb.managed"
+	LabelProject = "com.devcorb.project"
+	LabelEnv     = "com.devcorb.env"
+	LabelKind    = "com.devcorb.kind"
 )
 
 // Endpoint is where the Docker API is and which product serves it.

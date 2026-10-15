@@ -16,10 +16,10 @@ import (
 // will use the Docker Engine API and compose-go (docs/architecture/tech-stack.md).
 
 const (
-	labelProject = "com.docklet.project"
-	labelEnv     = "com.docklet.env"
-	labelModule  = "com.docklet.module"
-	envoyName    = "docklet-envoy"
+	labelProject = "com.devcorb.project"
+	labelEnv     = "com.devcorb.env"
+	labelModule  = "com.devcorb.module"
+	envoyName    = "devcorb-envoy"
 )
 
 func docker(args ...string) (string, error) {
@@ -37,7 +37,7 @@ func moduleImage(ws *Workspace, name string) string {
 	if m.Image != "" {
 		return m.Image
 	}
-	return fmt.Sprintf("docklet-proto/%s-%s:dev", ws.Project, name)
+	return fmt.Sprintf("devcorb-proto/%s-%s:dev", ws.Project, name)
 }
 
 // BuildImages builds module images once; features reuse them and mount their own worktree.
@@ -142,10 +142,10 @@ func Compose(st *State, ws *Workspace, env *Env) composeFile {
 		for k, v := range m.Env {
 			vars[k] = v
 		}
-		vars["DOCKLET_ENV_ID"] = env.ID
-		vars["DOCKLET_ENV_KIND"] = env.Kind
-		vars["DOCKLET_ENV_SLUG"] = env.Slug
-		vars["DOCKLET_ENV_URL"] = st.URL(env, ws)
+		vars["DEVCORB_ENV_ID"] = env.ID
+		vars["DEVCORB_ENV_KIND"] = env.Kind
+		vars["DEVCORB_ENV_SLUG"] = env.Slug
+		vars["DEVCORB_ENV_URL"] = st.URL(env, ws)
 		vars["PORT"] = fmt.Sprint(m.Port)
 		cf.Services[name] = composeService{
 			Image:         moduleImage(ws, name),

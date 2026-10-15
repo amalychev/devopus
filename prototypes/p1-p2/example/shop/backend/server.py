@@ -1,7 +1,7 @@
 import json, os, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-ENV = os.environ.get("DOCKLET_ENV_ID", "?")
+ENV = os.environ.get("DEVCORB_ENV_ID", "?")
 PAYMENTS = os.environ["PAYMENTS_URL"]
 
 

@@ -1,4 +1,4 @@
-module github.com/docklet/docklet/tools
+module github.com/devcorb/devcorb/tools
 
 go 1.27.2
 

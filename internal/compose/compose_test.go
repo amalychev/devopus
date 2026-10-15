@@ -14,7 +14,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 	"gopkg.in/yaml.v3"
 
-	"github.com/docklet/docklet/internal/workspace"
+	"github.com/devcorb/devcorb/internal/workspace"
 )
 
 type fakePinner map[string]string

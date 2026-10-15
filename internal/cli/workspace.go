@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docklet/docklet/internal/compose"
-	"github.com/docklet/docklet/internal/workspace"
-	"github.com/docklet/docklet/schema"
+	"github.com/devcorb/devcorb/internal/compose"
+	"github.com/devcorb/devcorb/internal/workspace"
+	"github.com/devcorb/devcorb/schema"
 )
 
 func (a *app) validateCmd() *cobra.Command {
@@ -59,7 +59,7 @@ func (a *app) exportCmd() *cobra.Command {
 		Use:   "compose",
 		Short: "Export the base environment as docker-compose.yml",
 		Long: "Writes a docker-compose file for the base environment: services, modules with build,\n" +
-			"depends_on and env with values. Features, routing and database clones stay with Docklet.",
+			"depends_on and env with values. Features, routing and database clones stay with Devcorb.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			res, file, err := a.load()
@@ -95,7 +95,7 @@ func (a *app) schemaCmd() *cobra.Command {
 		Use:   "schema",
 		Short: "Print the JSON Schema of workspace.yaml",
 		Long: "Prints the JSON Schema of workspace.yaml v1. Editors with yaml-language-server pick it up\n" +
-			"from the first line of workspace.yaml that 'docklet init' writes:\n  # yaml-language-server: $schema=" + schema.URL,
+			"from the first line of workspace.yaml that 'devcorb init' writes:\n  # yaml-language-server: $schema=" + schema.URL,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			_, err := a.stdout.Write(schema.WorkspaceV1)
@@ -118,7 +118,7 @@ func (a *app) versionCmd() *cobra.Command {
 					"format_version": workspace.Version,
 				})
 			}
-			fmt.Fprintf(a.stdout, "docklet %s (%s, %s/%s)\n", Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+			fmt.Fprintf(a.stdout, "devcorb %s (%s, %s/%s)\n", Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 			return nil
 		},
 	}

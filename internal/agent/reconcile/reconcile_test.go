@@ -11,10 +11,10 @@ import (
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 
-	agentv1 "github.com/docklet/docklet/gen/docklet/agent/v1"
-	"github.com/docklet/docklet/internal/agent/pki"
-	"github.com/docklet/docklet/internal/agent/proxy"
-	"github.com/docklet/docklet/internal/agent/runtime"
+	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
+	"github.com/devcorb/devcorb/internal/agent/pki"
+	"github.com/devcorb/devcorb/internal/agent/proxy"
+	"github.com/devcorb/devcorb/internal/agent/runtime"
 )
 
 // fakeRuntime keeps networks and containers in memory and refuses overlapping subnets
@@ -239,7 +239,7 @@ func newHarness(t *testing.T, rt *fakeRuntime) *harness {
 	h := &harness{rt: rt, xds: &fakeXDS{}, ports: proxy.DefaultPorts}
 	h.opt = Options{
 		Instance:  "test",
-		ProxyName: "docklet-proxy-test",
+		ProxyName: "devcorb-proxy-test",
 		CA:        ca,
 		Leaves:    pki.Leaves{Dir: t.TempDir()},
 		Control:   ctl,
@@ -437,7 +437,7 @@ func TestFallbackPortsStick(t *testing.T) {
 		t.Errorf("ports moved without a restart: %d probes, %v", h.chooses, r.Proxy())
 	}
 
-	// docklet proxy restart: a new generation recreates the proxy, which probes again
+	// devcorb proxy restart: a new generation recreates the proxy, which probes again
 	// and is attached to the environment network again.
 	d := desired(3, base("dddddd"))
 	d.Device = &agentv1.DeviceSettings{ProxyGeneration: 1}

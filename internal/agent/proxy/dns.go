@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	"github.com/docklet/docklet/internal/agent/runtime"
+	"github.com/devcorb/devcorb/internal/agent/runtime"
 )
 
 // DNSImage answers *.localhost inside environment networks, pinned by digest.

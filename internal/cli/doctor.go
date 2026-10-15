@@ -14,14 +14,14 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/docklet/docklet/gen/docklet/agent/v1"
-	"github.com/docklet/docklet/internal/agent/client"
-	"github.com/docklet/docklet/internal/agent/paths"
-	"github.com/docklet/docklet/internal/agent/pki"
-	"github.com/docklet/docklet/internal/agent/proxy"
-	"github.com/docklet/docklet/internal/agent/reconcile"
-	"github.com/docklet/docklet/internal/agent/runtime"
-	"github.com/docklet/docklet/internal/trust"
+	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
+	"github.com/devcorb/devcorb/internal/agent/client"
+	"github.com/devcorb/devcorb/internal/agent/paths"
+	"github.com/devcorb/devcorb/internal/agent/pki"
+	"github.com/devcorb/devcorb/internal/agent/proxy"
+	"github.com/devcorb/devcorb/internal/agent/reconcile"
+	"github.com/devcorb/devcorb/internal/agent/runtime"
+	"github.com/devcorb/devcorb/internal/trust"
 )
 
 // check is one preflight result.
@@ -37,8 +37,8 @@ func (a *app) doctorCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Check the machine: container runtime, ports 80/443, *.localhost, the local CA",
-		Long: "Checks what Docklet needs from this machine and says who is in the way and how to fix it.\n" +
-			"--fix applies the fixes Docklet can make itself; each one asks first.",
+		Long: "Checks what Devcorb needs from this machine and says who is in the way and how to fix it.\n" +
+			"--fix applies the fixes Devcorb can make itself; each one asks first.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -67,7 +67,7 @@ func (a *app) doctorCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&fix, "fix", false, "apply the fixes Docklet can make (asks before each)")
+	cmd.Flags().BoolVar(&fix, "fix", false, "apply the fixes Devcorb can make (asks before each)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "with --fix: do not ask")
 	return cmd
 }
@@ -110,7 +110,7 @@ func (a *app) preflight(ctx context.Context) []check {
 		status = res.Msg
 		out = append(out, check{Name: "agent", Status: "ok", Detail: fmt.Sprintf("running, version %s", status.AgentVersion)})
 	} else {
-		out = append(out, check{Name: "agent", Status: "info", Detail: "not running; 'docklet up' starts it"})
+		out = append(out, check{Name: "agent", Status: "info", Detail: "not running; 'devcorb up' starts it"})
 	}
 
 	out = append(out, portChecks(ctx, status, rtName)...)
@@ -145,7 +145,7 @@ func portChecks(ctx context.Context, status *agentv1.StatusResponse, rtName stri
 			if len(p.Conflicts) > 0 {
 				c.Fix = p.Conflicts[0].Hint
 			} else {
-				c.Fix = "80/443 look free now: 'docklet proxy restart' moves the proxy there (URLs change)"
+				c.Fix = "80/443 look free now: 'devcorb proxy restart' moves the proxy there (URLs change)"
 			}
 		}
 		if len(missing) > 0 {
@@ -158,7 +158,7 @@ func portChecks(ctx context.Context, status *agentv1.StatusResponse, rtName stri
 		if len(conflicts) == 0 {
 			out = append(out, check{Name: "ports", Status: "ok", Detail: "80 and 443 are free on 127.0.0.1 and ::1"})
 		} else {
-			c := check{Name: "ports", Status: "warn", Detail: fmt.Sprintf("Docklet will use the fallback ports %d/%d:", proxy.FallbackPorts.HTTP, proxy.FallbackPorts.HTTPS)}
+			c := check{Name: "ports", Status: "warn", Detail: fmt.Sprintf("Devcorb will use the fallback ports %d/%d:", proxy.FallbackPorts.HTTP, proxy.FallbackPorts.HTTPS)}
 			for _, cf := range conflicts {
 				c.Detail += "\n" + conflictLine(cf.Addr.String(), cf.Owner, int32(cf.PID))
 			}
@@ -205,7 +205,7 @@ func reachable(ctx context.Context, ap netip.AddrPort) bool {
 // dnsCheck resolves *.localhost names the way most programs on the host do.
 func dnsCheck(ctx context.Context) check {
 	var bad []string
-	for _, name := range []string{"docklet-doctor.localhost", "pay-123.docklet-doctor.localhost"} {
+	for _, name := range []string{"devcorb-doctor.localhost", "pay-123.devcorb-doctor.localhost"} {
 		addrs, err := net.DefaultResolver.LookupNetIP(ctx, "ip", name)
 		ok := err == nil && len(addrs) > 0
 		for _, a := range addrs {
@@ -217,7 +217,7 @@ func dnsCheck(ctx context.Context) check {
 	}
 	if len(bad) > 0 {
 		return check{Name: "dns", Status: "fail", Detail: "*.localhost does not resolve to loopback:\n" + strings.Join(bad, "\n"),
-			Fix: "a VPN or a custom resolver may override .localhost; on macOS before 26 Docklet will set up /etc/resolver/localhost (docklet install)"}
+			Fix: "a VPN or a custom resolver may override .localhost; on macOS before 26 Devcorb will set up /etc/resolver/localhost (devcorb install)"}
 	}
 	return check{Name: "dns", Status: "ok", Detail: "*.localhost resolves to loopback (nested names too)"}
 }
@@ -225,7 +225,7 @@ func dnsCheck(ctx context.Context) check {
 func caCheck() check {
 	ca, err := pki.LoadCA(paths.CA())
 	if errors.Is(err, os.ErrNotExist) {
-		return check{Name: "ca", Status: "info", Detail: "not created yet; the agent creates it on the first 'docklet up'"}
+		return check{Name: "ca", Status: "info", Detail: "not created yet; the agent creates it on the first 'devcorb up'"}
 	}
 	if err != nil {
 		return check{Name: "ca", Status: "fail", Detail: err.Error()}
@@ -237,7 +237,7 @@ func caCheck() check {
 		return check{Name: "ca", Status: "fail", Detail: detail + "\n" + err.Error()}
 	case !ok:
 		return check{Name: "ca", Status: "fail", Detail: "the local CA is not trusted: browsers warn on every environment\n" + detail,
-			Fix: "docklet doctor --fix (adds it to your login keychain), or by hand: " + trust.ManualSteps(ca.RootPath())}
+			Fix: "devcorb doctor --fix (adds it to your login keychain), or by hand: " + trust.ManualSteps(ca.RootPath())}
 	}
 	return check{Name: "ca", Status: "ok", Detail: "trusted by the system\n" + detail +
 		"\nFirefox uses it when security.enterprise_roots.enabled is on (the default on macOS)"}
@@ -266,7 +266,7 @@ func poolCheck() check {
 	return check{Name: "addresses", Status: "ok", Detail: fmt.Sprintf("the environment pool %s is free on this machine", reconcile.Pool)}
 }
 
-// applyFixes trusts the CA, the one fix Docklet makes itself in M3.
+// applyFixes trusts the CA, the one fix Devcorb makes itself in M3.
 func (a *app) applyFixes(ctx context.Context, checks []check, yes bool) ([]check, error) {
 	for i, c := range checks {
 		if c.Name != "ca" || c.Status != "fail" || !trust.CanInstall() {
@@ -276,7 +276,7 @@ func (a *app) applyFixes(ctx context.Context, checks []check, yes bool) ([]check
 		if err != nil {
 			return nil, fail(ExitError, "%v", err)
 		}
-		ok, err := a.confirm(yes, fmt.Sprintf("Add the Docklet local CA to your login keychain?\n  %s\n  SHA-256 %s\n  It can sign only names under .localhost. macOS will ask for your password.", ca.RootPath(), ca.Fingerprint()))
+		ok, err := a.confirm(yes, fmt.Sprintf("Add the Devcorb local CA to your login keychain?\n  %s\n  SHA-256 %s\n  It can sign only names under .localhost. macOS will ask for your password.", ca.RootPath(), ca.Fingerprint()))
 		if err != nil {
 			return nil, err
 		}

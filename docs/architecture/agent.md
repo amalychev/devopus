@@ -37,7 +37,7 @@ Helper принимает только фиксированный набор т�
 ```
 loop:
   desired := cache.Load()  // локальный файл (MVP) или последний DesiredState из облака
-  actual  := observe()     // Docker labels com.docklet.env=<id>, git worktree list, Envoy config
+  actual  := observe()     // Docker labels com.devcorb.env=<id>, git worktree list, Envoy config
   plan    := diff(desired, actual)
   for step in plan (с учётом зависимостей):
       execute(step)        // идемпотентно
@@ -47,7 +47,7 @@ loop:
 
 Требования:
 - **Идемпотентность каждого шага.** Повторный запуск после краша приводит к тому же результату.
-- **Наблюдение по меткам.** Всё, что создаёт агент, помечено `com.docklet.env=<id>`, `com.docklet.project=<id>`; GC работает только по меткам и никогда не трогает чужие ресурсы.
+- **Наблюдение по меткам.** Всё, что создаёт агент, помечено `com.devcorb.env=<id>`, `com.devcorb.project=<id>`; GC работает только по меткам и никогда не трогает чужие ресурсы.
 - **Оффлайн.** Без связи работает по кэшированному состоянию; все запущенные окружения и создание фич из локального кэша доступны.
 - **Безопасность удаления.** Перед удалением worktree — проверка `git status` и непушнутых коммитов; при наличии — запрос подтверждения (локально или в панели).
 
@@ -81,7 +81,7 @@ loop:
 - Контейнеры модулей запускаются с init (`init: true`), иначе процесс с PID 1 игнорирует SIGTERM и каждое усыпление ждёт SIGKILL.
 - У кластеров спящих фич `no_traffic_interval` health check должен быть около секунды (по умолчанию 60 с).
 
-## Preflight / `docklet doctor`
+## Preflight / `devcorb doctor`
 
 | Проверка | Действие при провале |
 |---|---|

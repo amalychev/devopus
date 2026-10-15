@@ -15,11 +15,11 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/docklet/docklet/gen/docklet/agent/v1"
-	"github.com/docklet/docklet/internal/agent/pki"
-	"github.com/docklet/docklet/internal/agent/proxy"
-	"github.com/docklet/docklet/internal/agent/runtime"
-	"github.com/docklet/docklet/internal/workspace"
+	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
+	"github.com/devcorb/devcorb/internal/agent/pki"
+	"github.com/devcorb/devcorb/internal/agent/proxy"
+	"github.com/devcorb/devcorb/internal/agent/runtime"
+	"github.com/devcorb/devcorb/internal/workspace"
 )
 
 // Runtime is the part of the container runtime the reconciler uses.

@@ -22,12 +22,12 @@ import (
 const (
 	// LabelInstance separates agents with different data directories (a test agent
 	// next to the real one): each observes and collects only its own resources.
-	LabelInstance = "com.docklet.instance"
+	LabelInstance = "com.devcorb.instance"
 	// LabelRole is proxy, dns, module, service…
-	LabelRole = "com.docklet.role"
+	LabelRole = "com.devcorb.role"
 	// LabelConfig is a hash of what the container was created from; a different hash
 	// means the container must be recreated.
-	LabelConfig = "com.docklet.config"
+	LabelConfig = "com.devcorb.config"
 )
 
 // Container is a container as the agent sees it.

@@ -27,7 +27,7 @@ go run . containers   # один раздел
 | `bind 127.0.0.1:81` / `[::1]:81` без root | ⚠️ отказ: permission denied |
 | `bind 0.0.0.0:81` / `[::]:81` без root | получилось — но это открывает порт всей локальной сети |
 | Docker Desktop: `-p 127.0.0.1:81:80` и `-p [::1]:81:80` | ✅ оба работают без root |
-| Docklet на `127.0.0.1:18500`, чужой сервер на `[::1]:18500` → curl, Python, Node | ⚠️ все три ушли к чужому серверу на `::1` |
+| Devcorb на `127.0.0.1:18500`, чужой сервер на `[::1]:18500` → curl, Python, Node | ⚠️ все три ушли к чужому серверу на `::1` |
 | Наш CA: `app.shop.localhost` в curl, Python, Node, PHP, Java, Go | ✅ все шесть доверяют |
 | Наш CA подписал `evil.example.com` (нарушение Name Constraints) | ✅ curl, Python, Node, PHP, Go отвергают. ⚠️ **Java 25 принимает** |
 | Корень + промежуточный CA с Name Constraints, ключ корня уничтожен | ✅ **все шесть, включая Java, отвергают `evil.example.com`** |
@@ -49,14 +49,14 @@ go run . containers   # один раздел
 | Все четыре клиента, любой режим: `evil.example.com` | ✅ отклонён (Name Constraints) |
 | Все четыре клиента с CA от агента: публичный `https://example.com` | ✅ работает — подмена хранилища ничего не ломает |
 
-Как агент отдаёт CA контейнеру, не меняя образ: монтирует `/docklet/ca.pem` и `/docklet/bundle.pem` (публичные корни + наш CA) и задаёт:
+Как агент отдаёт CA контейнеру, не меняя образ: монтирует `/devcorb/ca.pem` и `/devcorb/bundle.pem` (публичные корни + наш CA) и задаёт:
 
 | Переменная | Кто читает |
 |---|---|
-| `SSL_CERT_FILE=/docklet/bundle.pem` | OpenSSL: curl, Python `ssl`/urllib, PHP |
-| `NODE_EXTRA_CA_CERTS=/docklet/ca.pem` | Node: добавляет к своим корням |
-| `REQUESTS_CA_BUNDLE=/docklet/bundle.pem` | Python `requests` (certifi) |
-| `CURL_CA_BUNDLE=/docklet/bundle.pem` | curl |
+| `SSL_CERT_FILE=/devcorb/bundle.pem` | OpenSSL: curl, Python `ssl`/urllib, PHP |
+| `NODE_EXTRA_CA_CERTS=/devcorb/ca.pem` | Node: добавляет к своим корням |
+| `REQUESTS_CA_BUNDLE=/devcorb/bundle.pem` | Python `requests` (certifi) |
+| `CURL_CA_BUNDLE=/devcorb/bundle.pem` | curl |
 
 ### Linux (эмуляция хоста в Debian 12)
 

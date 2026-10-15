@@ -4,7 +4,7 @@ from urllib.parse import parse_qs, urlparse
 
 import psycopg
 
-ENV = os.environ.get("DOCKLET_ENV_ID", "?")
+ENV = os.environ.get("DEVCORB_ENV_ID", "?")
 DB = os.environ["DATABASE_URL"]
 
 

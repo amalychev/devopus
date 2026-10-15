@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	agentv1 "github.com/docklet/docklet/gen/docklet/agent/v1"
+	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
 )
 
 // Store is the desired state persisted as JSON. Every change bumps the revision,

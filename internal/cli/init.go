@@ -14,9 +14,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/docklet/docklet/internal/compose"
-	"github.com/docklet/docklet/internal/workspace"
-	"github.com/docklet/docklet/schema"
+	"github.com/devcorb/devcorb/internal/compose"
+	"github.com/devcorb/devcorb/internal/workspace"
+	"github.com/devcorb/devcorb/schema"
 )
 
 // SecretsFile holds local secret values in stage 1 (specs/mvp-prd.md); it stays out of git.
@@ -40,7 +40,7 @@ func (a *app) initCmd() *cobra.Command {
 			"imported and a report lists what to review. Floating image tags are pinned to\n" +
 			"today's digest (needs the registry; --no-pin skips it). Values that look like\n" +
 			"secrets move to " + SecretsFile + ", which must stay out of git.",
-		Example: "  docklet init\n  docklet init --from-compose docker-compose.yml --from-compose docker-compose.dev.yml",
+		Example: "  devcorb init\n  devcorb init --from-compose docker-compose.yml --from-compose docker-compose.dev.yml",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			target := a.file
@@ -128,7 +128,7 @@ func (a *app) initFromCompose(ctx context.Context, target string, files []string
 		a.printDiagnostics(target, ds)
 		fmt.Fprintf(a.stdout, "Wrote %s.", display(target))
 		if ds.HasErrors() {
-			fmt.Fprint(a.stdout, " Fix the errors above, then run 'docklet validate'.")
+			fmt.Fprint(a.stdout, " Fix the errors above, then run 'devcorb validate'.")
 		}
 		fmt.Fprintln(a.stdout)
 	}
@@ -160,12 +160,12 @@ func (a *app) initTemplate(target, project string) error {
 	if a.json {
 		return a.writeJSON(map[string]any{"file": target, "template": true})
 	}
-	fmt.Fprintf(a.stdout, "Wrote %s from a template: describe your modules and services, then run 'docklet validate'.\n", target)
+	fmt.Fprintf(a.stdout, "Wrote %s from a template: describe your modules and services, then run 'devcorb validate'.\n", target)
 	return nil
 }
 
 const template = `# yaml-language-server: $schema=%s
-# Docklet workspace: one file describes the project. Spec: specs/workspace-yaml.md
+# Devcorb workspace: one file describes the project. Spec: specs/workspace-yaml.md
 version: 1
 project: %s
 domain: %s.localhost
@@ -195,7 +195,7 @@ modules:
 // marshal renders the workspace with the schema comment for editors.
 func marshal(w *workspace.Workspace) ([]byte, error) {
 	return workspace.Marshal(w, fmt.Sprintf("# yaml-language-server: $schema=%s\n", schema.URL)+
-		"# Imported by 'docklet init'. Review the report, then run 'docklet validate'.\n")
+		"# Imported by 'devcorb init'. Review the report, then run 'devcorb validate'.\n")
 }
 
 // writeSecrets adds the imported values to .env.secrets without touching keys already

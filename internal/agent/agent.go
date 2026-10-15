@@ -1,4 +1,4 @@
-// Package agent runs the local Docklet agent: the desired-state store, the
+// Package agent runs the local Devcorb agent: the desired-state store, the
 // reconcile loop and the local API on a unix socket (docs/architecture/agent.md).
 package agent
 
@@ -19,15 +19,15 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/docklet/docklet/gen/docklet/agent/v1"
-	"github.com/docklet/docklet/gen/docklet/agent/v1/agentv1connect"
-	"github.com/docklet/docklet/internal/agent/api"
-	"github.com/docklet/docklet/internal/agent/paths"
-	"github.com/docklet/docklet/internal/agent/pki"
-	"github.com/docklet/docklet/internal/agent/proxy"
-	"github.com/docklet/docklet/internal/agent/reconcile"
-	"github.com/docklet/docklet/internal/agent/runtime"
-	"github.com/docklet/docklet/internal/agent/store"
+	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
+	"github.com/devcorb/devcorb/gen/devcorb/agent/v1/agentv1connect"
+	"github.com/devcorb/devcorb/internal/agent/api"
+	"github.com/devcorb/devcorb/internal/agent/paths"
+	"github.com/devcorb/devcorb/internal/agent/pki"
+	"github.com/devcorb/devcorb/internal/agent/proxy"
+	"github.com/devcorb/devcorb/internal/agent/reconcile"
+	"github.com/devcorb/devcorb/internal/agent/runtime"
+	"github.com/devcorb/devcorb/internal/agent/store"
 )
 
 // Intervals of the reconcile loop: a periodic pass catches changes made behind the

@@ -10,15 +10,15 @@ import (
 	"strings"
 	"sync"
 
-	agentv1 "github.com/docklet/docklet/gen/docklet/agent/v1"
-	"github.com/docklet/docklet/internal/agent/proxy"
-	"github.com/docklet/docklet/internal/agent/runtime"
-	"github.com/docklet/docklet/internal/workspace"
+	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
+	"github.com/devcorb/devcorb/internal/agent/proxy"
+	"github.com/devcorb/devcorb/internal/agent/runtime"
+	"github.com/devcorb/devcorb/internal/workspace"
 )
 
 // LabelGeneration is the proxy generation the container was made for; a newer one in
-// the desired state recreates it (docklet proxy restart).
-const LabelGeneration = "com.docklet.proxy.generation"
+// the desired state recreates it (devcorb proxy restart).
+const LabelGeneration = "com.devcorb.proxy.generation"
 
 // proxyState is the running proxy as this pass knows it.
 type proxyState struct {
@@ -235,10 +235,10 @@ func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredSt
 			continue
 		}
 		page := proxy.Page{Status: 200, Title: p.env.Project + " is up",
-			Text: fmt.Sprintf("Docklet serves environment <code>%s</code> of <code>%s</code> here. No module answers on this address yet.", p.env.Id, html.EscapeString(p.env.Project))}
+			Text: fmt.Sprintf("Devcorb serves environment <code>%s</code> of <code>%s</code> here. No module answers on this address yet.", p.env.Id, html.EscapeString(p.env.Project))}
 		target := "proxy page: no module yet"
 		if p.env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
-			page = proxy.Page{Status: 503, Title: p.env.Project + " is stopped", Text: "Run <code>docklet up</code> in the project to start it."}
+			page = proxy.Page{Status: 503, Title: p.env.Project + " is stopped", Text: "Run <code>devcorb up</code> in the project to start it."}
 			target = "proxy page: stopped"
 		}
 		cfg.Sites = append(cfg.Sites, proxy.Site{Name: p.env.Id, Project: p.env.Project, Hosts: p.leaf.Hosts, CertPEM: p.leaf.CertPEM, KeyPEM: p.leaf.KeyPEM, Page: page})

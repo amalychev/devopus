@@ -13,7 +13,7 @@ import (
 )
 
 // State is the agent's local desired state. In the real agent it comes from the cloud
-// (specs/agent-protocol.md); here it is a JSON file under DOCKLET_HOME.
+// (specs/agent-protocol.md); here it is a JSON file under DEVCORB_HOME.
 type State struct {
 	Project    string `json:"project"`
 	Root       string `json:"root"` // repository root with workspace.yaml
@@ -43,16 +43,16 @@ const (
 )
 
 func homeDir() string {
-	if h := os.Getenv("DOCKLET_HOME"); h != "" {
+	if h := os.Getenv("DEVCORB_HOME"); h != "" {
 		return h
 	}
 	h, _ := os.UserHomeDir()
-	return filepath.Join(h, ".docklet-proto")
+	return filepath.Join(h, ".devcorb-proto")
 }
 
 func statePath() string { return filepath.Join(homeDir(), "state.json") }
 
-var errNoState = errors.New("no project is up; run `docklet up` in a folder with workspace.yaml")
+var errNoState = errors.New("no project is up; run `devcorb up` in a folder with workspace.yaml")
 
 func LoadState() (*State, error) {
 	data, err := os.ReadFile(statePath())
