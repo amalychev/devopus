@@ -5,6 +5,7 @@ package workspace
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -51,12 +52,15 @@ type ServiceData struct {
 
 // Module is a unit of code: a repository or a folder of the main repository.
 type Module struct {
-	Repo        string             `yaml:"repo,omitempty"`
-	Path        string             `yaml:"path,omitempty"`
-	Branch      string             `yaml:"branch,omitempty"`
-	Runtime     string             `yaml:"runtime,omitempty"`
-	Image       string             `yaml:"image,omitempty"`
-	Build       *Build             `yaml:"build,omitempty"`
+	Repo    string `yaml:"repo,omitempty"`
+	Path    string `yaml:"path,omitempty"`
+	Branch  string `yaml:"branch,omitempty"`
+	Runtime string `yaml:"runtime,omitempty"`
+	Image   string `yaml:"image,omitempty"`
+	Build   *Build `yaml:"build,omitempty"`
+	// Mount is where the module's code appears in its container: /app on a runtime,
+	// nowhere by default on an image or a build (the image carries its code).
+	Mount       string             `yaml:"mount,omitempty"`
 	Routes      []string           `yaml:"routes,omitempty"`
 	Port        int                `yaml:"port,omitempty"`
 	Uses        []string           `yaml:"uses,omitempty"`
@@ -222,6 +226,20 @@ func (m *Module) ModulePort() int {
 	return DefaultModulePort
 }
 
+// DefaultMount is where a module on a platform runtime finds its code.
+const DefaultMount = "/app"
+
+// CodeMount is where the module's code is mounted in its container; empty: nowhere.
+func (m *Module) CodeMount() string {
+	if m.Mount != "" {
+		return m.Mount
+	}
+	if m.Runtime != "" {
+		return DefaultMount
+	}
+	return ""
+}
+
 // BaseBranch is the branch the base environment runs.
 func (m *Module) BaseBranch() string {
 	if m.Branch != "" {
@@ -248,4 +266,35 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// runtimeImages are official images whose name differs from the runtime's.
+var runtimeImages = map[string]string{
+	"go":     "golang",
+	"java":   "eclipse-temurin",
+	"dotnet": "mcr.microsoft.com/dotnet/sdk",
+	"bun":    "oven/bun",
+	"deno":   "denoland/deno",
+}
+
+// RuntimeImage is the image a platform runtime runs on. Until Devcorb ships its own
+// runtime images (with ext-opentelemetry for PHP), it is the official image of the
+// language: php:8.3 → php:8.3, go:1.25 → golang:1.25.
+func RuntimeImage(runtime string) string {
+	lang, version, _ := strings.Cut(runtime, ":")
+	if img, ok := runtimeImages[lang]; ok {
+		lang = img
+	}
+	return lang + ":" + version
+}
+
+// DatabaseName is the database the base environment uses in a service: the one the
+// image creates on first start, else the project name.
+func (w *Workspace) DatabaseName(service string) string {
+	for _, k := range []string{"POSTGRES_DB", "MYSQL_DATABASE", "MARIADB_DATABASE", "MONGO_INITDB_DATABASE"} {
+		if v := w.Services[service].Env[k]; v != "" && !HasExpr(v) {
+			return v
+		}
+	}
+	return strings.ReplaceAll(w.Project, "-", "_")
 }

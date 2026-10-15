@@ -90,7 +90,7 @@ func convert(ctx context.Context, active, all *types.Project, root, name string,
 					m.Build.Args[k] = *v
 				}
 			}
-			m.Volumes = mounts(rep, root, name, svc, svc.Build.Context)
+			m.Volumes, m.Mount = mounts(rep, root, name, svc, svc.Build.Context)
 			if !isActive {
 				rep.Optional = append(rep.Optional, name+" ("+strings.Join(svc.Profiles, ", ")+")")
 			}
@@ -127,7 +127,7 @@ func convert(ctx context.Context, active, all *types.Project, root, name string,
 			Tmpfs:       svc.Tmpfs,
 			Ulimits:     ulimits(svc.Ulimits),
 			Optional:    !isActive,
-			Volumes:     mounts(rep, root, name, svc, ""),
+			Volumes:     serviceMounts(rep, root, name, svc),
 		}
 		w.Services[name] = s
 		if published {
@@ -242,8 +242,14 @@ func assignEntryPoints(w *workspace.Workspace, rep *Report, entries []entry) {
 	}
 }
 
-func mounts(rep *Report, root, name string, svc types.ServiceConfig, buildCtx string) []string {
-	var out []string
+func serviceMounts(rep *Report, root, name string, svc types.ServiceConfig) []string {
+	out, _ := mounts(rep, root, name, svc, "")
+	return out
+}
+
+// mounts converts the volumes of a compose service. For a module it also returns where
+// its build context, the module's code, was mounted: the worktree goes there.
+func mounts(rep *Report, root, name string, svc types.ServiceConfig, buildCtx string) (out []string, code string) {
 	for _, v := range svc.Volumes {
 		switch v.Type {
 		case types.VolumeTypeVolume:
@@ -255,6 +261,9 @@ func mounts(rep *Report, root, name string, svc types.ServiceConfig, buildCtx st
 			switch {
 			case buildCtx != "" && within(buildCtx, src):
 				rep.CodeMounts++ // the module's own code: the worktree provides it
+				if filepath.Clean(src) == filepath.Clean(buildCtx) && code == "" {
+					code = v.Target
+				}
 			case within(root, src) && buildCtx == "":
 				r := rel(root, src)
 				if !strings.HasPrefix(r, ".") {
@@ -269,7 +278,7 @@ func mounts(rep *Report, root, name string, svc types.ServiceConfig, buildCtx st
 			}
 		}
 	}
-	return out
+	return out, code
 }
 
 func unsupported(rep *Report, name string, svc types.ServiceConfig) {

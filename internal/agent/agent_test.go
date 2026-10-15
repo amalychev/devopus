@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -27,8 +28,9 @@ import (
 	"github.com/devcorb/devcorb/internal/agent/store"
 )
 
-// TestAgentEndToEnd runs the agent against the real runtime: up creates the
-// environment network, purge removes it. Skipped when no runtime answers.
+// TestAgentEndToEnd runs the agent against the real runtime: up brings a module and a
+// service up behind the proxy, down stops them, purge removes everything. Skipped when
+// no runtime answers.
 func TestAgentEndToEnd(t *testing.T) {
 	rt, err := runtime.New(runtime.Detect())
 	if err != nil {
@@ -76,13 +78,55 @@ func TestAgentEndToEnd(t *testing.T) {
 		t.Errorf("second agent: %v", err)
 	}
 
-	config := fmt.Appendf(nil, "version: 1\nproject: %s\ndomain: %s.localhost\nmodules:\n  web:\n    repo: git@example.com:web.git\n    image: nginx:1.27\n    routes: [/]\n", project, project)
+	// A module that serves its folder, with an install hook that writes into it, and a
+	// service with a web UI on its own host. The image is small and usually at hand.
+	// Under the home folder: Colima shares only it with its VM.
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.MkdirTemp(userHome, ".devcorb-e2e-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(root) })
+	if err := os.MkdirAll(filepath.Join(root, "web"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(root, "web", "index.html"), []byte("served by the module "+project), 0o644)
+	// A module built from its Dockerfile, on a path of the same host.
+	os.MkdirAll(filepath.Join(root, "api"), 0o755)
+	os.WriteFile(filepath.Join(root, "api", "Dockerfile"), []byte("FROM python:3.12-slim\nRUN mkdir -p /srv/api && echo built by docker > /srv/api/index.html\nWORKDIR /srv\n"), 0o644)
+	config := fmt.Appendf(nil, `version: 1
+project: %s
+domain: %s.localhost
+services:
+  ui:
+    image: python:3.12-slim
+    command: python -m http.server 8025
+    port: 8025
+    expose: ui
+modules:
+  web:
+    path: web
+    image: python:3.12-slim
+    mount: /app
+    routes: [/]
+    command: python -m http.server 8080
+    hooks:
+      install: echo installed > .installed
+  api:
+    path: api
+    build: {context: api}
+    routes: [/api]
+    command: python -m http.server 8080
+`, project, project)
 	invalid, err := c.Up(ctx, connect.NewRequest(&agentv1.UpRequest{WorkspacePath: "/src/x/workspace.yaml", Config: []byte("version: 1\n")}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("invalid config accepted: %v %v", invalid, err)
 	}
 
-	up, err := c.Up(ctx, connect.NewRequest(&agentv1.UpRequest{WorkspacePath: "/src/" + project + "/workspace.yaml", Config: config}))
+	up, err := c.Up(ctx, connect.NewRequest(&agentv1.UpRequest{WorkspacePath: filepath.Join(root, "workspace.yaml"), Config: config}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,19 +163,41 @@ func TestAgentEndToEnd(t *testing.T) {
 	}
 	roots.AppendCertsFromPEM(pemData)
 	for _, addr := range []string{"127.0.0.1", "::1"} {
-		if code, body := httpsGet(t, ctx, addr, ports.HTTPS, host, roots); code != 200 || !strings.Contains(body, project+" is up") {
+		if code, body := httpsGet(t, ctx, addr, ports.HTTPS, host, roots); code != 200 || !strings.Contains(body, "served by the module "+project) {
 			t.Errorf("%s: %d %s", addr, code, body)
 		}
 	}
+	if code, body := httpsGet(t, ctx, "127.0.0.1", ports.HTTPS, "ui."+host, roots); code != 200 || !strings.Contains(body, "Directory listing") {
+		t.Errorf("ui.%s: %d %s", host, code, body)
+	}
+	if code, body := httpsGetPath(t, ctx, "127.0.0.1", ports.HTTPS, host, "/api/", roots); code != 200 || !strings.Contains(body, "built by docker") {
+		t.Errorf("%s/api/: %d %s", host, code, body)
+	}
 	routes, err := c.Routes(ctx, connect.NewRequest(&agentv1.RoutesRequest{EnvironmentId: envID}))
-	if err != nil || len(routes.Msg.Routes) != 1 || routes.Msg.Routes[0].Host != host {
+	if err != nil || len(routes.Msg.Routes) != 3 || routes.Msg.Routes[0].Host != host || !strings.HasPrefix(routes.Msg.Routes[0].Target, "module web") {
 		t.Errorf("routes: %v %v", routes, err)
+	}
+	// The install hook ran in the module's container, in its code folder.
+	if data, err := os.ReadFile(filepath.Join(root, "web", ".installed")); err != nil || strings.TrimSpace(string(data)) != "installed" {
+		t.Errorf("install hook: %q %v", data, err)
+	}
+	if len(st.Units) != 3 || st.Units[0].Name != "ui" || st.Units[1].State != "running" {
+		t.Errorf("units: %v", st.Units)
+	}
+
+	// A module calls its environment's public URL: DNS gives the proxy, the proxy listens
+	// on the public port inside the network too, the module trusts the local CA.
+	web := project + "-env-" + envID + "-web"
+	out, err := exec.CommandContext(ctx, "docker", "exec", web, "python", "-c",
+		"import urllib.request;print(urllib.request.urlopen('"+st.Url+"/').read().decode())").CombinedOutput()
+	if err != nil || !strings.Contains(string(out), "served by the module") {
+		t.Errorf("the module calling %s: %s %v", st.Url, out, err)
 	}
 
 	// Inside the environment network every *.localhost name is the proxy (CoreDNS).
 	proxyIP := strings.TrimSuffix(st.Network.Subnet, "0/24") + "254"
 	dnsIP := strings.TrimSuffix(st.Network.Subnet, "0/24") + "253"
-	out, err := exec.CommandContext(ctx, "docker", "run", "--rm", "--network", st.Network.Name, "--dns", dnsIP, "python:3.12-slim",
+	out, err = exec.CommandContext(ctx, "docker", "run", "--rm", "--network", st.Network.Name, "--dns", dnsIP, "python:3.12-slim",
 		"python", "-c", "import socket;print(socket.gethostbyname('api."+host+"'))").CombinedOutput()
 	if err != nil || strings.TrimSpace(string(out)) != proxyIP {
 		t.Errorf("api.%s inside the network: %s %v (want %s)", host, out, err, proxyIP)
@@ -151,6 +217,9 @@ func TestAgentEndToEnd(t *testing.T) {
 	if !hasNetwork(t, ctx, rt, envID) || len(containers(t, ctx, rt, "dns")) != 0 {
 		t.Error("stop must keep the network and drop the DNS server")
 	}
+	if names := containers(t, ctx, rt, "module"); len(names) != 2 || running(t, ctx, rt, names[0]) {
+		t.Errorf("stop must keep the module container, stopped: %v", names)
+	}
 
 	if _, err := c.Down(ctx, connect.NewRequest(&agentv1.DownRequest{Project: project, Purge: true})); err != nil {
 		t.Fatal(err)
@@ -158,6 +227,20 @@ func TestAgentEndToEnd(t *testing.T) {
 	waitFor(t, ctx, c, envID, func(s *agentv1.EnvironmentStatus) bool { return s.Removed })
 	if hasNetwork(t, ctx, rt, envID) {
 		t.Fatal("network left behind")
+	}
+	// So are the images built for the project.
+	for i := 0; ; i++ {
+		imgs, err := rt.Images(ctx, paths.Instance())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(imgs) == 0 {
+			break
+		}
+		if i > 50 {
+			t.Fatalf("images left behind: %v", imgs)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	// The last environment is gone, so is the proxy.
 	for i := 0; len(containers(t, ctx, rt, "")) > 0; i++ {
@@ -170,6 +253,11 @@ func TestAgentEndToEnd(t *testing.T) {
 
 func httpsGet(t *testing.T, ctx context.Context, ip string, port uint16, host string, roots *x509.CertPool) (int, string) {
 	t.Helper()
+	return httpsGetPath(t, ctx, ip, port, host, "/", roots)
+}
+
+func httpsGetPath(t *testing.T, ctx context.Context, ip string, port uint16, host, path string, roots *x509.CertPool) (int, string) {
+	t.Helper()
 	addr := net.JoinHostPort(ip, fmt.Sprint(port))
 	c := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
 		TLSClientConfig: &tls.Config{RootCAs: roots, ServerName: host},
@@ -177,7 +265,7 @@ func httpsGet(t *testing.T, ctx context.Context, ip string, port uint16, host st
 			return (&net.Dialer{}).DialContext(ctx, network, addr)
 		},
 	}}
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+host+"/", nil)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+host+path, nil)
 	res, err := c.Do(req)
 	if err != nil {
 		t.Errorf("GET https://%s via %s: %v", host, addr, err)
@@ -186,6 +274,20 @@ func httpsGet(t *testing.T, ctx context.Context, ip string, port uint16, host st
 	defer res.Body.Close()
 	b, _ := io.ReadAll(res.Body)
 	return res.StatusCode, string(b)
+}
+
+func running(t *testing.T, ctx context.Context, rt *runtime.Docker, name string) bool {
+	t.Helper()
+	all, err := rt.Containers(ctx, paths.Instance())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range all {
+		if c.Name == name {
+			return c.Running
+		}
+	}
+	return false
 }
 
 func containers(t *testing.T, ctx context.Context, rt *runtime.Docker, role string) []string {

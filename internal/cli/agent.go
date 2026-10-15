@@ -140,6 +140,31 @@ func (a *app) printStatus(s *agentv1.StatusResponse) {
 		}
 	}
 	w.Flush()
+	for _, e := range s.Environments {
+		a.printUnits(e)
+	}
+}
+
+// printUnits lists the services, modules and workers of an environment.
+func (a *app) printUnits(e *agentv1.EnvironmentStatus) {
+	if len(e.Units) == 0 {
+		return
+	}
+	fmt.Fprintf(a.stdout, "\n%s · %s\n", e.Project, e.Id)
+	w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
+	for _, u := range e.Units {
+		addr := u.Address
+		if addr == "" {
+			addr = "-"
+		}
+		fmt.Fprintf(w, "  %s\t%s\t%s\t%s\t%s\n", u.Name, u.Role, u.State, addr, strings.Join(u.Routes, " "))
+	}
+	w.Flush()
+	for _, u := range e.Units {
+		if u.Error != "" {
+			fmt.Fprintf(a.stdout, "  %s: %s\n", u.Name, strings.ReplaceAll(u.Error, "\n", "\n    "))
+		}
+	}
 }
 
 // printCA shows where the local CA is and whether this machine trusts it.
@@ -212,7 +237,7 @@ func (a *app) upCmd() *cobra.Command {
 			if detach {
 				return a.done(map[string]any{"environment_id": envID, "revision": rev}, "Environment %s of %s is coming up; 'devcorb status' shows progress.\n", envID, res.Workspace.Project)
 			}
-			final, err := a.follow(w, []string{envID}, rev, func(s *agentv1.EnvironmentStatus) bool {
+			final, err := a.follow(w, []string{envID}, rev, true, func(s *agentv1.EnvironmentStatus) bool {
 				return s.Phase == agentv1.Phase_PHASE_RUNNING
 			})
 			if err != nil {
@@ -222,6 +247,13 @@ func (a *app) upCmd() *cobra.Command {
 				return a.writeProto(final[envID])
 			}
 			fmt.Fprintf(a.stdout, "%s is up: %s (environment %s)\n", res.Workspace.Project, final[envID].Url, envID)
+			if routes, err := c.Routes(ctx, connect.NewRequest(&agentv1.RoutesRequest{EnvironmentId: envID})); err == nil {
+				w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
+				for _, r := range routes.Msg.Routes {
+					fmt.Fprintf(w, "  %s\t%s\n", r.Url, r.Target)
+				}
+				w.Flush()
+			}
 			a.trustHint()
 			return nil
 		},
@@ -275,7 +307,7 @@ func (a *app) downCmd() *cobra.Command {
 			if err != nil {
 				return rpcError(err)
 			}
-			if _, err := a.follow(w, envs, res.Msg.Revision, func(s *agentv1.EnvironmentStatus) bool {
+			if _, err := a.follow(w, envs, res.Msg.Revision, false, func(s *agentv1.EnvironmentStatus) bool {
 				if volumes {
 					return s.Removed
 				}
@@ -314,22 +346,22 @@ func watch(ctx context.Context, c agentv1connect.AgentServiceClient) (*connect.S
 	return nil, fail(ExitError, "the agent closed the connection")
 }
 
-// follow prints progress until done holds for every environment in ids at the given
-// revision, or one of them fails. It returns the final statuses by ID.
-func (a *app) follow(w *connect.ServerStreamForClient[agentv1.WatchResponse], ids []string, rev uint64, done func(*agentv1.EnvironmentStatus) bool) (map[string]*agentv1.EnvironmentStatus, error) {
+// follow waits until done holds for every environment in ids at the given revision, or
+// one of them fails, printing the steps if asked. It returns the final statuses by ID.
+func (a *app) follow(w *connect.ServerStreamForClient[agentv1.WatchResponse], ids []string, rev uint64, steps bool, done func(*agentv1.EnvironmentStatus) bool) (map[string]*agentv1.EnvironmentStatus, error) {
 	final := map[string]*agentv1.EnvironmentStatus{}
 	pending := map[string]bool{}
-	printed := map[string]map[string]agentv1.StepState{}
+	printed := map[string]map[string]string{}
 	for _, id := range ids {
 		pending[id] = true
-		printed[id] = map[string]agentv1.StepState{}
+		printed[id] = map[string]string{}
 	}
 	for len(pending) > 0 && w.Receive() {
 		s := w.Msg().Status
 		if s == nil || !pending[s.Id] {
 			continue
 		}
-		if !a.json {
+		if steps && !a.json {
 			a.printSteps(s, printed[s.Id])
 		}
 		if s.AppliedRevision < rev {
@@ -356,15 +388,17 @@ func (a *app) follow(w *connect.ServerStreamForClient[agentv1.WatchResponse], id
 	return nil, fail(ExitError, "the agent closed the connection")
 }
 
-func (a *app) printSteps(s *agentv1.EnvironmentStatus, printed map[string]agentv1.StepState) {
+// printSteps prints each change of a step: its state, and what a running step is doing.
+func (a *app) printSteps(s *agentv1.EnvironmentStatus, printed map[string]string) {
 	for _, st := range s.Steps {
-		if printed[st.Name] == st.State {
+		key := st.State.String() + "\x00" + st.Message
+		if printed[st.Name] == key {
 			continue
 		}
-		printed[st.Name] = st.State
+		printed[st.Name] = key
 		switch st.State {
 		case agentv1.StepState_STEP_STATE_RUNNING:
-			fmt.Fprintf(a.stdout, "  … %s\n", st.Name)
+			fmt.Fprintln(a.stdout, "  "+strings.TrimSpace("… "+st.Name+"  "+st.Message))
 		case agentv1.StepState_STEP_STATE_DONE:
 			fmt.Fprintf(a.stdout, "  ✓ %s  %s\n", st.Name, st.Message)
 		case agentv1.StepState_STEP_STATE_FAILED:

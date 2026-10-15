@@ -121,6 +121,25 @@ message EnvironmentStatus {
   google.protobuf.Timestamp updated_at = 11;
   // The environment left the desired state and its resources are gone.
   bool removed = 12;
+  // Services, modules and workers of the environment.
+  repeated UnitStatus units = 13;
+}
+
+// UnitStatus is one container of an environment.
+message UnitStatus {
+  // Name in the environment: mysql, api, api-worker-1.
+  string name = 1;
+  // service, module or worker.
+  string role = 2;
+  string container = 3;
+  // running, starting (running, not healthy yet), exited, stopped, missing.
+  string state = 4;
+  // Pinned address and port in the environment network; empty for workers.
+  string address = 5;
+  // Path prefixes (modules) or the host of the web UI (services with expose).
+  repeated string routes = 6;
+  // Why the unit is not running, with the end of its output.
+  string error = 7;
 }
 
 message RuntimeInfo {
@@ -192,7 +211,7 @@ message Route {
   string project = 3;
   // Path prefix; "/" for everything.
   string path = 4;
-  // What serves it: a module, or a page of the proxy until modules run (M4).
+  // What serves it: a module or service with its address, or a page of the proxy.
   string target = 5;
   string url = 6;
 }

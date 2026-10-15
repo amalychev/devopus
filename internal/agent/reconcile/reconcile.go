@@ -7,7 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -16,9 +20,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
+	"github.com/devcorb/devcorb/internal/agent/git"
 	"github.com/devcorb/devcorb/internal/agent/pki"
 	"github.com/devcorb/devcorb/internal/agent/proxy"
 	"github.com/devcorb/devcorb/internal/agent/runtime"
+	"github.com/devcorb/devcorb/internal/agent/stack"
 	"github.com/devcorb/devcorb/internal/workspace"
 )
 
@@ -35,6 +41,16 @@ type Runtime interface {
 	ConnectNetwork(ctx context.Context, networkID, containerID string, ip netip.Addr) error
 	DisconnectNetwork(ctx context.Context, networkID, containerID string) error
 	ContainerLogs(ctx context.Context, id string, lines int) string
+	StopContainer(ctx context.Context, id string) error
+	WaitContainer(ctx context.Context, id string) (int, error)
+	CopyLogs(ctx context.Context, id string, w io.Writer) error
+	Volumes(ctx context.Context, instance string) ([]runtime.Volume, error)
+	CreateVolume(ctx context.Context, name string, labels map[string]string) error
+	RemoveVolume(ctx context.Context, name string) error
+	ImageExists(ctx context.Context, ref string) (bool, error)
+	Build(ctx context.Context, spec runtime.BuildSpec, log io.Writer) error
+	Images(ctx context.Context, instance string) ([]runtime.Image, error)
+	RemoveImage(ctx context.Context, id string) error
 }
 
 // XDS is the configuration server Envoy follows.
@@ -66,6 +82,16 @@ type Options struct {
 	ProbeTimeout time.Duration
 	// Relays covers [::1] where the runtime publishes 127.0.0.1 only; nil skips it.
 	Relays *proxy.Relays
+	// Answers checks once that a module answers through the proxy; nil skips the wait.
+	Answers func(ctx context.Context, host, path string, ports proxy.Ports) error
+	// ReadyTimeout bounds how long one pass waits for modules to answer.
+	ReadyTimeout time.Duration
+	// SourcesDir keeps clones of module repositories; EnvsDir hook marks and logs.
+	SourcesDir string
+	EnvsDir    string
+	// Bundle is the public roots plus the local CA, for modules' TLS clients.
+	Bundle []byte
+	Log    *slog.Logger
 }
 
 type Reconciler struct {
@@ -88,6 +114,19 @@ func New(rt Runtime, opt Options, publish func(*agentv1.EnvironmentStatus)) *Rec
 	}
 	if opt.ProbeTimeout == 0 {
 		opt.ProbeTimeout = 30 * time.Second
+	}
+	if opt.Log == nil {
+		opt.Log = slog.Default()
+	}
+	// Never relative to wherever the agent runs.
+	if opt.SourcesDir == "" {
+		opt.SourcesDir = filepath.Join(os.TempDir(), "devcorb", "src")
+	}
+	if opt.EnvsDir == "" {
+		opt.EnvsDir = filepath.Join(os.TempDir(), "devcorb", "envs")
+	}
+	if opt.ReadyTimeout == 0 {
+		opt.ReadyTimeout = 90 * time.Second
 	}
 	return &Reconciler{rt: rt, opt: opt, pool: Pool, publish: publish, now: time.Now,
 		status: map[string]*agentv1.EnvironmentStatus{}, proxy: &agentv1.ProxyStatus{State: "absent"}}
@@ -144,6 +183,7 @@ type observed struct {
 	nets    []runtime.Network
 	managed map[string]runtime.Network // by environment ID
 	byEnv   map[string][]runtime.Container
+	volumes map[string][]runtime.Volume // by environment ID
 	proxy   *runtime.Container
 }
 
@@ -156,7 +196,16 @@ func (r *Reconciler) observe(ctx context.Context) (*observed, error) {
 	if err != nil {
 		return nil, fmt.Errorf("observe containers: %w", err)
 	}
-	o := &observed{nets: nets, managed: map[string]runtime.Network{}, byEnv: map[string][]runtime.Container{}}
+	vols, err := r.rt.Volumes(ctx, r.opt.Instance)
+	if err != nil {
+		return nil, fmt.Errorf("observe volumes: %w", err)
+	}
+	o := &observed{nets: nets, managed: map[string]runtime.Network{}, byEnv: map[string][]runtime.Container{}, volumes: map[string][]runtime.Volume{}}
+	for _, v := range vols {
+		if r.ours(v.Labels) && v.Labels[runtime.LabelEnv] != "" {
+			o.volumes[v.Labels[runtime.LabelEnv]] = append(o.volumes[v.Labels[runtime.LabelEnv]], v)
+		}
+	}
 	for _, n := range nets {
 		if r.ours(n.Labels) && n.Labels[runtime.LabelEnv] != "" {
 			o.managed[n.Labels[runtime.LabelEnv]] = n
@@ -230,9 +279,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, desired *agentv1.DesiredStat
 	}
 
 	errs = append(errs, r.collect(ctx, desired.Revision, wanted, o, px)...)
+	r.collectImages(ctx, desired, preps)
 	if len(envs) == 0 {
 		if err := r.removeProxy(ctx, o.proxy); err != nil {
 			errs = append(errs, err)
+		}
+	}
+	if len(errs) == 0 {
+		for _, p := range preps {
+			if p.waiting {
+				return ErrNotReady
+			}
 		}
 	}
 	return errors.Join(errs...)
@@ -251,7 +308,15 @@ type prepared struct {
 	hosts []string
 	leaf  *pki.Leaf
 	ws    *workspace.Workspace
+	url   string
+	plan  *stack.Plan
 	err   error
+	// failed is the step that stopped the environment.
+	failed string
+	// waiting: modules are starting; the environment is not running yet.
+	waiting bool
+	// started: this pass started or restarted a container of the environment.
+	started bool
 }
 
 func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.EnvironmentSpec, ws *parsed, o *observed, px *proxyState, proxyErr error) *prepared {
@@ -286,12 +351,18 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.En
 			if px == nil {
 				return "", proxyErr
 			}
+			p.url = proxy.URL(p.hosts[0], px.ports)
 			return r.attachProxy(ctx, px, nw)
 		}},
 	}
 	if env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
 		// A stopped environment keeps its network and data; its DNS server has no clients.
-		if err := r.removeAll(ctx, o.byEnv[env.Id], "dns"); err != nil {
+		err := r.stopUnits(ctx, o.byEnv[env.Id])
+		if err == nil {
+			err = r.removeAll(ctx, o.byEnv[env.Id], "dns")
+		}
+		defer r.setUnits(ctx, env.Id, nil, nil)
+		if err != nil {
 			p.err = err
 			r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
 				s.Phase, s.Error, s.AppliedRevision = agentv1.Phase_PHASE_ERROR, "dns: "+err.Error(), rev
@@ -302,19 +373,43 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.En
 		steps = append(steps, step{"dns", func(ctx context.Context) (string, error) {
 			return r.ensureDNS(ctx, env, nw, o.byEnv[env.Id])
 		}})
+		root := ""
+		if ws != nil {
+			root = ws.root
+		}
+		steps = append(steps, r.unitSteps(env, root, p, &nw, o)...)
+		defer func() { r.setUnits(ctx, env.Id, p.plan, p.hosts) }()
 	}
 	for _, st := range steps {
 		if err := r.runStep(ctx, env.Id, st); err != nil {
+			p.err, p.failed = err, st.name
+			if ctx.Err() != nil {
+				// Interrupted by a newer desired state, not failed: the next pass goes on.
+				return p
+			}
 			r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
 				s.Phase = agentv1.Phase_PHASE_ERROR
 				s.Error = st.name + ": " + err.Error()
 				s.AppliedRevision = rev
 			})
-			p.err = err
 			return p
 		}
 	}
 	return p
+}
+
+// setUnits publishes the units of an environment as they are now.
+func (r *Reconciler) setUnits(ctx context.Context, envID string, plan *stack.Plan, hosts []string) {
+	exposed := map[string]string{}
+	if plan != nil && len(hosts) > 0 {
+		for _, u := range plan.Units {
+			if u.Expose != "" {
+				exposed[u.Name] = u.Expose + "." + hosts[0]
+			}
+		}
+	}
+	units := r.unitStatuses(context.WithoutCancel(ctx), envID, plan, exposed)
+	r.update(envID, func(s *agentv1.EnvironmentStatus) { s.Units = units })
 }
 
 // runStep records progress only on transitions, so a converged environment does not
@@ -322,17 +417,22 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.En
 func (r *Reconciler) runStep(ctx context.Context, envID string, st step) error {
 	r.update(envID, func(s *agentv1.EnvironmentStatus) {
 		p := findStep(s, st.name)
-		if p.State != agentv1.StepState_STEP_STATE_DONE {
-			p.State = agentv1.StepState_STEP_STATE_RUNNING
+		if p.State != agentv1.StepState_STEP_STATE_DONE && p.State != agentv1.StepState_STEP_STATE_RUNNING {
+			p.State, p.Message = agentv1.StepState_STEP_STATE_RUNNING, ""
 			if p.StartedAt == nil {
 				p.StartedAt = timestamppb.New(r.now())
 			}
 		}
 	})
 	msg, err := st.run(ctx)
+	if err != nil && ctx.Err() != nil {
+		return err
+	}
 	r.update(envID, func(s *agentv1.EnvironmentStatus) {
 		p := findStep(s, st.name)
 		switch {
+		case errors.Is(err, errWaiting):
+			p.Message = msg
 		case err != nil:
 			if p.State != agentv1.StepState_STEP_STATE_FAILED || p.Message != err.Error() {
 				p.State, p.Message, p.FinishedAt = agentv1.StepState_STEP_STATE_FAILED, err.Error(), timestamppb.New(r.now())
@@ -342,6 +442,20 @@ func (r *Reconciler) runStep(ctx context.Context, envID string, st step) error {
 		}
 	})
 	return err
+}
+
+// stepDone reports whether a step of an environment finished successfully last time.
+func (r *Reconciler) stepDone(envID, name string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if s, ok := r.status[envID]; ok {
+		for _, p := range s.Steps {
+			if p.Name == name {
+				return p.State == agentv1.StepState_STEP_STATE_DONE
+			}
+		}
+	}
+	return false
 }
 
 func findStep(s *agentv1.EnvironmentStatus, name string) *agentv1.StepProgress {
@@ -505,6 +619,11 @@ func (r *Reconciler) collect(ctx context.Context, rev uint64, wanted map[string]
 			s.Phase = agentv1.Phase_PHASE_DELETING
 		})
 		err := r.removeAll(ctx, o.byEnv[id], "")
+		for _, v := range o.volumes[id] {
+			if err == nil {
+				err = r.rt.RemoveVolume(ctx, v.Name)
+			}
+		}
 		if n, ok := o.managed[id]; ok && err == nil {
 			proxyID := ""
 			if px != nil {
@@ -521,6 +640,9 @@ func (r *Reconciler) collect(ctx context.Context, rev uint64, wanted map[string]
 		}
 		if err == nil {
 			err = r.opt.Leaves.Remove(id)
+		}
+		if err == nil {
+			err = r.removeFiles(ctx, project, id)
 		}
 		if err != nil {
 			r.update(id, func(s *agentv1.EnvironmentStatus) { s.Error = "remove: " + err.Error() })
@@ -544,6 +666,88 @@ func (r *Reconciler) collect(ctx context.Context, rev uint64, wanted map[string]
 		}
 	}
 	return errs
+}
+
+// collectImages removes images the agent built for projects that are gone, and older
+// builds of a project whose every environment has its plan in this pass. An image
+// still in use stays until a later pass.
+func (r *Reconciler) collectImages(ctx context.Context, desired *agentv1.DesiredState, preps []*prepared) {
+	images, err := r.rt.Images(ctx, r.opt.Instance)
+	if err != nil || len(images) == 0 {
+		return
+	}
+	projects := map[string]bool{}
+	for _, p := range desired.Projects {
+		projects[p.Name] = true
+	}
+	// complete: the project has environments and all of them have their plan.
+	complete := map[string]bool{}
+	for _, p := range preps {
+		if _, seen := complete[p.env.Project]; !seen {
+			complete[p.env.Project] = true
+		}
+	}
+	keep := map[string]bool{}
+	for _, p := range preps {
+		if p.plan == nil {
+			complete[p.env.Project] = false
+			continue
+		}
+		for _, b := range p.plan.Builds {
+			keep[b.Tag] = true
+		}
+	}
+	for _, img := range images {
+		project := img.Labels[runtime.LabelProject]
+		used := false
+		for _, t := range img.Tags {
+			used = used || keep[t]
+		}
+		if used || (projects[project] && !complete[project]) {
+			continue
+		}
+		if err := r.rt.RemoveImage(ctx, img.ID); err != nil {
+			r.opt.Log.Debug("image stays", "image", img.Tags, "error", err)
+		}
+	}
+}
+
+// removeFiles removes the hook marks and logs of an environment and its clones of
+// module repositories. A clone with work that exists nowhere else stays where it is.
+func (r *Reconciler) removeFiles(ctx context.Context, project, envID string) error {
+	if err := os.RemoveAll(filepath.Join(r.opt.EnvsDir, envID)); err != nil {
+		return err
+	}
+	if project == "" {
+		return nil
+	}
+	dir := filepath.Join(r.opt.SourcesDir, project, envID)
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	kept := 0
+	for _, e := range entries {
+		src := filepath.Join(dir, e.Name())
+		if git.IsRepo(src) {
+			if unsaved, err := git.Unsaved(ctx, src); err != nil || unsaved != "" {
+				r.opt.Log.Warn("kept a checkout with unsaved work", "path", src, "unsaved", unsaved, "error", err)
+				kept++
+				continue
+			}
+		}
+		if err := os.RemoveAll(src); err != nil {
+			return err
+		}
+	}
+	if kept == 0 {
+		_ = os.Remove(dir)
+		_ = os.Remove(filepath.Dir(dir))
+	}
+	return nil
 }
 
 func describe(subnets []netip.Prefix) string {

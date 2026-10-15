@@ -64,3 +64,10 @@ func ProxyName() string {
 	}
 	return "devcorb-proxy-" + Instance()
 }
+
+// Sources keeps the checkouts of modules from other repositories:
+// src/<project>/<environment>/<module>.
+func Sources() string { return filepath.Join(Home(), "src") }
+
+// Envs keeps per-environment files: hook markers and logs of hooks and builds.
+func Envs() string { return filepath.Join(Home(), "envs") }

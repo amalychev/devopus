@@ -5,6 +5,7 @@ package agent
 import (
 	"context"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -17,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	fallback "golang.org/x/crypto/x509roots/fallback/bundle"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
@@ -35,6 +38,10 @@ import (
 const (
 	resyncInterval = 30 * time.Second
 	retryInterval  = 5 * time.Second
+	// waitInterval: modules are still starting; look again soon.
+	waitInterval = 2 * time.Second
+	// passTimeout bounds one pass: clones, builds and installs can take minutes.
+	passTimeout = 30 * time.Minute
 )
 
 type Options struct {
@@ -144,6 +151,11 @@ func Run(ctx context.Context, opt Options) error {
 		ChoosePorts: choose,
 		Probe:       proxy.Probe(roots),
 		Relays:      relays,
+		Answers:     proxy.Answers(roots),
+		SourcesDir:  paths.Sources(),
+		EnvsDir:     paths.Envs(),
+		Bundle:      bundle(ca),
+		Log:         log,
 	}, func(s *agentv1.EnvironmentStatus) {
 		log.Info("environment", "id", s.Id, "project", s.Project, "phase", s.Phase.String(), "error", s.Error, "removed", s.Removed)
 		a.hub.Publish(s)
@@ -183,6 +195,11 @@ func Run(ctx context.Context, opt Options) error {
 	return err
 }
 
+// loop runs passes one at a time. A change of the desired state interrupts a running
+// pass: a long install must not hold up 'devcorb down' or another project's 'up'. Every
+// step is idempotent, so the next pass picks up where the interrupted one stopped. A new
+// revision with nothing else changed (a repeated 'devcorb up') does not interrupt: it
+// gets a pass of its own right after.
 func (a *Agent) loop(ctx context.Context) {
 	timer := time.NewTimer(0)
 	defer timer.Stop()
@@ -193,11 +210,35 @@ func (a *Agent) loop(ctx context.Context) {
 		case <-a.store.Changed():
 		case <-timer.C:
 		}
-		next := resyncInterval
-		if err := a.pass(ctx); err != nil {
-			if ctx.Err() != nil {
-				return
+		desired := a.store.Snapshot()
+		passCtx, cancel := context.WithCancel(ctx)
+		done := make(chan error, 1)
+		go func() { done <- a.pass(passCtx, desired) }()
+		var err error
+		again := false
+	wait:
+		for {
+			select {
+			case err = <-done:
+				break wait
+			case <-a.store.Changed():
+				again = true
+				if !sameState(desired, a.store.Snapshot()) {
+					cancel()
+				}
 			}
+		}
+		cancel()
+		if ctx.Err() != nil {
+			return
+		}
+		next := resyncInterval
+		switch {
+		case again:
+			next = 0
+		case errors.Is(err, reconcile.ErrNotReady):
+			next = waitInterval
+		case err != nil:
 			next = retryInterval
 		}
 		if !timer.Stop() {
@@ -211,8 +252,8 @@ func (a *Agent) loop(ctx context.Context) {
 }
 
 // pass refreshes what the agent knows about the runtime and reconciles once.
-func (a *Agent) pass(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+func (a *Agent) pass(ctx context.Context, desired *agentv1.DesiredState) error {
+	ctx, cancel := context.WithTimeout(ctx, passTimeout)
 	defer cancel()
 	ep := a.rt.Endpoint()
 	ri := &agentv1.RuntimeInfo{Name: ep.Name, Endpoint: ep.Host}
@@ -227,13 +268,34 @@ func (a *Agent) pass(ctx context.Context) error {
 	a.mu.Unlock()
 	if err != nil {
 		err = errors.New(ri.Error)
-		a.rec.Fail(a.store.Snapshot(), err)
+		a.rec.Fail(desired, err)
 		a.report(err)
 		return err
 	}
-	err = a.rec.Reconcile(ctx, a.store.Snapshot())
+	err = a.rec.Reconcile(ctx, desired)
+	if errors.Is(err, reconcile.ErrNotReady) || (err != nil && ctx.Err() != nil) {
+		a.report(nil)
+		return err
+	}
 	a.report(err)
 	return err
+}
+
+// sameState compares desired states without their revisions.
+func sameState(a, b *agentv1.DesiredState) bool {
+	a, b = proto.Clone(a).(*agentv1.DesiredState), proto.Clone(b).(*agentv1.DesiredState)
+	a.Revision, b.Revision = 0, 0
+	return proto.Equal(a, b)
+}
+
+// bundle is the public roots of the Mozilla store plus the local CA: modules point
+// SSL_CERT_FILE and friends at it and trust both public sites and their environment.
+func bundle(ca *pki.CA) []byte {
+	var b []byte
+	for root := range fallback.Roots() {
+		b = append(b, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: root.Certificate})...)
+	}
+	return append(b, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Root.Raw})...)
 }
 
 // report logs an error once until it changes or clears.

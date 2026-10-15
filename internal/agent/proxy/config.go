@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"html"
+	"net/netip"
 	"sort"
 	"strings"
 	"time"
@@ -55,7 +56,10 @@ const HostGateway = "host.docker.internal"
 
 // Config is everything Envoy serves.
 type Config struct {
-	// HTTPSPort is the public HTTPS port; HTTP redirects there.
+	// HTTPPort and HTTPSPort are the public ports; HTTP redirects to HTTPS. Envoy also
+	// listens on them inside the environment networks, so a module that calls its
+	// environment's URL reaches the proxy on the same port as a browser does.
+	HTTPPort  uint32
 	HTTPSPort uint32
 	Sites     []Site
 	// Coexist sends hosts Devcorb does not serve to a dev server moved off 80/443.
@@ -76,8 +80,31 @@ type Site struct {
 	Hosts   []string
 	CertPEM []byte
 	KeyPEM  []byte
-	// Page is shown on every path until modules have routes (M4).
-	Page Page
+	// VHosts route the hosts to modules and service web UIs. A site without them shows
+	// Page on every host and path: before modules run, and while the environment is stopped.
+	VHosts []VHost
+	Page   Page
+}
+
+// VHost is a set of hosts with one route table.
+type VHost struct {
+	Hosts  []string
+	Routes []PathRoute
+	// NotFound answers paths no route takes.
+	NotFound Page
+}
+
+// PathRoute sends a path prefix to an upstream: "/api" takes /api and /api/…, not /apix.
+type PathRoute struct {
+	Prefix   string
+	Upstream Upstream
+}
+
+// Upstream is a container in the environment network, at its pinned address.
+type Upstream struct {
+	// Name is unique within the site: the module or service.
+	Name string
+	Addr netip.AddrPort
 }
 
 // Page is a direct response of the proxy.
@@ -127,11 +154,36 @@ func (c Config) Resources() (map[resource.Type][]types.Resource, string, error) 
 			Filters:          []*listenerv3.Filter{hcm},
 			TransportSocket:  &corev3.TransportSocket{Name: "envoy.transport_sockets.tls", ConfigType: &corev3.TransportSocket_TypedConfig{TypedConfig: tls}},
 		})
-		httpsVHosts = append(httpsVHosts, &routev3.VirtualHost{
-			Name:    s.Name,
-			Domains: s.Hosts,
-			Routes:  []*routev3.Route{pageRoute("/", s.Page)},
-		})
+		if len(s.VHosts) == 0 {
+			httpsVHosts = append(httpsVHosts, &routev3.VirtualHost{
+				Name:    s.Name,
+				Domains: s.Hosts,
+				Routes:  []*routev3.Route{healthRoute(), pageRoute("/", s.Page)},
+			})
+		}
+		upstreams := map[string]bool{}
+		for i, vh := range s.VHosts {
+			v := &routev3.VirtualHost{Name: fmt.Sprintf("%s-%d", s.Name, i), Domains: vh.Hosts, Routes: []*routev3.Route{healthRoute()}}
+			routes := append([]PathRoute{}, vh.Routes...)
+			// Envoy takes the first match: longer prefixes first.
+			sort.SliceStable(routes, func(i, j int) bool { return len(routes[i].Prefix) > len(routes[j].Prefix) })
+			for _, rt := range routes {
+				cluster := s.Name + "-" + rt.Upstream.Name
+				if !upstreams[cluster] {
+					upstreams[cluster] = true
+					clusters = append(clusters, staticCluster(cluster, rt.Upstream.Addr))
+				}
+				v.Routes = append(v.Routes, &routev3.Route{
+					Match: prefixMatch(rt.Prefix),
+					// No timeout: dev servers compile on the first request, streams stay open.
+					Action: &routev3.Route_Route{Route: &routev3.RouteAction{ClusterSpecifier: &routev3.RouteAction_Cluster{Cluster: cluster}, Timeout: durationpb.New(0)}},
+				})
+			}
+			if !hasRoot(routes) {
+				v.Routes = append(v.Routes, pageRoute("/", vh.NotFound))
+			}
+			httpsVHosts = append(httpsVHosts, v)
+		}
 		redirect := &routev3.RedirectAction{SchemeRewriteSpecifier: &routev3.RedirectAction_HttpsRedirect{HttpsRedirect: true}}
 		if c.HTTPSPort != 443 {
 			redirect.PortRedirect = c.HTTPSPort
@@ -163,20 +215,30 @@ func (c Config) Resources() (map[resource.Type][]types.Resource, string, error) 
 	if err != nil {
 		return nil, "", err
 	}
+	httpPort, httpsPort := c.HTTPPort, c.HTTPSPort
+	if httpPort == 0 {
+		httpPort = 80
+	}
+	if httpsPort == 0 {
+		httpsPort = 443
+	}
 	listeners := []types.Resource{&listenerv3.Listener{
-		Name:         listenerHTTP,
-		Address:      anyAddress(ContainerHTTPPort),
-		FilterChains: []*listenerv3.FilterChain{{Filters: []*listenerv3.Filter{httpHCM}}},
+		// The name carries the ports: Envoy does not change a listener's addresses in place.
+		Name:                listenerHTTP + "-" + fmt.Sprint(httpPort),
+		Address:             anyAddress(ContainerHTTPPort),
+		AdditionalAddresses: additional(ContainerHTTPPort, 80, httpPort),
+		FilterChains:        []*listenerv3.FilterChain{{Filters: []*listenerv3.Filter{httpHCM}}},
 	}}
 	inspector, err := anypb.New(&tlsinspectorv3.TlsInspector{})
 	if err != nil {
 		return nil, "", err
 	}
 	https := &listenerv3.Listener{
-		Name:            listenerHTTPS,
-		Address:         anyAddress(ContainerHTTPSPort),
-		ListenerFilters: []*listenerv3.ListenerFilter{{Name: "envoy.filters.listener.tls_inspector", ConfigType: &listenerv3.ListenerFilter_TypedConfig{TypedConfig: inspector}}},
-		FilterChains:    chains,
+		Name:                listenerHTTPS + "-" + fmt.Sprint(httpsPort),
+		Address:             anyAddress(ContainerHTTPSPort),
+		AdditionalAddresses: additional(ContainerHTTPSPort, 443, httpsPort),
+		ListenerFilters:     []*listenerv3.ListenerFilter{{Name: "envoy.filters.listener.tls_inspector", ConfigType: &listenerv3.ListenerFilter_TypedConfig{TypedConfig: inspector}}},
+		FilterChains:        chains,
 	}
 	if c.Coexist != nil && c.Coexist.HTTPSPort != 0 {
 		clusters = append(clusters, hostCluster(clusterCoTLS, c.Coexist.HTTPSPort))
@@ -239,6 +301,49 @@ func httpManager(stat, routes string) (*listenerv3.Filter, error) {
 	return &listenerv3.Filter{Name: "envoy.filters.network.http_connection_manager", ConfigType: &listenerv3.Filter_TypedConfig{TypedConfig: m}}, nil
 }
 
+// HealthPath is answered by the proxy itself on every site: the agent checks with it
+// that a site is served, without waiting for the modules behind it.
+const HealthPath = "/.devcorb/health"
+
+func healthRoute() *routev3.Route {
+	return &routev3.Route{
+		Match:  &routev3.RouteMatch{PathSpecifier: &routev3.RouteMatch_Path{Path: HealthPath}},
+		Action: &routev3.Route_DirectResponse{DirectResponse: &routev3.DirectResponseAction{Status: 204}},
+	}
+}
+
+func prefixMatch(prefix string) *routev3.RouteMatch {
+	prefix = strings.TrimSuffix(prefix, "/")
+	if prefix == "" {
+		return &routev3.RouteMatch{PathSpecifier: &routev3.RouteMatch_Prefix{Prefix: "/"}}
+	}
+	return &routev3.RouteMatch{PathSpecifier: &routev3.RouteMatch_PathSeparatedPrefix{PathSeparatedPrefix: prefix}}
+}
+
+func hasRoot(routes []PathRoute) bool {
+	for _, r := range routes {
+		if strings.TrimSuffix(r.Prefix, "/") == "" {
+			return true
+		}
+	}
+	return false
+}
+
+// staticCluster reaches a container at its pinned address in the environment network.
+func staticCluster(name string, addr netip.AddrPort) *clusterv3.Cluster {
+	return &clusterv3.Cluster{
+		Name:                 name,
+		ConnectTimeout:       durationpb.New(2 * time.Second),
+		ClusterDiscoveryType: &clusterv3.Cluster_Type{Type: clusterv3.Cluster_STATIC},
+		LoadAssignment: &endpointv3.ClusterLoadAssignment{
+			ClusterName: name,
+			Endpoints: []*endpointv3.LocalityLbEndpoints{{LbEndpoints: []*endpointv3.LbEndpoint{{
+				HostIdentifier: &endpointv3.LbEndpoint_Endpoint{Endpoint: &endpointv3.Endpoint{Address: socketAddress(addr.Addr().String(), uint32(addr.Port()))}},
+			}}}},
+		},
+	}
+}
+
 func pageRoute(prefix string, p Page) *routev3.Route {
 	return &routev3.Route{
 		Match: &routev3.RouteMatch{PathSpecifier: &routev3.RouteMatch_Prefix{Prefix: prefix}},
@@ -299,6 +404,20 @@ func ads() *corev3.ConfigSource {
 }
 
 func anyAddress(port uint32) *corev3.Address { return socketAddress("0.0.0.0", port) }
+
+// additional are the ports a listener takes besides the published one: the standard
+// port and the public one, for clients inside environment networks.
+func additional(published uint32, ports ...uint32) []*listenerv3.AdditionalAddress {
+	seen := map[uint32]bool{published: true}
+	var out []*listenerv3.AdditionalAddress
+	for _, p := range ports {
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, &listenerv3.AdditionalAddress{Address: anyAddress(p)})
+		}
+	}
+	return out
+}
 
 func socketAddress(host string, port uint32) *corev3.Address {
 	return &corev3.Address{Address: &corev3.Address_SocketAddress{SocketAddress: &corev3.SocketAddress{

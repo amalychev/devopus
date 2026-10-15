@@ -680,7 +680,9 @@ type EnvironmentStatus struct {
 	AppliedRevision uint64                 `protobuf:"varint,10,opt,name=applied_revision,json=appliedRevision,proto3" json:"applied_revision,omitempty"`
 	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// The environment left the desired state and its resources are gone.
-	Removed       bool `protobuf:"varint,12,opt,name=removed,proto3" json:"removed,omitempty"`
+	Removed bool `protobuf:"varint,12,opt,name=removed,proto3" json:"removed,omitempty"`
+	// Services, modules and workers of the environment.
+	Units         []*UnitStatus `protobuf:"bytes,13,rep,name=units,proto3" json:"units,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -799,6 +801,112 @@ func (x *EnvironmentStatus) GetRemoved() bool {
 	return false
 }
 
+func (x *EnvironmentStatus) GetUnits() []*UnitStatus {
+	if x != nil {
+		return x.Units
+	}
+	return nil
+}
+
+// UnitStatus is one container of an environment.
+type UnitStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Name in the environment: mysql, api, api-worker-1.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// service, module or worker.
+	Role      string `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
+	Container string `protobuf:"bytes,3,opt,name=container,proto3" json:"container,omitempty"`
+	// running, starting (running, not healthy yet), exited, stopped, missing.
+	State string `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
+	// Pinned address and port in the environment network; empty for workers.
+	Address string `protobuf:"bytes,5,opt,name=address,proto3" json:"address,omitempty"`
+	// Path prefixes (modules) or the host of the web UI (services with expose).
+	Routes []string `protobuf:"bytes,6,rep,name=routes,proto3" json:"routes,omitempty"`
+	// Why the unit is not running, with the end of its output.
+	Error         string `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnitStatus) Reset() {
+	*x = UnitStatus{}
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnitStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnitStatus) ProtoMessage() {}
+
+func (x *UnitStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnitStatus.ProtoReflect.Descriptor instead.
+func (*UnitStatus) Descriptor() ([]byte, []int) {
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UnitStatus) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UnitStatus) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *UnitStatus) GetContainer() string {
+	if x != nil {
+		return x.Container
+	}
+	return ""
+}
+
+func (x *UnitStatus) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *UnitStatus) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *UnitStatus) GetRoutes() []string {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
+func (x *UnitStatus) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 type RuntimeInfo struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// docker-desktop, orbstack, colima, podman, docker-engine or unknown.
@@ -814,7 +922,7 @@ type RuntimeInfo struct {
 
 func (x *RuntimeInfo) Reset() {
 	*x = RuntimeInfo{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[7]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -826,7 +934,7 @@ func (x *RuntimeInfo) String() string {
 func (*RuntimeInfo) ProtoMessage() {}
 
 func (x *RuntimeInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[7]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -839,7 +947,7 @@ func (x *RuntimeInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeInfo.ProtoReflect.Descriptor instead.
 func (*RuntimeInfo) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RuntimeInfo) GetName() string {
@@ -892,7 +1000,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -904,7 +1012,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -917,7 +1025,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{8}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{9}
 }
 
 type StatusResponse struct {
@@ -935,7 +1043,7 @@ type StatusResponse struct {
 
 func (x *StatusResponse) Reset() {
 	*x = StatusResponse{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -947,7 +1055,7 @@ func (x *StatusResponse) String() string {
 func (*StatusResponse) ProtoMessage() {}
 
 func (x *StatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -960,7 +1068,7 @@ func (x *StatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
 func (*StatusResponse) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{9}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StatusResponse) GetAgentVersion() string {
@@ -1027,7 +1135,7 @@ type PortConflict struct {
 
 func (x *PortConflict) Reset() {
 	*x = PortConflict{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[10]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1039,7 +1147,7 @@ func (x *PortConflict) String() string {
 func (*PortConflict) ProtoMessage() {}
 
 func (x *PortConflict) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[10]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1052,7 +1160,7 @@ func (x *PortConflict) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PortConflict.ProtoReflect.Descriptor instead.
 func (*PortConflict) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{10}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PortConflict) GetAddress() string {
@@ -1118,7 +1226,7 @@ type ProxyStatus struct {
 
 func (x *ProxyStatus) Reset() {
 	*x = ProxyStatus{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1130,7 +1238,7 @@ func (x *ProxyStatus) String() string {
 func (*ProxyStatus) ProtoMessage() {}
 
 func (x *ProxyStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1143,7 +1251,7 @@ func (x *ProxyStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyStatus.ProtoReflect.Descriptor instead.
 func (*ProxyStatus) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{11}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ProxyStatus) GetState() string {
@@ -1250,7 +1358,7 @@ type CAInfo struct {
 
 func (x *CAInfo) Reset() {
 	*x = CAInfo{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1262,7 +1370,7 @@ func (x *CAInfo) String() string {
 func (*CAInfo) ProtoMessage() {}
 
 func (x *CAInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1275,7 +1383,7 @@ func (x *CAInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CAInfo.ProtoReflect.Descriptor instead.
 func (*CAInfo) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{12}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CAInfo) GetRootPath() string {
@@ -1306,7 +1414,7 @@ type Route struct {
 	Project       string                 `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
 	// Path prefix; "/" for everything.
 	Path string `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
-	// What serves it: a module, or a page of the proxy until modules run (M4).
+	// What serves it: a module or service with its address, or a page of the proxy.
 	Target        string `protobuf:"bytes,5,opt,name=target,proto3" json:"target,omitempty"`
 	Url           string `protobuf:"bytes,6,opt,name=url,proto3" json:"url,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1315,7 +1423,7 @@ type Route struct {
 
 func (x *Route) Reset() {
 	*x = Route{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1327,7 +1435,7 @@ func (x *Route) String() string {
 func (*Route) ProtoMessage() {}
 
 func (x *Route) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1340,7 +1448,7 @@ func (x *Route) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Route.ProtoReflect.Descriptor instead.
 func (*Route) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{13}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Route) GetHost() string {
@@ -1395,7 +1503,7 @@ type RoutesRequest struct {
 
 func (x *RoutesRequest) Reset() {
 	*x = RoutesRequest{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1407,7 +1515,7 @@ func (x *RoutesRequest) String() string {
 func (*RoutesRequest) ProtoMessage() {}
 
 func (x *RoutesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1420,7 +1528,7 @@ func (x *RoutesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutesRequest.ProtoReflect.Descriptor instead.
 func (*RoutesRequest) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{14}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RoutesRequest) GetEnvironmentId() string {
@@ -1440,7 +1548,7 @@ type RoutesResponse struct {
 
 func (x *RoutesResponse) Reset() {
 	*x = RoutesResponse{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[15]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1452,7 +1560,7 @@ func (x *RoutesResponse) String() string {
 func (*RoutesResponse) ProtoMessage() {}
 
 func (x *RoutesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[15]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1465,7 +1573,7 @@ func (x *RoutesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutesResponse.ProtoReflect.Descriptor instead.
 func (*RoutesResponse) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{15}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RoutesResponse) GetRoutes() []*Route {
@@ -1496,7 +1604,7 @@ type SetProxyRequest struct {
 
 func (x *SetProxyRequest) Reset() {
 	*x = SetProxyRequest{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[16]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1508,7 +1616,7 @@ func (x *SetProxyRequest) String() string {
 func (*SetProxyRequest) ProtoMessage() {}
 
 func (x *SetProxyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[16]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1521,7 +1629,7 @@ func (x *SetProxyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetProxyRequest.ProtoReflect.Descriptor instead.
 func (*SetProxyRequest) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{16}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SetProxyRequest) GetCoexistHttpPort() uint32 {
@@ -1554,7 +1662,7 @@ type SetProxyResponse struct {
 
 func (x *SetProxyResponse) Reset() {
 	*x = SetProxyResponse{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[17]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1566,7 +1674,7 @@ func (x *SetProxyResponse) String() string {
 func (*SetProxyResponse) ProtoMessage() {}
 
 func (x *SetProxyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[17]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1579,7 +1687,7 @@ func (x *SetProxyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetProxyResponse.ProtoReflect.Descriptor instead.
 func (*SetProxyResponse) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{17}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SetProxyResponse) GetRevision() uint64 {
@@ -1600,7 +1708,7 @@ type UpRequest struct {
 
 func (x *UpRequest) Reset() {
 	*x = UpRequest{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[18]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1612,7 +1720,7 @@ func (x *UpRequest) String() string {
 func (*UpRequest) ProtoMessage() {}
 
 func (x *UpRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[18]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1625,7 +1733,7 @@ func (x *UpRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpRequest.ProtoReflect.Descriptor instead.
 func (*UpRequest) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{18}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *UpRequest) GetWorkspacePath() string {
@@ -1652,7 +1760,7 @@ type UpResponse struct {
 
 func (x *UpResponse) Reset() {
 	*x = UpResponse{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[19]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1664,7 +1772,7 @@ func (x *UpResponse) String() string {
 func (*UpResponse) ProtoMessage() {}
 
 func (x *UpResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[19]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1677,7 +1785,7 @@ func (x *UpResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpResponse.ProtoReflect.Descriptor instead.
 func (*UpResponse) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{19}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *UpResponse) GetEnvironmentId() string {
@@ -1705,7 +1813,7 @@ type DownRequest struct {
 
 func (x *DownRequest) Reset() {
 	*x = DownRequest{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[20]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1717,7 +1825,7 @@ func (x *DownRequest) String() string {
 func (*DownRequest) ProtoMessage() {}
 
 func (x *DownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[20]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1730,7 +1838,7 @@ func (x *DownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownRequest.ProtoReflect.Descriptor instead.
 func (*DownRequest) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{20}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DownRequest) GetProject() string {
@@ -1756,7 +1864,7 @@ type DownResponse struct {
 
 func (x *DownResponse) Reset() {
 	*x = DownResponse{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[21]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1768,7 +1876,7 @@ func (x *DownResponse) String() string {
 func (*DownResponse) ProtoMessage() {}
 
 func (x *DownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[21]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1781,7 +1889,7 @@ func (x *DownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownResponse.ProtoReflect.Descriptor instead.
 func (*DownResponse) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{21}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DownResponse) GetRevision() uint64 {
@@ -1801,7 +1909,7 @@ type WatchRequest struct {
 
 func (x *WatchRequest) Reset() {
 	*x = WatchRequest{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[22]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1813,7 +1921,7 @@ func (x *WatchRequest) String() string {
 func (*WatchRequest) ProtoMessage() {}
 
 func (x *WatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[22]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1826,7 +1934,7 @@ func (x *WatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchRequest.ProtoReflect.Descriptor instead.
 func (*WatchRequest) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{22}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *WatchRequest) GetEnvironmentId() string {
@@ -1848,7 +1956,7 @@ type WatchResponse struct {
 
 func (x *WatchResponse) Reset() {
 	*x = WatchResponse{}
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[23]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1860,7 +1968,7 @@ func (x *WatchResponse) String() string {
 func (*WatchResponse) ProtoMessage() {}
 
 func (x *WatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[23]
+	mi := &file_devcorb_agent_v1_agent_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1873,7 +1981,7 @@ func (x *WatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchResponse.ProtoReflect.Descriptor instead.
 func (*WatchResponse) Descriptor() ([]byte, []int) {
-	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{23}
+	return file_devcorb_agent_v1_agent_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *WatchResponse) GetStatus() *EnvironmentStatus {
@@ -1928,7 +2036,7 @@ const file_devcorb_agent_v1_agent_proto_rawDesc = "" +
 	"finishedAt\";\n" +
 	"\rNetworkStatus\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06subnet\x18\x02 \x01(\tR\x06subnet\"\xd0\x03\n" +
+	"\x06subnet\x18\x02 \x01(\tR\x06subnet\"\x84\x04\n" +
 	"\x11EnvironmentStatus\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x125\n" +
@@ -1943,7 +2051,17 @@ const file_devcorb_agent_v1_agent_proto_rawDesc = "" +
 	" \x01(\x04R\x0fappliedRevision\x129\n" +
 	"\n" +
 	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x18\n" +
-	"\aremoved\x18\f \x01(\bR\aremoved\"\xa8\x01\n" +
+	"\aremoved\x18\f \x01(\bR\aremoved\x122\n" +
+	"\x05units\x18\r \x03(\v2\x1c.devcorb.agent.v1.UnitStatusR\x05units\"\xb0\x01\n" +
+	"\n" +
+	"UnitStatus\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04role\x18\x02 \x01(\tR\x04role\x12\x1c\n" +
+	"\tcontainer\x18\x03 \x01(\tR\tcontainer\x12\x14\n" +
+	"\x05state\x18\x04 \x01(\tR\x05state\x12\x18\n" +
+	"\aaddress\x18\x05 \x01(\tR\aaddress\x12\x16\n" +
+	"\x06routes\x18\x06 \x03(\tR\x06routes\x12\x14\n" +
+	"\x05error\x18\a \x01(\tR\x05error\"\xa8\x01\n" +
 	"\vRuntimeInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bendpoint\x18\x02 \x01(\tR\bendpoint\x12%\n" +
@@ -2065,7 +2183,7 @@ func file_devcorb_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_devcorb_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_devcorb_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_devcorb_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_devcorb_agent_v1_agent_proto_goTypes = []any{
 	(EnvironmentKind)(0),          // 0: devcorb.agent.v1.EnvironmentKind
 	(DesiredPhase)(0),             // 1: devcorb.agent.v1.DesiredPhase
@@ -2078,24 +2196,25 @@ var file_devcorb_agent_v1_agent_proto_goTypes = []any{
 	(*StepProgress)(nil),          // 8: devcorb.agent.v1.StepProgress
 	(*NetworkStatus)(nil),         // 9: devcorb.agent.v1.NetworkStatus
 	(*EnvironmentStatus)(nil),     // 10: devcorb.agent.v1.EnvironmentStatus
-	(*RuntimeInfo)(nil),           // 11: devcorb.agent.v1.RuntimeInfo
-	(*StatusRequest)(nil),         // 12: devcorb.agent.v1.StatusRequest
-	(*StatusResponse)(nil),        // 13: devcorb.agent.v1.StatusResponse
-	(*PortConflict)(nil),          // 14: devcorb.agent.v1.PortConflict
-	(*ProxyStatus)(nil),           // 15: devcorb.agent.v1.ProxyStatus
-	(*CAInfo)(nil),                // 16: devcorb.agent.v1.CAInfo
-	(*Route)(nil),                 // 17: devcorb.agent.v1.Route
-	(*RoutesRequest)(nil),         // 18: devcorb.agent.v1.RoutesRequest
-	(*RoutesResponse)(nil),        // 19: devcorb.agent.v1.RoutesResponse
-	(*SetProxyRequest)(nil),       // 20: devcorb.agent.v1.SetProxyRequest
-	(*SetProxyResponse)(nil),      // 21: devcorb.agent.v1.SetProxyResponse
-	(*UpRequest)(nil),             // 22: devcorb.agent.v1.UpRequest
-	(*UpResponse)(nil),            // 23: devcorb.agent.v1.UpResponse
-	(*DownRequest)(nil),           // 24: devcorb.agent.v1.DownRequest
-	(*DownResponse)(nil),          // 25: devcorb.agent.v1.DownResponse
-	(*WatchRequest)(nil),          // 26: devcorb.agent.v1.WatchRequest
-	(*WatchResponse)(nil),         // 27: devcorb.agent.v1.WatchResponse
-	(*timestamppb.Timestamp)(nil), // 28: google.protobuf.Timestamp
+	(*UnitStatus)(nil),            // 11: devcorb.agent.v1.UnitStatus
+	(*RuntimeInfo)(nil),           // 12: devcorb.agent.v1.RuntimeInfo
+	(*StatusRequest)(nil),         // 13: devcorb.agent.v1.StatusRequest
+	(*StatusResponse)(nil),        // 14: devcorb.agent.v1.StatusResponse
+	(*PortConflict)(nil),          // 15: devcorb.agent.v1.PortConflict
+	(*ProxyStatus)(nil),           // 16: devcorb.agent.v1.ProxyStatus
+	(*CAInfo)(nil),                // 17: devcorb.agent.v1.CAInfo
+	(*Route)(nil),                 // 18: devcorb.agent.v1.Route
+	(*RoutesRequest)(nil),         // 19: devcorb.agent.v1.RoutesRequest
+	(*RoutesResponse)(nil),        // 20: devcorb.agent.v1.RoutesResponse
+	(*SetProxyRequest)(nil),       // 21: devcorb.agent.v1.SetProxyRequest
+	(*SetProxyResponse)(nil),      // 22: devcorb.agent.v1.SetProxyResponse
+	(*UpRequest)(nil),             // 23: devcorb.agent.v1.UpRequest
+	(*UpResponse)(nil),            // 24: devcorb.agent.v1.UpResponse
+	(*DownRequest)(nil),           // 25: devcorb.agent.v1.DownRequest
+	(*DownResponse)(nil),          // 26: devcorb.agent.v1.DownResponse
+	(*WatchRequest)(nil),          // 27: devcorb.agent.v1.WatchRequest
+	(*WatchResponse)(nil),         // 28: devcorb.agent.v1.WatchResponse
+	(*timestamppb.Timestamp)(nil), // 29: google.protobuf.Timestamp
 }
 var file_devcorb_agent_v1_agent_proto_depIdxs = []int32{
 	6,  // 0: devcorb.agent.v1.DesiredState.projects:type_name -> devcorb.agent.v1.ProjectSpec
@@ -2104,40 +2223,41 @@ var file_devcorb_agent_v1_agent_proto_depIdxs = []int32{
 	0,  // 3: devcorb.agent.v1.EnvironmentSpec.kind:type_name -> devcorb.agent.v1.EnvironmentKind
 	1,  // 4: devcorb.agent.v1.EnvironmentSpec.phase:type_name -> devcorb.agent.v1.DesiredPhase
 	3,  // 5: devcorb.agent.v1.StepProgress.state:type_name -> devcorb.agent.v1.StepState
-	28, // 6: devcorb.agent.v1.StepProgress.started_at:type_name -> google.protobuf.Timestamp
-	28, // 7: devcorb.agent.v1.StepProgress.finished_at:type_name -> google.protobuf.Timestamp
+	29, // 6: devcorb.agent.v1.StepProgress.started_at:type_name -> google.protobuf.Timestamp
+	29, // 7: devcorb.agent.v1.StepProgress.finished_at:type_name -> google.protobuf.Timestamp
 	0,  // 8: devcorb.agent.v1.EnvironmentStatus.kind:type_name -> devcorb.agent.v1.EnvironmentKind
 	2,  // 9: devcorb.agent.v1.EnvironmentStatus.phase:type_name -> devcorb.agent.v1.Phase
 	8,  // 10: devcorb.agent.v1.EnvironmentStatus.steps:type_name -> devcorb.agent.v1.StepProgress
 	9,  // 11: devcorb.agent.v1.EnvironmentStatus.network:type_name -> devcorb.agent.v1.NetworkStatus
-	28, // 12: devcorb.agent.v1.EnvironmentStatus.updated_at:type_name -> google.protobuf.Timestamp
-	11, // 13: devcorb.agent.v1.StatusResponse.runtime:type_name -> devcorb.agent.v1.RuntimeInfo
-	6,  // 14: devcorb.agent.v1.StatusResponse.projects:type_name -> devcorb.agent.v1.ProjectSpec
-	10, // 15: devcorb.agent.v1.StatusResponse.environments:type_name -> devcorb.agent.v1.EnvironmentStatus
-	15, // 16: devcorb.agent.v1.StatusResponse.proxy:type_name -> devcorb.agent.v1.ProxyStatus
-	16, // 17: devcorb.agent.v1.StatusResponse.ca:type_name -> devcorb.agent.v1.CAInfo
-	14, // 18: devcorb.agent.v1.ProxyStatus.conflicts:type_name -> devcorb.agent.v1.PortConflict
-	28, // 19: devcorb.agent.v1.CAInfo.not_after:type_name -> google.protobuf.Timestamp
-	17, // 20: devcorb.agent.v1.RoutesResponse.routes:type_name -> devcorb.agent.v1.Route
-	15, // 21: devcorb.agent.v1.RoutesResponse.proxy:type_name -> devcorb.agent.v1.ProxyStatus
-	10, // 22: devcorb.agent.v1.WatchResponse.status:type_name -> devcorb.agent.v1.EnvironmentStatus
-	12, // 23: devcorb.agent.v1.AgentService.Status:input_type -> devcorb.agent.v1.StatusRequest
-	22, // 24: devcorb.agent.v1.AgentService.Up:input_type -> devcorb.agent.v1.UpRequest
-	24, // 25: devcorb.agent.v1.AgentService.Down:input_type -> devcorb.agent.v1.DownRequest
-	26, // 26: devcorb.agent.v1.AgentService.Watch:input_type -> devcorb.agent.v1.WatchRequest
-	18, // 27: devcorb.agent.v1.AgentService.Routes:input_type -> devcorb.agent.v1.RoutesRequest
-	20, // 28: devcorb.agent.v1.AgentService.SetProxy:input_type -> devcorb.agent.v1.SetProxyRequest
-	13, // 29: devcorb.agent.v1.AgentService.Status:output_type -> devcorb.agent.v1.StatusResponse
-	23, // 30: devcorb.agent.v1.AgentService.Up:output_type -> devcorb.agent.v1.UpResponse
-	25, // 31: devcorb.agent.v1.AgentService.Down:output_type -> devcorb.agent.v1.DownResponse
-	27, // 32: devcorb.agent.v1.AgentService.Watch:output_type -> devcorb.agent.v1.WatchResponse
-	19, // 33: devcorb.agent.v1.AgentService.Routes:output_type -> devcorb.agent.v1.RoutesResponse
-	21, // 34: devcorb.agent.v1.AgentService.SetProxy:output_type -> devcorb.agent.v1.SetProxyResponse
-	29, // [29:35] is the sub-list for method output_type
-	23, // [23:29] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	29, // 12: devcorb.agent.v1.EnvironmentStatus.updated_at:type_name -> google.protobuf.Timestamp
+	11, // 13: devcorb.agent.v1.EnvironmentStatus.units:type_name -> devcorb.agent.v1.UnitStatus
+	12, // 14: devcorb.agent.v1.StatusResponse.runtime:type_name -> devcorb.agent.v1.RuntimeInfo
+	6,  // 15: devcorb.agent.v1.StatusResponse.projects:type_name -> devcorb.agent.v1.ProjectSpec
+	10, // 16: devcorb.agent.v1.StatusResponse.environments:type_name -> devcorb.agent.v1.EnvironmentStatus
+	16, // 17: devcorb.agent.v1.StatusResponse.proxy:type_name -> devcorb.agent.v1.ProxyStatus
+	17, // 18: devcorb.agent.v1.StatusResponse.ca:type_name -> devcorb.agent.v1.CAInfo
+	15, // 19: devcorb.agent.v1.ProxyStatus.conflicts:type_name -> devcorb.agent.v1.PortConflict
+	29, // 20: devcorb.agent.v1.CAInfo.not_after:type_name -> google.protobuf.Timestamp
+	18, // 21: devcorb.agent.v1.RoutesResponse.routes:type_name -> devcorb.agent.v1.Route
+	16, // 22: devcorb.agent.v1.RoutesResponse.proxy:type_name -> devcorb.agent.v1.ProxyStatus
+	10, // 23: devcorb.agent.v1.WatchResponse.status:type_name -> devcorb.agent.v1.EnvironmentStatus
+	13, // 24: devcorb.agent.v1.AgentService.Status:input_type -> devcorb.agent.v1.StatusRequest
+	23, // 25: devcorb.agent.v1.AgentService.Up:input_type -> devcorb.agent.v1.UpRequest
+	25, // 26: devcorb.agent.v1.AgentService.Down:input_type -> devcorb.agent.v1.DownRequest
+	27, // 27: devcorb.agent.v1.AgentService.Watch:input_type -> devcorb.agent.v1.WatchRequest
+	19, // 28: devcorb.agent.v1.AgentService.Routes:input_type -> devcorb.agent.v1.RoutesRequest
+	21, // 29: devcorb.agent.v1.AgentService.SetProxy:input_type -> devcorb.agent.v1.SetProxyRequest
+	14, // 30: devcorb.agent.v1.AgentService.Status:output_type -> devcorb.agent.v1.StatusResponse
+	24, // 31: devcorb.agent.v1.AgentService.Up:output_type -> devcorb.agent.v1.UpResponse
+	26, // 32: devcorb.agent.v1.AgentService.Down:output_type -> devcorb.agent.v1.DownResponse
+	28, // 33: devcorb.agent.v1.AgentService.Watch:output_type -> devcorb.agent.v1.WatchResponse
+	20, // 34: devcorb.agent.v1.AgentService.Routes:output_type -> devcorb.agent.v1.RoutesResponse
+	22, // 35: devcorb.agent.v1.AgentService.SetProxy:output_type -> devcorb.agent.v1.SetProxyResponse
+	30, // [30:36] is the sub-list for method output_type
+	24, // [24:30] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_devcorb_agent_v1_agent_proto_init() }
@@ -2151,7 +2271,7 @@ func file_devcorb_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_devcorb_agent_v1_agent_proto_rawDesc), len(file_devcorb_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   24,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

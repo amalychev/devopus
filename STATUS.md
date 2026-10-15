@@ -4,7 +4,7 @@
 
 ## Где мы
 
-**Этап 1 (MVP) начат параллельно с продуктовой частью этапа 0.** Готовы вехи M1 (`workspace.yaml` v1, импорт/экспорт compose) и M2 (агент: локальный API, желаемое состояние, reconcile-цикл, сеть окружения). Готова **M3 (сеть и прокси)**: Envoy через xDS/SDS, двухуровневый CA, CoreDNS, порты 80/443 с режимами конфликта, `doctor`, `routes`, `open`, `proxy`; проверено на Docker Desktop, Colima и OrbStack, страница окружения открывается в браузере без предупреждения. Следующая — **M4: базовое окружение** (модули, build, хуки, маршруты по путям). План и журнал — [docs/stage-1/plan.md](docs/stage-1/plan.md).
+**Этап 1 (MVP) начат параллельно с продуктовой частью этапа 0.** Готовы вехи M1 (`workspace.yaml` v1, импорт/экспорт compose) и M2 (агент: локальный API, желаемое состояние, reconcile-цикл, сеть окружения). Готова M3 (сеть и прокси: Envoy через xDS/SDS, CA, CoreDNS, порты 80/443). Готова **M4 (базовое окружение)**: сервисы, модули из папки, `repo` или Dockerfile, хуки `install` → `migrate` с повтором по изменению входов, маршруты по путям и `expose`, CA и DNS в контейнерах модулей, `logs`, `exec`; демо из трёх модулей ([examples/demo](examples/demo)) поднимается одной командой; проверено на Docker Desktop, Colima и OrbStack. Следующая — **M5: фичи** (worktree, Simple Isolation, `feature create/add/list/rm/path`). План, журнал и открытые вопросы M4 (relay для curl внутри модулей, `cron`, Linux) — [docs/stage-1/plan.md](docs/stage-1/plan.md).
 
 **Этап 0 (валидация) — техническая часть закрыта, продуктовая не начата.**
 
@@ -51,5 +51,6 @@
 - Репозиторий: https://github.com/amalychev/devcorb (приватный).
 - Colima и OrbStack установлены, VM остановлены (`colima start` / `orb start`, если понадобятся). `colima start` и `orb start` переключают Docker-контекст на себя — после них вернуть `docker context use desktop-linux`. Тесты на них запускать через `DOCKER_HOST` (`~/.colima/default/docker.sock`, `~/.orbstack/run/docker.sock`).
 - На этой машине 80/443 занимает brew-nginx, поэтому прокси Devcorb работает на 18080/18443 (fallback).
-- `~/.devcorb` создан: CA (`ca/root.pem`, добавлен в связку ключей входа 15.10.2026), агент может работать в фоне (`pkill -f 'devcorb agent run'` — остановить).
+- `~/.devcorb` создан, агент может работать в фоне (`pkill -f 'devcorb agent run'` — остановить). **CA `~/.devcorb/ca/root.pem` не в связке ключей**: там корень от прежнего названия (Docklet). Для проверки в браузере — `devcorb doctor --fix` (и удалить старый корень «Docklet» в «Связке ключей»).
+- `~/.docklet` и бинарник `docklet` в старом scratchpad — остатки до переименования. Агент `docklet` (держал 18080/18443) остановлен 15.10.2026, его контейнеры удалены; `~/.docklet/state.json` не тронут.
 - Опубликованный roadmap: https://claude.ai/artifact/XXRWjdCqmh1wb7WVczCjK7

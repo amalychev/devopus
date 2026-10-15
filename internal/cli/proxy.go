@@ -58,36 +58,17 @@ func (a *app) openCmd() *cobra.Command {
 		Short: "Open an environment in the browser (default: the project's base environment)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			c := client.New(paths.Socket())
-			st, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+			st, err := a.agentStatus()
 			if err != nil {
-				return rpcError(err)
+				return err
 			}
-			var env *agentv1.EnvironmentStatus
+			arg := ""
 			if len(args) == 1 {
-				for _, e := range st.Msg.Environments {
-					if e.Id == args[0] || e.Slug == args[0] {
-						env = e
-					}
-				}
-				if env == nil {
-					return fail(ExitInvalid, "no environment %q; 'devcorb status' lists them", args[0])
-				}
-			} else {
-				res, _, err := a.load()
-				if err != nil {
-					return err
-				}
-				for _, e := range st.Msg.Environments {
-					if e.Project == res.Workspace.Project && e.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE {
-						env = e
-					}
-				}
-				if env == nil {
-					return fail(ExitError, "%s is not up; run 'devcorb up'", res.Workspace.Project)
-				}
+				arg = args[0]
+			}
+			env, err := a.findEnv(st, arg)
+			if err != nil {
+				return err
 			}
 			if env.Url == "" {
 				return fail(ExitError, "environment %s has no URL yet (%s)", env.Id, phaseName(env.Phase))
@@ -182,7 +163,7 @@ func (a *app) setProxy(req *agentv1.SetProxyRequest) error {
 		return rpcError(err)
 	}
 	if len(ids) > 0 {
-		if _, err := a.follow(w, ids, res.Msg.Revision, func(s *agentv1.EnvironmentStatus) bool {
+		if _, err := a.follow(w, ids, res.Msg.Revision, false, func(s *agentv1.EnvironmentStatus) bool {
 			return s.Phase == agentv1.Phase_PHASE_RUNNING || s.Phase == agentv1.Phase_PHASE_STOPPED
 		}); err != nil {
 			return err

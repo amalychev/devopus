@@ -1,6 +1,6 @@
 # Спецификация: CLI агента (MVP)
 
-**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (M1), `agent run`, `status`, `up`, `down` (M2), `doctor [--fix]`, `routes`, `open`, `proxy restart`, `proxy coexist` (M3; `up` создаёт сеть, сертификат, DNS и маршрут окружения, модули — с M4). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
+**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (M1), `agent run`, `status`, `up`, `down` (M2), `doctor [--fix]`, `routes`, `open`, `proxy restart`, `proxy coexist` (M3), `logs`, `exec` (M4; `up` поднимает сервисы и модули, `status` показывает их). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
 
 ## Установка и служба
 
@@ -24,7 +24,7 @@
 | `devcorb validate` | Проверка по JSON Schema и правилам + антипаттерны |
 | `devcorb export compose [-o file]` | Экспорт в `docker-compose.yml` (по умолчанию в stdout); откажет, если конфиг с ошибками |
 | `devcorb schema` | Напечатать JSON Schema `workspace.yaml` |
-| `devcorb up [-d] [--timeout]` | Поднять базовое окружение (clone репозиториев, данные, хуки); показывает прогресс шагов. `-d` — не ждать |
+| `devcorb up [-d] [--timeout]` | Поднять базовое окружение (clone репозиториев, образы, сервисы, хуки, модули, маршруты); показывает прогресс шагов и в конце — адреса модулей и сервисов. `-d` — не ждать. Повторный `up` без изменений ничего не перезапускает |
 | `devcorb down [--volumes] [--project]` | Остановить окружения проекта; `--volumes` — удалить проект со всеми ресурсами и данными |
 | `devcorb open [env]` | Открыть URL в браузере; без аргумента — базовое окружение проекта из `workspace.yaml` |
 
@@ -52,8 +52,8 @@
 
 | Команда | Описание |
 |---|---|
-| `devcorb logs <env> [module] [-f]` | Логи |
-| `devcorb exec <env> <module> -- <cmd>` | Выполнить команду в контейнере модуля |
+| `devcorb logs [env] <module\|service> [--follow] [-n N]` | Вывод модуля, воркера или сервиса. С одним аргументом — базовое окружение проекта из текущей папки. `-f` занят под `--file`, поэтому только `--follow`. Логи хуков и сборок — в `~/.devcorb/envs/<env>/logs/` |
+| `devcorb exec [env] <module\|service> [-- <cmd>…]` | Выполнить команду в контейнере (по умолчанию `sh`); с терминалом — интерактивно |
 | `devcorb routes [env]` | Текущая таблица маршрутов Envoy: URL, путь, окружение, цель |
 
 ## Коды выхода

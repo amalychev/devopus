@@ -199,6 +199,11 @@
             }
           }
         },
+        "mount": {
+          "description": "Where the module's code is mounted in its container: /app on a runtime by default, nowhere on an image or a build unless set.",
+          "type": "string",
+          "pattern": "^/"
+        },
         "routes": {
           "description": "Path prefixes the proxy sends to this module on the environment host.",
           "type": "array",

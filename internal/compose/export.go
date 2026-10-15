@@ -192,10 +192,13 @@ func (x *exporter) module(name string, m *workspace.Module) (map[string]*compose
 		base.Build = &composeBuild{Context: dotSlash(ctx), Dockerfile: m.Build.Dockerfile, Target: m.Build.Target, Args: m.Build.Args}
 	case m.Runtime != "":
 		// Platform runtime images arrive with the agent; the official image is the
-		// closest stand-in. Code is mounted from the checkout.
-		base.Image = m.Runtime
-		base.WorkingDir = "/app"
-		base.Volumes = append([]string{dotSlash(dir) + ":/app"}, base.Volumes...)
+		// closest stand-in.
+		base.Image = workspace.RuntimeImage(m.Runtime)
+		base.WorkingDir = m.CodeMount()
+	}
+	if mount := m.CodeMount(); mount != "" {
+		// Code is mounted from the checkout.
+		base.Volumes = append([]string{dotSlash(dir) + ":" + mount}, base.Volumes...)
 	}
 	if m.Repo != "" {
 		x.notes = append(x.notes, fmt.Sprintf("%s: clone %s into ./%s", name, m.Repo, dir))
@@ -302,22 +305,11 @@ func (x *exporter) expand(s string) (string, error) {
 				}
 				return strconv.Itoa(s.Port), nil
 			default: // database
-				return databaseName(x.w, r.Name), nil
+				return x.w.DatabaseName(r.Name), nil
 			}
 		}
 		return "", fmt.Errorf("cannot export %s", r.Raw)
 	})
-}
-
-// databaseName is the database the base environment uses in a service: the one the
-// image creates on first start, else the project name.
-func databaseName(w *workspace.Workspace, service string) string {
-	for _, k := range []string{"POSTGRES_DB", "MYSQL_DATABASE", "MARIADB_DATABASE", "MONGO_INITDB_DATABASE"} {
-		if v := w.Services[service].Env[k]; v != "" && !workspace.HasExpr(v) {
-			return v
-		}
-	}
-	return strings.ReplaceAll(w.Project, "-", "_")
 }
 
 func (x *exporter) header() string {

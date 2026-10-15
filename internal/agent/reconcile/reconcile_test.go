@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -33,10 +37,21 @@ type fakeRuntime struct {
 	steal bool
 	// startErr fails the next start of a container with this role.
 	startErr map[string]error
+	vols     map[string]runtime.Volume
+	images   map[string]bool
+	builds   int
+	built    map[string]map[string]string // tag → labels
+	stopped  int
+	// hooks are the commands of finished one-shot containers; hookExit their exit codes.
+	hooks    []string
+	hookExit map[string]int
+	// crash makes containers of a role exit right after they start.
+	crash map[string]bool
 }
 
 func newFake(foreign ...runtime.Network) *fakeRuntime {
-	f := &fakeRuntime{nets: map[string]runtime.Network{}, ctrs: map[string]*runtime.Container{}, specs: map[string]runtime.ContainerSpec{}, startErr: map[string]error{}}
+	f := &fakeRuntime{nets: map[string]runtime.Network{}, ctrs: map[string]*runtime.Container{}, specs: map[string]runtime.ContainerSpec{}, startErr: map[string]error{},
+		vols: map[string]runtime.Volume{}, images: map[string]bool{}, hookExit: map[string]int{}, crash: map[string]bool{}, built: map[string]map[string]string{}}
 	for _, n := range foreign {
 		f.nets[n.ID] = n
 	}
@@ -97,6 +112,9 @@ func (f *fakeRuntime) Containers(_ context.Context, instance string) ([]runtime.
 			continue
 		}
 		cp := *c
+		if h := f.specs[c.ID].Health; h != nil && c.Running && h.Test[0] != "NONE" {
+			cp.Health = "healthy"
+		}
 		cp.Networks = map[string]netip.Addr{}
 		for k, v := range c.Networks {
 			cp.Networks[k] = v
@@ -139,7 +157,11 @@ func (f *fakeRuntime) StartContainer(_ context.Context, id string) error {
 		delete(f.startErr, c.Labels[runtime.LabelRole])
 		return err
 	}
-	c.Running = true
+	c.Running = !f.crash[c.Labels[runtime.LabelRole]]
+	c.State = "running"
+	if !c.Running {
+		c.State = "exited"
+	}
 	return nil
 }
 
@@ -171,6 +193,99 @@ func (f *fakeRuntime) DisconnectNetwork(_ context.Context, netID, ctrID string) 
 }
 
 func (f *fakeRuntime) ContainerLogs(context.Context, string, int) string { return "" }
+
+func (f *fakeRuntime) StopContainer(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if c, ok := f.ctrs[id]; ok {
+		c.Running = false
+		c.State = "exited"
+		f.stopped++
+	}
+	return nil
+}
+
+// WaitContainer finishes a one-shot container at once with the exit code hookExit
+// gives its command.
+func (f *fakeRuntime) WaitContainer(_ context.Context, id string) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	c, ok := f.ctrs[id]
+	if !ok {
+		return -1, errors.New("no such container")
+	}
+	c.Running = false
+	c.State = "exited"
+	cmd := strings.Join(f.specs[id].Cmd, " ")
+	f.hooks = append(f.hooks, cmd)
+	return f.hookExit[cmd], nil
+}
+
+func (f *fakeRuntime) CopyLogs(_ context.Context, _ string, w io.Writer) error {
+	_, err := io.WriteString(w, "hook output\n")
+	return err
+}
+
+func (f *fakeRuntime) Volumes(_ context.Context, instance string) ([]runtime.Volume, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []runtime.Volume
+	for _, v := range f.vols {
+		if v.Labels[runtime.LabelInstance] == instance {
+			out = append(out, v)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeRuntime) CreateVolume(_ context.Context, name string, labels map[string]string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.vols[name] = runtime.Volume{Name: name, Labels: labels}
+	return nil
+}
+
+func (f *fakeRuntime) RemoveVolume(_ context.Context, name string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.vols, name)
+	return nil
+}
+
+func (f *fakeRuntime) ImageExists(_ context.Context, ref string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.images[ref], nil
+}
+
+func (f *fakeRuntime) Build(_ context.Context, spec runtime.BuildSpec, _ io.Writer) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.builds++
+	f.images[spec.Tag] = true
+	f.built[spec.Tag] = spec.Labels
+	return nil
+}
+
+func (f *fakeRuntime) Images(_ context.Context, instance string) ([]runtime.Image, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []runtime.Image
+	for tag, labels := range f.built {
+		if labels[runtime.LabelInstance] == instance {
+			out = append(out, runtime.Image{ID: tag, Tags: []string{tag}, Labels: labels})
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeRuntime) RemoveImage(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.built, id)
+	delete(f.images, id)
+	return nil
+}
 
 func (f *fakeRuntime) byRole(role string) []*runtime.Container {
 	f.mu.Lock()
@@ -251,7 +366,10 @@ func newHarness(t *testing.T, rt *fakeRuntime) *harness {
 			}
 			return h.ports, nil, nil
 		},
-		Probe: func(context.Context, string, proxy.Ports) error { return h.probe },
+		Probe:      func(context.Context, string, proxy.Ports) error { return h.probe },
+		Log:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		SourcesDir: t.TempDir(),
+		EnvsDir:    t.TempDir(),
 	}
 	return h
 }
@@ -260,10 +378,27 @@ func (h *harness) new(publish func(*agentv1.EnvironmentStatus)) *Reconciler {
 	return New(h.rt, h.opt, publish)
 }
 
-const shopYAML = "version: 1\nproject: shop\ndomain: shop.localhost\nservices:\n  mail:\n    image: axllent/mailpit:v1.20\n    port: 1025\n    ui_port: 8025\n    expose: mail\nmodules:\n  web:\n    repo: git@example.com:web.git\n    image: nginx:1.27\n    routes: [/]\n"
+const shopYAML = "version: 1\nproject: shop\ndomain: shop.localhost\nservices:\n  mail:\n    image: axllent/mailpit:v1.20\n    port: 1025\n    ui_port: 8025\n    expose: mail\nmodules:\n  web:\n    path: web\n    image: nginx:1.27\n    routes: [/]\n"
+
+// testRoot is the repository of the test project: a folder with the module web.
+var testRoot string
+
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "devcorb-reconcile-")
+	if err != nil {
+		panic(err)
+	}
+	testRoot = dir
+	if err := os.MkdirAll(filepath.Join(dir, "web"), 0o755); err != nil {
+		panic(err)
+	}
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
+}
 
 func desired(rev uint64, envs ...*agentv1.EnvironmentSpec) *agentv1.DesiredState {
-	return &agentv1.DesiredState{Revision: rev, Environments: envs, Projects: []*agentv1.ProjectSpec{{Name: "shop", Root: "/src/shop", Config: []byte(shopYAML)}}}
+	return &agentv1.DesiredState{Revision: rev, Environments: envs, Projects: []*agentv1.ProjectSpec{{Name: "shop", Root: testRoot, Config: []byte(shopYAML)}}}
 }
 
 func base(id string) *agentv1.EnvironmentSpec {
@@ -314,7 +449,7 @@ func TestCreateConvergeAndGC(t *testing.T) {
 		}
 		steps = append(steps, s.Name)
 	}
-	if got := strings.Join(steps, ","); got != "network,certificate,proxy,dns,routes" {
+	if got := strings.Join(steps, ","); got != "network,certificate,proxy,dns,source,images,services,install,migrate,modules,routes,ready" {
 		t.Errorf("steps = %s", got)
 	}
 	if st[0].Url != "https://shop.localhost" {
@@ -352,7 +487,8 @@ func TestCreateConvergeAndGC(t *testing.T) {
 	if err := r.Reconcile(ctx, desired(1, base("aaaaaa"))); err != nil {
 		t.Fatal(err)
 	}
-	if rec.count() != n || h.rt.creates != 1 || h.rt.created != 2 || h.rt.connects != 1 || h.chooses != 1 {
+	// Four containers: the proxy, DNS, the service mail and the module web.
+	if rec.count() != n || h.rt.creates != 1 || h.rt.created != 4 || h.rt.connects != 1 || h.chooses != 1 {
 		t.Errorf("second pass: %d new events, %d network creates, %d container creates, %d connects, %d port probes",
 			rec.count()-n, h.rt.creates, h.rt.created, h.rt.connects, h.chooses)
 	}
@@ -363,7 +499,7 @@ func TestCreateConvergeAndGC(t *testing.T) {
 	if err := r2.Reconcile(ctx, desired(2, base("aaaaaa"))); err != nil {
 		t.Fatal(err)
 	}
-	if h.rt.creates != 1 || h.rt.created != 2 || h.rt.connects != 1 || h.chooses != 1 || r2.Statuses()[0].Network.Subnet != "10.213.2.0/24" {
+	if h.rt.creates != 1 || h.rt.created != 4 || h.rt.connects != 1 || h.chooses != 1 || r2.Statuses()[0].Network.Subnet != "10.213.2.0/24" {
 		t.Errorf("restart: %d network creates, %d container creates, %d connects, %d probes", h.rt.creates, h.rt.created, h.rt.connects, h.chooses)
 	}
 	if string(h.xds.last().Sites[0].CertPEM) != certBefore {

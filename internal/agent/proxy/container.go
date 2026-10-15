@@ -75,7 +75,7 @@ func ContainerSpec(name string, labels map[string]string, ports Ports, xdsPort i
 		)
 	}
 	sum := sha256.New()
-	fmt.Fprintf(sum, "%s\n%d/%d\n", Image, ports.HTTP, ports.HTTPS)
+	fmt.Fprintf(sum, "%s\n%d/%d\nunprivileged-ports\n", Image, ports.HTTP, ports.HTTPS)
 	sum.Write(boot)
 	all := map[string]string{}
 	for k, v := range labels {
@@ -95,6 +95,8 @@ func ContainerSpec(name string, labels map[string]string, ports Ports, xdsPort i
 		ExtraHosts: []string{HostGateway + ":host-gateway"},
 		Files:      []runtime.File{{Path: bootstrapPath, Data: boot, Mode: 0o600, UID: envoyUID, GID: envoyUID}},
 		Restart:    "unless-stopped",
+		// Envoy runs as a user and also listens on 80/443 inside environment networks.
+		Sysctls: map[string]string{"net.ipv4.ip_unprivileged_port_start": "0"},
 	}, nil
 }
 

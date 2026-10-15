@@ -9,10 +9,12 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
 	"github.com/devcorb/devcorb/internal/agent/proxy"
 	"github.com/devcorb/devcorb/internal/agent/runtime"
+	"github.com/devcorb/devcorb/internal/agent/stack"
 	"github.com/devcorb/devcorb/internal/workspace"
 )
 
@@ -228,25 +230,22 @@ func (r *Reconciler) attachProxy(ctx context.Context, px *proxyState, nw runtime
 // applyRoutes gives the proxy every site, waits until the new sites are served and
 // finishes the environments.
 func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredState, preps []*prepared, px *proxyState) error {
-	cfg := proxy.Config{HTTPSPort: uint32(px.ports.HTTPS), Coexist: px.coexist}
+	cfg := proxy.Config{HTTPPort: uint32(px.ports.HTTP), HTTPSPort: uint32(px.ports.HTTPS), Coexist: px.coexist}
 	var routes []*agentv1.Route
 	for _, p := range preps {
 		if p.leaf == nil {
 			continue
 		}
-		page := proxy.Page{Status: 200, Title: p.env.Project + " is up",
-			Text: fmt.Sprintf("Devcorb serves environment <code>%s</code> of <code>%s</code> here. No module answers on this address yet.", p.env.Id, html.EscapeString(p.env.Project))}
-		target := "proxy page: no module yet"
-		if p.env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
-			page = proxy.Page{Status: 503, Title: p.env.Project + " is stopped", Text: "Run <code>devcorb up</code> in the project to start it."}
-			target = "proxy page: stopped"
-		}
-		cfg.Sites = append(cfg.Sites, proxy.Site{Name: p.env.Id, Project: p.env.Project, Hosts: p.leaf.Hosts, CertPEM: p.leaf.CertPEM, KeyPEM: p.leaf.KeyPEM, Page: page})
-		for _, h := range p.leaf.Hosts {
-			routes = append(routes, &agentv1.Route{Host: h, EnvironmentId: p.env.Id, Project: p.env.Project, Path: "/", Target: target, Url: proxy.URL(h, px.ports)})
-		}
+		site, siteRoutes := site(p, px.ports)
+		cfg.Sites = append(cfg.Sites, site)
+		routes = append(routes, siteRoutes...)
 	}
-	sort.Slice(routes, func(i, j int) bool { return routes[i].Host < routes[j].Host })
+	sort.SliceStable(routes, func(i, j int) bool {
+		if routes[i].Host != routes[j].Host {
+			return routes[i].Host < routes[j].Host
+		}
+		return routes[i].Path < routes[j].Path
+	})
 
 	_, setErr := r.opt.XDS.Set(ctx, cfg)
 	if setErr == nil {
@@ -294,6 +293,24 @@ func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredSt
 			errs = append(errs, fmt.Errorf("environment %s: routes: %w", env.Id, stepErr))
 			continue
 		}
+		// Modules are asked only after something started: a converged environment does not
+		// get a request from the agent on every pass.
+		if env.Phase != agentv1.DesiredPhase_DESIRED_PHASE_STOPPED && p.plan != nil && (p.started || !r.stepDone(env.Id, "ready")) {
+			if stepErr := r.runStep(ctx, env.Id, step{"ready", func(ctx context.Context) (string, error) { return r.waitAnswers(ctx, p, px.ports) }}); stepErr != nil {
+				if errors.Is(stepErr, errWaiting) {
+					p.waiting = true
+					continue
+				}
+				if ctx.Err() != nil {
+					continue
+				}
+				r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
+					s.Phase, s.Error, s.AppliedRevision = agentv1.Phase_PHASE_ERROR, "ready: "+stepErr.Error(), desired.Revision
+				})
+				errs = append(errs, fmt.Errorf("environment %s: ready: %w", env.Id, stepErr))
+				continue
+			}
+		}
 		r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
 			s.Error, s.Url, s.AppliedRevision = "", url, desired.Revision
 			if env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
@@ -304,6 +321,134 @@ func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredSt
 		})
 	}
 	return errors.Join(errs...)
+}
+
+// site is what the proxy serves for an environment: modules on their paths of the
+// environment host, exposed web UIs on their own hosts, or a page of the proxy.
+func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
+	env := p.env
+	s := proxy.Site{Name: env.Id, Project: env.Project, Hosts: p.leaf.Hosts, CertPEM: p.leaf.CertPEM, KeyPEM: p.leaf.KeyPEM}
+	route := func(host, path, target string) *agentv1.Route {
+		url := proxy.URL(host, ports)
+		if path != "/" {
+			url += path
+		}
+		return &agentv1.Route{Host: host, EnvironmentId: env.Id, Project: env.Project, Path: path, Target: target, Url: url}
+	}
+	page := func(pg proxy.Page, target string) (proxy.Site, []*agentv1.Route) {
+		s.Page = pg
+		var routes []*agentv1.Route
+		for _, h := range p.leaf.Hosts {
+			routes = append(routes, route(h, "/", target))
+		}
+		return s, routes
+	}
+	project := html.EscapeString(env.Project)
+	switch {
+	case env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED:
+		return page(proxy.Page{Status: 503, Title: env.Project + " is stopped", Text: "Run <code>devcorb up</code> in the project to start it."}, "proxy page: stopped")
+	case p.plan == nil && p.err != nil:
+		return page(proxy.Page{Status: 502, Title: env.Project + " did not start",
+			Text: fmt.Sprintf("Step <code>%s</code> failed:</p><pre>%s</pre><p>Run <code>devcorb status</code> for details.", html.EscapeString(p.failed), html.EscapeString(p.err.Error()))}, "proxy page: "+p.failed+" failed")
+	case p.plan == nil:
+		return page(proxy.Page{Status: 503, Title: env.Project + " is starting", Text: "Devcorb is preparing environment <code>" + env.Id + "</code> of <code>" + project + "</code>."}, "proxy page: starting")
+	}
+
+	var routes []*agentv1.Route
+	main := proxy.VHost{Hosts: []string{p.hosts[0]},
+		NotFound: proxy.Page{Status: 404, Title: "No module serves this path", Text: "Modules of <code>" + project + "</code> serve " + html.EscapeString(strings.Join(modulePaths(p.plan), ", ")) + "."}}
+	for _, u := range p.plan.Units {
+		if u.Role != stack.RoleModule || len(u.Routes) == 0 {
+			continue
+		}
+		up := proxy.Upstream{Name: u.Name, Addr: netip.AddrPortFrom(u.IP, uint16(u.Port))}
+		for _, prefix := range u.Routes {
+			main.Routes = append(main.Routes, proxy.PathRoute{Prefix: prefix, Upstream: up})
+			routes = append(routes, route(p.hosts[0], prefix, fmt.Sprintf("module %s (%s)", u.Name, up.Addr)))
+		}
+	}
+	if len(main.Routes) == 0 {
+		main.NotFound = proxy.Page{Status: 404, Title: env.Project + " has no routes", Text: "No module of <code>" + project + "</code> has <code>routes</code> in workspace.yaml."}
+		routes = append(routes, route(p.hosts[0], "/", "proxy page: no routes"))
+	}
+	s.VHosts = append(s.VHosts, main)
+	for _, u := range p.plan.Units {
+		if u.Expose == "" || u.Port == 0 {
+			continue
+		}
+		host := u.Expose + "." + p.hosts[0]
+		up := proxy.Upstream{Name: u.Name, Addr: netip.AddrPortFrom(u.IP, uint16(u.Port))}
+		s.VHosts = append(s.VHosts, proxy.VHost{Hosts: []string{host}, Routes: []proxy.PathRoute{{Prefix: "/", Upstream: up}}})
+		routes = append(routes, route(host, "/", fmt.Sprintf("service %s (%s)", u.Name, up.Addr)))
+	}
+	// After a failed step what did start stays reachable; the status says what failed.
+	return s, routes
+}
+
+func modulePaths(plan *stack.Plan) []string {
+	var out []string
+	for _, u := range plan.Units {
+		if u.Role == stack.RoleModule {
+			out = append(out, u.Routes...)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// waitAnswers waits until every module with routes answers through the proxy. A module
+// that exits fails the environment; one still starting when the time is up leaves it
+// waiting, and the next pass looks again.
+func (r *Reconciler) waitAnswers(ctx context.Context, p *prepared, ports proxy.Ports) (string, error) {
+	const done = "every module answers"
+	if r.opt.Answers == nil {
+		return done, nil
+	}
+	var pending []stack.Unit
+	for _, u := range p.plan.Units {
+		if u.Role == stack.RoleModule && len(u.Routes) > 0 {
+			pending = append(pending, u)
+		}
+	}
+	deadline := time.Now().Add(r.opt.ReadyTimeout)
+	for {
+		var still []stack.Unit
+		for _, u := range pending {
+			if err := r.opt.Answers(ctx, p.hosts[0], u.Routes[0], ports); err != nil {
+				if ctx.Err() != nil {
+					return "", ctx.Err()
+				}
+				still = append(still, u)
+			}
+		}
+		pending = still
+		if len(pending) == 0 {
+			return done, nil
+		}
+		var names []string
+		for _, u := range pending {
+			ctr, err := r.container(ctx, u.Spec.Name)
+			switch {
+			case err != nil:
+				return "", err
+			case ctr == nil:
+				return "", fmt.Errorf("the container of %s is gone", u.Name)
+			case !ctr.Running:
+				return "", r.explain(ctx, ctr.ID, fmt.Errorf("%s exited", u.Name))
+			}
+			names = append(names, fmt.Sprintf("%s on port %d", u.Name, u.Port))
+		}
+		msg := "waiting for " + strings.Join(names, ", ")
+		if time.Now().After(deadline) {
+			return msg + " (devcorb logs " + pending[0].Name + ")", errWaiting
+		}
+		r.stepMessage(p.env.Id, "ready", msg)
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(time.Second):
+		}
+	}
 }
 
 // whyNotServed adds what the agent knows about Envoy to a failed probe.
@@ -320,8 +465,9 @@ func (r *Reconciler) whyNotServed(err error) error {
 
 // parsed is a project's workspace.yaml, or why it cannot be read.
 type parsed struct {
-	ws  *workspace.Workspace
-	err error
+	ws   *workspace.Workspace
+	root string
+	err  error
 }
 
 func parseProjects(projects []*agentv1.ProjectSpec) map[string]*parsed {
@@ -334,7 +480,7 @@ func parseProjects(projects []*agentv1.ProjectSpec) map[string]*parsed {
 		case res.Workspace == nil || res.Workspace.Domain == "":
 			out[p.Name] = &parsed{err: errors.New("no domain")}
 		default:
-			out[p.Name] = &parsed{ws: res.Workspace}
+			out[p.Name] = &parsed{ws: res.Workspace, root: p.Root}
 		}
 	}
 	return out

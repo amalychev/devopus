@@ -48,7 +48,7 @@
 
 ## Статус
 
-Этап 1 (MVP) начат параллельно с продуктовой валидацией этапа 0 (20 интервью и 5 LOI ещё впереди — см. [итоговый отчёт этапа 0](docs/stage-0/report.md)). Готовы вехи M1 (`workspace.yaml` v1, импорт/экспорт compose) и M2 (каркас агента). План — [docs/stage-1/plan.md](docs/stage-1/plan.md).
+Этап 1 (MVP) начат параллельно с продуктовой валидацией этапа 0 (20 интервью и 5 LOI ещё впереди — см. [итоговый отчёт этапа 0](docs/stage-0/report.md)). Готовы вехи M1 (`workspace.yaml` v1, импорт/экспорт compose), M2 (каркас агента), M3 (сеть, прокси, CA, DNS) и M4 (базовое окружение: модули, сервисы, хуки, маршруты по путям) — попробовать: [examples/demo](examples/demo). План — [docs/stage-1/plan.md](docs/stage-1/plan.md).
 
 ## Разработка
 
@@ -63,8 +63,14 @@ go build -o devcorb ./cmd/devcorb      # бинарник
 ./devcorb export compose -o out.yml    # обратно в docker-compose
 ./devcorb schema                       # JSON Schema для редактора
 ./devcorb up                           # поднять базовое окружение (стартует агента в фоне)
-./devcorb status                       # агент, runtime, окружения
-./devcorb down --volumes               # удалить окружения проекта
+./devcorb status                       # агент, runtime, прокси, окружения и их модули
+./devcorb open                         # открыть окружение в браузере
+./devcorb routes                       # таблица маршрутов прокси
+./devcorb logs api --follow            # вывод модуля или сервиса
+./devcorb exec api -- sh               # команда в контейнере модуля
+./devcorb doctor --fix                 # проверки; доверие к локальному CA
+./devcorb down                         # остановить (данные остаются)
+./devcorb down --volumes               # удалить окружения проекта с данными
 
 go tool -modfile=tools/go.mod buf generate   # после правок proto/
 ```

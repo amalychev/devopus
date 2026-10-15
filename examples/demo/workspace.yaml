@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/devcorb/devcorb/main/schema/workspace.v1.json
+#
+# Demo project of stage 1: three modules on one host, a database and a mail catcher.
+#   cd examples/demo && devcorb up
+version: 1
+project: demo
+domain: demo.localhost
+
+services:
+  db:
+    image: postgres:17.6
+    port: 5432
+    env:
+      POSTGRES_DB: demo
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: pg_isready -U demo -d demo
+      interval: 1s
+      retries: 30
+  mail:
+    image: axllent/mailpit:v1.27
+    port: 1025
+    ui_port: 8025
+    expose: mail                     # https://mail.demo.localhost
+
+modules:
+  web:                               # Node: the page and server-side rendering
+    path: web
+    runtime: node:22
+    routes: ["/"]
+    port: 3000
+    uses: [api]
+    command: node server.js
+    env:
+      API_URL: ${{ api.url }}        # http://api:8080, inside the environment
+      PUBLIC_URL: ${{ env.url }}     # https://demo.localhost, through the proxy
+
+  api:                               # Python: JSON over the database
+    path: api
+    runtime: python:3.12
+    routes: ["/api"]
+    uses: [db, mail]
+    volumes: ["venv:/venv"]          # dependencies live in a volume, not in the code folder
+    env:
+      DATABASE_URL: postgresql://demo:${{ secrets.DB_PASSWORD }}@${{ db.host }}:${{ db.port }}/${{ db.database }}
+      SMTP_HOST: ${{ mail.host }}
+      SMTP_PORT: ${{ mail.port }}
+    hooks:
+      install: python -m venv /venv && /venv/bin/pip install --quiet -r requirements.txt
+      migrate: /venv/bin/python migrate.py
+    command: /venv/bin/python app.py
+
+  admin:                             # PHP: a page under /admin
+    path: admin
+    runtime: php:8.3
+    routes: ["/admin"]
+    uses: [api]
+    command: php -S 0.0.0.0:8080 -t public
+    env:
+      API_URL: ${{ api.url }}

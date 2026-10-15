@@ -79,6 +79,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		a.doctorCmd(),
 		a.routesCmd(),
 		a.openCmd(),
+		a.logsCmd(),
+		a.execCmd(),
 		a.proxyCmd(),
 	)
 

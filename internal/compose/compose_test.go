@@ -126,6 +126,9 @@ func TestImport(t *testing.T) {
 	if !slices.Contains(rep.PinLater, "cache: redis:alpine") {
 		t.Errorf("pin later = %v", rep.PinLater)
 	}
+	if w.Modules["web"].Mount != "/app" || w.Modules["api"].Mount != "/var/www" {
+		t.Errorf("mounts: web %q api %q", w.Modules["web"].Mount, w.Modules["api"].Mount)
+	}
 	if rep.CodeMounts != 2 || rep.DroppedPorts != 4 {
 		t.Errorf("code mounts %d dropped ports %d", rep.CodeMounts, rep.DroppedPorts)
 	}
