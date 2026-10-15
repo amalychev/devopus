@@ -41,6 +41,7 @@ type Runtime interface {
 	ConnectNetwork(ctx context.Context, networkID, containerID string, ip netip.Addr) error
 	DisconnectNetwork(ctx context.Context, networkID, containerID string) error
 	ContainerLogs(ctx context.Context, id string, lines int) string
+	Exec(ctx context.Context, id, user string, cmd []string) (runtime.ExecResult, error)
 	StopContainer(ctx context.Context, id string) error
 	WaitContainer(ctx context.Context, id string) (int, error)
 	CopyLogs(ctx context.Context, id string, w io.Writer) error
@@ -105,8 +106,10 @@ type Reconciler struct {
 	status map[string]*agentv1.EnvironmentStatus
 	// forced: environments whose worktrees go even with work in them.
 	forced map[string]bool
-	proxy  *agentv1.ProxyStatus
-	routes []*agentv1.Route
+	// needGolden: per project, the databases running features copy; set by each pass.
+	needGolden map[string]map[string]bool
+	proxy      *agentv1.ProxyStatus
+	routes     []*agentv1.Route
 }
 
 // New makes a reconciler; publish receives a copy of every status that changed.
@@ -269,6 +272,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, desired *agentv1.DesiredStat
 		}
 	}
 
+	r.needGolden = map[string]map[string]bool{}
+	for _, env := range envs {
+		ws := workspaces[env.Project]
+		if !isFeature(env) || env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED || ws == nil || ws.ws == nil {
+			continue
+		}
+		if iso, err := stack.Feature(ws.ws, env.ForkedModules); err == nil {
+			if r.needGolden[env.Project] == nil {
+				r.needGolden[env.Project] = map[string]bool{}
+			}
+			for _, svc := range iso.Services {
+				r.needGolden[env.Project][svc] = true
+			}
+		}
+	}
+
 	wanted := map[string]bool{}
 	var preps []*prepared
 	bases := map[string]*prepared{}
@@ -336,6 +355,8 @@ type prepared struct {
 	base   *prepared
 	iso    *stack.Isolation
 	shared *proxy.Shared
+	// notes for people, from the isolation step.
+	notes []string
 }
 
 func isFeature(env *agentv1.EnvironmentSpec) bool {

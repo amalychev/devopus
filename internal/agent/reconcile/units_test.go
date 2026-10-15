@@ -95,7 +95,7 @@ func TestModulesComeUp(t *testing.T) {
 		got != "sh -c npm ci; sh -c composer install; sh -c php artisan migrate" {
 		t.Errorf("hooks: %s", got)
 	}
-	if h.rt.builds != 1 || len(h.rt.vols) != 1 {
+	if h.rt.builds != 1 || len(h.rt.vols) != 2 { // pgdata and its golden copy
 		t.Errorf("%d builds, volumes %v", h.rt.builds, h.rt.vols)
 	}
 	if len(h.rt.byRole(stack.RoleHook)) != 0 {
@@ -189,7 +189,7 @@ func TestModulesComeUp(t *testing.T) {
 	if st := r.Statuses()[0]; st.Phase != agentv1.Phase_PHASE_STOPPED || len(st.Units) != 5 || st.Units[0].State != "exited" {
 		t.Errorf("stopped: %v units %v", st.Phase, st.Units)
 	}
-	if h.xds.last().Sites[0].Page.Status != 503 || len(h.rt.vols) != 1 {
+	if h.xds.last().Sites[0].Page.Status != 503 || len(h.rt.vols) != 2 {
 		t.Error("a stopped environment must keep its data and answer 503")
 	}
 

@@ -240,7 +240,7 @@ func TestPlanServices(t *testing.T) {
 	if db.Spec.Binds[0] != (runtime.Bind{Source: filepath.Join(env.Root, "db/init.sql"), Target: "/docker-entrypoint-initdb.d/init.sql", ReadOnly: true}) {
 		t.Errorf("db binds %v", db.Spec.Binds)
 	}
-	if !slices.Equal(p.Volumes, []string{"shop-abc123-node_modules", "shop-abc123-pgdata"}) {
+	if !slices.Equal(p.Volumes, []string{"shop-abc123-db.golden", "shop-abc123-node_modules", "shop-abc123-pgdata"}) {
 		t.Errorf("volumes %v", p.Volumes)
 	}
 	if mail := unit(t, p, "mail"); mail.Expose != "mail" || mail.Port != 8025 {

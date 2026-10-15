@@ -27,6 +27,9 @@ service AgentService {
   // RemoveFeature removes a feature with its containers, data and worktrees. Without
   // force it refuses while a worktree has work that exists nowhere else.
   rpc RemoveFeature(RemoveFeatureRequest) returns (RemoveFeatureResponse);
+  // ResetData recreates a feature's databases from the golden copies, or refreshes the
+  // golden copies of the base environment.
+  rpc ResetData(ResetDataRequest) returns (ResetDataResponse);
 }
 
 // DesiredState is what must exist on this device. Revision grows with every change.
@@ -83,6 +86,9 @@ message EnvironmentSpec {
   DesiredPhase phase = 7;
   // The feature's name as people typed it (PAY-123); the slug is derived from it.
   string name = 8;
+  // Bumping a service's number recreates the feature's copy of its data from the golden
+  // copy; in the base environment it refreshes the golden copy.
+  map<string, uint64> data_resets = 9;
 }
 
 enum Phase {
@@ -145,6 +151,21 @@ message EnvironmentStatus {
   // The project's folder in the feature's worktree of its repository; empty when the
   // feature's modules all come from other repositories.
   string code_root = 20;
+  // Databases: golden copies in the base environment, their copies in a feature.
+  repeated DataStatus data = 21;
+}
+
+message DataStatus {
+  string service = 1;
+  // postgres or mysql.
+  string engine = 2;
+  // When the golden copy (base) or the feature's copy was made.
+  google.protobuf.Timestamp copied_at = 3;
+  // The feature's copy comes from an older golden copy: main migrated since.
+  bool behind = 4;
+  // Size of the copy, human-readable.
+  string size = 5;
+  string note = 6;
 }
 
 message ModuleSource {
@@ -346,4 +367,18 @@ message RemoveFeatureRequest {
 message RemoveFeatureResponse {
   string environment_id = 1;
   uint64 revision = 2;
+}
+
+message ResetDataRequest {
+  string project = 1;
+  // Name, slug or ID of a feature; empty for the base environment's golden copies.
+  string environment = 2;
+  // Empty: every database of the environment.
+  repeated string services = 3;
+}
+
+message ResetDataResponse {
+  string environment_id = 1;
+  uint64 revision = 2;
+  repeated string services = 3;
 }

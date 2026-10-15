@@ -134,8 +134,19 @@ func (a *app) printIsolation(ws *workspace.Workspace, iso *stack.Isolation, name
 	if d := iso.Dependents(); len(d) > 0 {
 		fmt.Fprintf(w, "  also runs\t%s: they use forked modules, on the base branch\n", strings.Join(d, ", "))
 	}
-	if len(iso.Services) > 0 {
-		fmt.Fprintf(w, "  own\t%s: fresh, the feature's migrations run on them\n", strings.Join(iso.Services, ", "))
+	var copies, fresh []string
+	for _, svc := range iso.Services {
+		if stack.Engine(ws.Services[svc].Image) != "" {
+			copies = append(copies, svc)
+		} else {
+			fresh = append(fresh, svc)
+		}
+	}
+	if len(copies) > 0 {
+		fmt.Fprintf(w, "  copies\t%s: main's data, the feature's migrations run on the copy\n", strings.Join(copies, ", "))
+	}
+	if len(fresh) > 0 {
+		fmt.Fprintf(w, "  own\t%s: empty, its own instance\n", strings.Join(fresh, ", "))
 	}
 	if shared := append(append([]string{}, iso.SharedModules...), iso.SharedServices...); len(shared) > 0 {
 		fmt.Fprintf(w, "  shared\t%s from the base environment\n", strings.Join(shared, ", "))

@@ -74,6 +74,9 @@ go build -o devopus ./cmd/devopus      # бинарник
 ./devopus feature path PAY-1           # папка кода фичи (для IDE и AI-агентов)
 ./devopus feature rm PAY-1             # удалить; откажет при несохранённой работе без --force
 ./devopus logs PAY-1 api               # окружение — ID, слаг или имя фичи
+./devopus db lag                       # копии баз фич и золотые копии main
+./devopus db reset PAY-1               # заново скопировать данные main в фичу
+./devopus db golden refresh            # снять золотые копии main с текущими данными
 ./devopus doctor --fix                 # проверки; доверие к локальному CA
 ./devopus down                         # остановить (данные остаются)
 ./devopus down --volumes               # удалить окружения проекта с данными

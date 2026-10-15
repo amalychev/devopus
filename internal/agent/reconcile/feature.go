@@ -75,7 +75,7 @@ func (r *Reconciler) isolate(env *agentv1.EnvironmentSpec, p *prepared, nw runti
 		}
 		notes = append(notes, fmt.Sprintf("migrations of %s are skipped: they would change %s of the base environment", m, strings.Join(on, ", ")))
 	}
-	p.iso, p.shared = iso, sh
+	p.iso, p.shared, p.notes = iso, sh, notes
 	shared := append(append([]string{}, iso.SharedModules...), iso.SharedServices...)
 	r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.Shared, s.Notes = shared, notes })
 

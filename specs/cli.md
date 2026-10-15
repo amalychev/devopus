@@ -1,6 +1,6 @@
 # Спецификация: CLI агента (MVP)
 
-**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (M1), `agent run`, `status`, `up`, `down` (M2), `doctor [--fix]`, `routes`, `open`, `proxy restart`, `proxy coexist` (M3), `logs`, `exec` (M4; `up` поднимает сервисы и модули, `status` показывает их), `feature create/add/list/rm/path` (M5). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
+**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (M1), `agent run`, `status`, `up`, `down` (M2), `doctor [--fix]`, `routes`, `open`, `proxy restart`, `proxy coexist` (M3), `logs`, `exec` (M4; `up` поднимает сервисы и модули, `status` показывает их), `feature create/add/list/rm/path` (M5), `db reset`, `db golden refresh`, `db lag` (M6). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
 
 ## Установка и служба
 
@@ -45,9 +45,9 @@
 
 | Команда | Описание |
 |---|---|
-| `devopus db golden refresh [service]` | Пересоздать золотую копию |
-| `devopus db reset <feature> [service]` | Пересоздать клон из золотой копии |
-| `devopus db lag` | Отставание схем клонов от золотой копии |
+| `devopus db golden refresh [service]…` | Снять золотые копии баз main заново, с данными, что в main сейчас. Сам агент делает это, когда фиче впервые нужна копия и после изменения миграций main |
+| `devopus db reset <feature> [service]…` | Выбросить данные фичи и скопировать золотую копию заново; миграции фичи идут на новой копии. Без сервисов — все базы фичи |
+| `devopus db lag` | Золотые копии main и копии фич: когда сделаны, размер, отстаёт ли копия фичи от золотой |
 | `devopus snapshot build --config workspace.yaml` | (для CI клиента) собрать обезличенный снапшот |
 
 ## Отладка

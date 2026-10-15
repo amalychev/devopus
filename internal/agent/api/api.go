@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -226,6 +227,66 @@ func (s *Server) RemoveFeature(ctx context.Context, req *connect.Request[agentv1
 		s.b.Force(env.Id)
 	}
 	return connect.NewResponse(&agentv1.RemoveFeatureResponse{EnvironmentId: env.Id, Revision: rev}), nil
+}
+
+func (s *Server) ResetData(_ context.Context, req *connect.Request[agentv1.ResetDataRequest]) (*connect.Response[agentv1.ResetDataResponse], error) {
+	m := req.Msg
+	var ws *workspace.Workspace
+	st := s.b.Store()
+	for _, p := range st.Snapshot().Projects {
+		if p.Name == m.Project {
+			if res, err := workspace.Parse(p.Config); err == nil {
+				ws = res.Workspace
+			}
+		}
+	}
+	if ws == nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%w %q", store.ErrUnknownProject, m.Project))
+	}
+	// The databases of the environment: in a feature those it runs itself.
+	_, candidates := stack.Active(ws)
+	if m.Environment != "" {
+		f := st.Feature(m.Project, m.Environment)
+		if f == nil {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%w %q in %s", store.ErrUnknownFeature, m.Environment, m.Project))
+		}
+		iso, err := stack.Feature(ws, f.ForkedModules)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		candidates = iso.Services
+	}
+	var dbs []string
+	for _, n := range candidates {
+		if stack.Engine(ws.Services[n].Image) != "" {
+			dbs = append(dbs, n)
+		}
+	}
+	services := m.Services
+	if len(services) == 0 {
+		services = dbs
+	}
+	for _, svc := range services {
+		if !slices.Contains(dbs, svc) {
+			where := "the base environment"
+			if m.Environment != "" {
+				where = "feature " + m.Environment
+			}
+			have := strings.Join(dbs, ", ")
+			if have == "" {
+				have = "none"
+			}
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s has no database %q of its own to copy (Postgres or MySQL with a volume); it has: %s", where, svc, have))
+		}
+	}
+	if len(services) == 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("no databases to copy: Postgres or MySQL services with a volume"))
+	}
+	env, rev, err := st.ResetData(m.Project, m.Environment, services)
+	if err != nil {
+		return nil, storeError(err)
+	}
+	return connect.NewResponse(&agentv1.ResetDataResponse{EnvironmentId: env.Id, Revision: rev, Services: services}), nil
 }
 
 // validBranch is a rough git check-ref-format: what people type into a feature name.

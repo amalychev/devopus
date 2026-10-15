@@ -47,6 +47,8 @@ type fakeRuntime struct {
 	hookExit map[string]int
 	// crash makes containers of a role exit right after they start.
 	crash map[string]bool
+	// execs are the containers commands ran in.
+	execs []string
 }
 
 func newFake(foreign ...runtime.Network) *fakeRuntime {
@@ -193,6 +195,17 @@ func (f *fakeRuntime) DisconnectNetwork(_ context.Context, netID, ctrID string) 
 }
 
 func (f *fakeRuntime) ContainerLogs(context.Context, string, int) string { return "" }
+
+func (f *fakeRuntime) Exec(_ context.Context, id, _ string, _ []string) (runtime.ExecResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	name := id
+	if c, ok := f.ctrs[id]; ok {
+		name = c.Name
+	}
+	f.execs = append(f.execs, name)
+	return runtime.ExecResult{Stdout: "12M\n"}, nil
+}
 
 func (f *fakeRuntime) StopContainer(_ context.Context, id string) error {
 	f.mu.Lock()
@@ -449,7 +462,7 @@ func TestCreateConvergeAndGC(t *testing.T) {
 		}
 		steps = append(steps, s.Name)
 	}
-	if got := strings.Join(steps, ","); got != "network,certificate,proxy,dns,source,images,services,install,migrate,modules,routes,ready" {
+	if got := strings.Join(steps, ","); got != "network,certificate,proxy,dns,source,images,services,install,migrate,golden,modules,routes,ready" {
 		t.Errorf("steps = %s", got)
 	}
 	if st[0].Url != "https://shop.localhost" {

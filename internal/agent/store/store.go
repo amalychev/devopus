@@ -218,6 +218,35 @@ func (s *Store) RemoveFeature(project, feature string, check func(*agentv1.Envir
 	return env, rev, err
 }
 
+// ResetData bumps the data reset numbers of the services of an environment: a feature
+// (by name, slug or ID), or the base environment when env is empty.
+func (s *Store) ResetData(project, env string, services []string) (*agentv1.EnvironmentSpec, uint64, error) {
+	var out *agentv1.EnvironmentSpec
+	rev, err := s.update(func(st *agentv1.DesiredState) error {
+		if findProject(st, project) == nil {
+			return fmt.Errorf("%w %q", ErrUnknownProject, project)
+		}
+		e := baseEnv(st, project)
+		if env != "" {
+			if e = findFeature(st, project, env); e == nil {
+				return fmt.Errorf("%w %q in %s", ErrUnknownFeature, env, project)
+			}
+		}
+		if e == nil {
+			return fmt.Errorf("%w %q", ErrUnknownProject, project)
+		}
+		if e.DataResets == nil {
+			e.DataResets = map[string]uint64{}
+		}
+		for _, svc := range services {
+			e.DataResets[svc]++
+		}
+		out = proto.Clone(e).(*agentv1.EnvironmentSpec)
+		return nil
+	})
+	return out, rev, err
+}
+
 func findFeature(st *agentv1.DesiredState, project, key string) *agentv1.EnvironmentSpec {
 	for _, e := range st.Environments {
 		if e.Project == project && e.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE &&

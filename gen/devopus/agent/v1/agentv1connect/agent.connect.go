@@ -58,6 +58,8 @@ const (
 	// AgentServiceRemoveFeatureProcedure is the fully-qualified name of the AgentService's
 	// RemoveFeature RPC.
 	AgentServiceRemoveFeatureProcedure = "/devopus.agent.v1.AgentService/RemoveFeature"
+	// AgentServiceResetDataProcedure is the fully-qualified name of the AgentService's ResetData RPC.
+	AgentServiceResetDataProcedure = "/devopus.agent.v1.AgentService/ResetData"
 )
 
 // AgentServiceClient is a client for the devopus.agent.v1.AgentService service.
@@ -81,6 +83,9 @@ type AgentServiceClient interface {
 	// RemoveFeature removes a feature with its containers, data and worktrees. Without
 	// force it refuses while a worktree has work that exists nowhere else.
 	RemoveFeature(context.Context, *connect.Request[v1.RemoveFeatureRequest]) (*connect.Response[v1.RemoveFeatureResponse], error)
+	// ResetData recreates a feature's databases from the golden copies, or refreshes the
+	// golden copies of the base environment.
+	ResetData(context.Context, *connect.Request[v1.ResetDataRequest]) (*connect.Response[v1.ResetDataResponse], error)
 }
 
 // NewAgentServiceClient constructs a client for the devopus.agent.v1.AgentService service. By
@@ -148,6 +153,12 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(agentServiceMethods.ByName("RemoveFeature")),
 			connect.WithClientOptions(opts...),
 		),
+		resetData: connect.NewClient[v1.ResetDataRequest, v1.ResetDataResponse](
+			httpClient,
+			baseURL+AgentServiceResetDataProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("ResetData")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -162,6 +173,7 @@ type agentServiceClient struct {
 	createFeature     *connect.Client[v1.CreateFeatureRequest, v1.CreateFeatureResponse]
 	addFeatureModules *connect.Client[v1.AddFeatureModulesRequest, v1.AddFeatureModulesResponse]
 	removeFeature     *connect.Client[v1.RemoveFeatureRequest, v1.RemoveFeatureResponse]
+	resetData         *connect.Client[v1.ResetDataRequest, v1.ResetDataResponse]
 }
 
 // Status calls devopus.agent.v1.AgentService.Status.
@@ -209,6 +221,11 @@ func (c *agentServiceClient) RemoveFeature(ctx context.Context, req *connect.Req
 	return c.removeFeature.CallUnary(ctx, req)
 }
 
+// ResetData calls devopus.agent.v1.AgentService.ResetData.
+func (c *agentServiceClient) ResetData(ctx context.Context, req *connect.Request[v1.ResetDataRequest]) (*connect.Response[v1.ResetDataResponse], error) {
+	return c.resetData.CallUnary(ctx, req)
+}
+
 // AgentServiceHandler is an implementation of the devopus.agent.v1.AgentService service.
 type AgentServiceHandler interface {
 	// Status reports the agent, the container runtime and every environment.
@@ -230,6 +247,9 @@ type AgentServiceHandler interface {
 	// RemoveFeature removes a feature with its containers, data and worktrees. Without
 	// force it refuses while a worktree has work that exists nowhere else.
 	RemoveFeature(context.Context, *connect.Request[v1.RemoveFeatureRequest]) (*connect.Response[v1.RemoveFeatureResponse], error)
+	// ResetData recreates a feature's databases from the golden copies, or refreshes the
+	// golden copies of the base environment.
+	ResetData(context.Context, *connect.Request[v1.ResetDataRequest]) (*connect.Response[v1.ResetDataResponse], error)
 }
 
 // NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -293,6 +313,12 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(agentServiceMethods.ByName("RemoveFeature")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentServiceResetDataHandler := connect.NewUnaryHandler(
+		AgentServiceResetDataProcedure,
+		svc.ResetData,
+		connect.WithSchema(agentServiceMethods.ByName("ResetData")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/devopus.agent.v1.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentServiceStatusProcedure:
@@ -313,6 +339,8 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 			agentServiceAddFeatureModulesHandler.ServeHTTP(w, r)
 		case AgentServiceRemoveFeatureProcedure:
 			agentServiceRemoveFeatureHandler.ServeHTTP(w, r)
+		case AgentServiceResetDataProcedure:
+			agentServiceResetDataHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -356,4 +384,8 @@ func (UnimplementedAgentServiceHandler) AddFeatureModules(context.Context, *conn
 
 func (UnimplementedAgentServiceHandler) RemoveFeature(context.Context, *connect.Request[v1.RemoveFeatureRequest]) (*connect.Response[v1.RemoveFeatureResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.RemoveFeature is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) ResetData(context.Context, *connect.Request[v1.ResetDataRequest]) (*connect.Response[v1.ResetDataResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.ResetData is not implemented"))
 }

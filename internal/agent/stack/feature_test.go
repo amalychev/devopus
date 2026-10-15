@@ -6,6 +6,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/devopus/devopus/internal/agent/runtime"
 	"github.com/devopus/devopus/internal/workspace"
 )
 
@@ -197,5 +198,94 @@ func TestBuildFeature(t *testing.T) {
 		if h.Name == "migrate" {
 			t.Errorf("migrate of %s runs on the shared database", h.Module)
 		}
+	}
+}
+
+func TestEngineAndDataDir(t *testing.T) {
+	for image, want := range map[string]string{
+		"postgres:17.6":                   "/var/lib/postgresql/data",
+		"postgres:18.1-alpine":            "/var/lib/postgresql/18/docker",
+		"postgres:18@sha256:abc":          "/var/lib/postgresql/18/docker",
+		"postgis/postgis:17-3.5":          "/var/lib/postgresql/data",
+		"pgvector/pgvector:pg18":          "/var/lib/postgresql/18/docker",
+		"timescale/timescaledb:2.17-pg18": "/var/lib/postgresql/18/docker",
+		"mysql:8.4.3":                     "/var/lib/mysql",
+		"redis:7.4":                       "",
+		"mariadb:11.4":                    "",
+	} {
+		if got := DataDir(Engine(image), image, nil); got != want {
+			t.Errorf("%s: data dir %q, want %q", image, got, want)
+		}
+	}
+	if got := DataDir(EnginePostgres, "postgres:17", map[string]string{"PGDATA": "/pg/data/"}); got != "/pg/data" {
+		t.Errorf("PGDATA: %q", got)
+	}
+}
+
+const dataShop = `version: 1
+project: shop
+domain: shop.localhost
+services:
+  db:
+    image: postgres:17.6
+    port: 5432
+    volumes: ["pg:/var/lib/postgresql"]
+  legacy:
+    image: mysql:8.4.3
+    port: 3306
+    volumes: ["my:/var/lib/mysql"]
+  scratch:
+    image: postgres:17.6
+    port: 5433
+modules:
+  api:
+    path: api
+    runtime: node:22
+    command: node app.js
+    uses: [db, legacy, scratch]
+  web:
+    path: web
+    runtime: node:22
+    command: node web.js
+`
+
+func TestPlanData(t *testing.T) {
+	res, err := workspace.Parse([]byte(dataShop))
+	if err != nil || res.Diagnostics.HasErrors() {
+		t.Fatal(err, res.Diagnostics.Errors())
+	}
+	w := res.Workspace
+	env := Env{ID: "base1", Project: "shop", Root: t.TempDir(), Network: "n", Subnet: netip.MustParsePrefix("10.213.9.0/24"),
+		Sources: map[string]string{"api": "/src/api", "web": "/src/web"}}
+	p, err := Build(w, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Data) != 2 || len(p.Notes) != 1 {
+		t.Fatalf("data %+v, notes %v", p.Data, p.Notes)
+	}
+	db := p.Data[0]
+	if db.Service != "db" || db.Volume != "shop-base1-pg" || db.Path != "data" || db.Golden != "shop-base1-db.golden" || !slices.Equal(db.Uses, []string{"api"}) {
+		t.Errorf("db data %+v", db)
+	}
+	if !slices.ContainsFunc(unit(t, p, "db").Spec.Volumes, func(v runtime.VolumeMount) bool { return v.Target == GoldenMount && v.Name == db.Golden }) {
+		t.Error("the base's database does not see its golden volume")
+	}
+
+	// A feature's instance starts from the base's golden copy; its MySQL is lean.
+	iso, err := Feature(w, []string{"api"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.ID, env.BaseID, env.Isolation = "feat1", "base1", iso
+	p, err = Build(w, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Data) != 2 || p.Data[0].Golden != "shop-base1-db.golden" || p.Data[0].Volume != "shop-feat1-pg" {
+		t.Errorf("feature data %+v", p.Data)
+	}
+	if my := unit(t, p, "legacy"); my.Spec.Cmd[0] != "mysqld" || len(my.Spec.Volumes) != 1 {
+		t.Errorf("feature mysql %v %v", my.Spec.Cmd, my.Spec.Volumes)
 	}
 }

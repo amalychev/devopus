@@ -39,7 +39,7 @@ func (r *Reconciler) unitSteps(env *agentv1.EnvironmentSpec, root string, p *pre
 	var sources map[string]string
 	var heads map[string]string
 	ran := map[string]bool{} // modules whose hooks ran in this pass
-	return []step{
+	steps := []step{
 		{"source", func(ctx context.Context) (string, error) {
 			var msg string
 			var err error
@@ -64,16 +64,26 @@ func (r *Reconciler) unitSteps(env *agentv1.EnvironmentSpec, root string, p *pre
 				CA: r.caPEM(), Bundle: r.opt.Bundle,
 				DNS:    proxy.DNSIP(nw.Subnets[0]),
 				Labels: r.labels(env),
+				BaseID: baseID(p),
 			})
 			if err != nil {
 				return "", err
 			}
 			p.plan = plan
+			notes := append(append([]string{}, p.notes...), plan.Notes...)
+			r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.Notes = notes })
 			return msg, nil
 		}},
 		{"images", func(ctx context.Context) (string, error) {
 			return r.ensureImages(ctx, env, p.plan)
 		}},
+	}
+	if isFeature(env) {
+		steps = append(steps, step{"data", func(ctx context.Context) (string, error) {
+			return r.ensureData(ctx, env, p, o)
+		}})
+	}
+	steps = append(steps, []step{
 		{"services", func(ctx context.Context) (string, error) {
 			if err := r.ensureVolumes(ctx, env, p.plan, o.volumes[env.Id]); err != nil {
 				return "", err
@@ -89,10 +99,23 @@ func (r *Reconciler) unitSteps(env *agentv1.EnvironmentSpec, root string, p *pre
 		{"migrate", func(ctx context.Context) (string, error) {
 			return r.runHooks(ctx, env, p, o, "migrate", ran)
 		}},
-		{"modules", func(ctx context.Context) (string, error) {
-			return r.ensureUnits(ctx, env, p, o, stack.RoleModule, ran)
-		}},
+	}...)
+	if !isFeature(env) {
+		steps = append(steps, step{"golden", func(ctx context.Context) (string, error) {
+			return r.ensureGolden(ctx, env, p)
+		}})
 	}
+	return append(steps, step{"modules", func(ctx context.Context) (string, error) {
+		return r.ensureUnits(ctx, env, p, o, stack.RoleModule, ran)
+	}})
+}
+
+// baseID is the base environment of a feature; empty for a base environment.
+func baseID(p *prepared) string {
+	if p.base != nil && isFeature(p.env) {
+		return p.base.env.Id
+	}
+	return ""
 }
 
 func slugOf(env *agentv1.EnvironmentSpec) string {
@@ -256,7 +279,7 @@ func (r *Reconciler) removeStale(ctx context.Context, plan *stack.Plan, ctrs []r
 			if !want[c.Name] {
 				errs = append(errs, r.rt.RemoveContainer(ctx, c.ID))
 			}
-		case stack.RoleHook:
+		case stack.RoleHook, roleCopy:
 			errs = append(errs, r.rt.RemoveContainer(ctx, c.ID))
 		}
 	}
@@ -481,7 +504,7 @@ func (r *Reconciler) stopUnits(ctx context.Context, ctrs []runtime.Container) er
 			if c.Running {
 				errs = append(errs, r.rt.StopContainer(ctx, c.ID))
 			}
-		case stack.RoleHook:
+		case stack.RoleHook, roleCopy:
 			errs = append(errs, r.rt.RemoveContainer(ctx, c.ID))
 		}
 	}

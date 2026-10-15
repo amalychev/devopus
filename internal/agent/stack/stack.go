@@ -60,6 +60,9 @@ type Env struct {
 	CodeRoot string
 	// Isolation is set for a feature: it runs only its modules and services.
 	Isolation *Isolation
+	// BaseID is the project's base environment, which keeps the golden copies of the
+	// databases; empty in the base environment itself.
+	BaseID string
 	// Network is the environment network's ID, Subnet its /24.
 	Network string
 	Subnet  netip.Prefix
@@ -116,6 +119,10 @@ type Plan struct {
 	Builds  []runtime.BuildSpec
 	// Images to pull: services, runtimes and module images.
 	Images []string
+	// Data are the databases features copy from the base environment.
+	Data []Data
+	// Notes are for people: why a database is not copied, and the like.
+	Notes []string
 }
 
 // Prefix is the start of every container name of the environment; the network has it too.
@@ -227,6 +234,13 @@ func Build(w *workspace.Workspace, env Env) (*Plan, error) {
 		}
 	}
 	b.plan.Hooks = append(installs, migrates...)
+	for i, d := range b.plan.Data {
+		for _, u := range b.plan.Units {
+			if u.Role == RoleModule && contains(w.Modules[u.Owner].Uses, d.Service) {
+				b.plan.Data[i].Uses = append(b.plan.Data[i].Uses, u.Owner)
+			}
+		}
+	}
 	for v := range b.volumes {
 		b.plan.Volumes = append(b.plan.Volumes, v)
 	}
@@ -284,6 +298,22 @@ func (b *builder) service(name string, s *workspace.Service) (Unit, error) {
 	for _, v := range s.Volumes {
 		if err := b.mount(&spec, v, true); err != nil {
 			return Unit{}, err
+		}
+	}
+	if d, note, ok := b.dataOf(name, s, spec.Name); ok {
+		switch {
+		case note != "":
+			b.plan.Notes = append(b.plan.Notes, note)
+		case b.env.Isolation == nil:
+			// The base keeps the golden copy next to its data.
+			b.volumes[d.Golden] = true
+			spec.Volumes = append(spec.Volumes, runtime.VolumeMount{Name: d.Golden, Target: GoldenMount})
+			b.plan.Data = append(b.plan.Data, d)
+		default:
+			if d.Engine == EngineMySQL && len(spec.Cmd) == 0 && len(spec.Entrypoint) == 0 {
+				spec.Cmd = leanMySQL
+			}
+			b.plan.Data = append(b.plan.Data, d)
 		}
 	}
 	b.images[s.Image] = true
@@ -679,6 +709,15 @@ func order(units []Unit) []Unit {
 		visit(i)
 	}
 	return out
+}
+
+func contains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 func clone(s runtime.ContainerSpec) runtime.ContainerSpec {
