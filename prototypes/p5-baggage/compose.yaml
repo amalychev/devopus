@@ -1,6 +1,6 @@
 # P-5 stand. Backends and the main worker exist only in main; features fork payments
 # (and pay-123 also the worker). Nothing but Envoy is published to the host.
-name: devcorb-p5
+name: devopus-p5
 
 x-otel: &otel
   OTEL_PROPAGATORS: tracecontext,baggage
@@ -36,7 +36,7 @@ services:
     build: ./python
     command: ["opentelemetry-instrument", "python", "app.py"]
     environment: { <<: *otel, OTEL_SERVICE_NAME: backend-python }
-    volumes: ["./forks.json:/etc/devcorb/forks.json:ro"]
+    volumes: ["./forks.json:/etc/devopus/forks.json:ro"]
 
   backend-php:
     build: ./backend-php

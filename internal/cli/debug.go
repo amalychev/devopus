@@ -12,9 +12,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
-	"github.com/devcorb/devcorb/internal/agent/client"
-	"github.com/devcorb/devcorb/internal/agent/paths"
+	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	"github.com/devopus/devopus/internal/agent/client"
+	"github.com/devopus/devopus/internal/agent/paths"
 )
 
 // agentStatus asks the running agent for its status; it does not start one.
@@ -37,7 +37,7 @@ func (a *app) findEnv(st *agentv1.StatusResponse, arg string) (*agentv1.Environm
 				return e, nil
 			}
 		}
-		return nil, fail(ExitInvalid, "no environment %q; 'devcorb status' lists them", arg)
+		return nil, fail(ExitInvalid, "no environment %q; 'devopus status' lists them", arg)
 	}
 	res, _, err := a.load()
 	if err != nil {
@@ -51,7 +51,7 @@ func (a *app) findEnv(st *agentv1.StatusResponse, arg string) (*agentv1.Environm
 			return e, nil
 		}
 	}
-	return nil, fail(ExitError, "%s is not up; run 'devcorb up'", res.Workspace.Project)
+	return nil, fail(ExitError, "%s is not up; run 'devopus up'", res.Workspace.Project)
 }
 
 // findUnit resolves [env] <unit> arguments: one argument is a unit of the base
@@ -115,7 +115,7 @@ func (a *app) logsCmd() *cobra.Command {
 		Short: "Show the output of a module, worker or service",
 		Long: "Shows the output of a module, worker or service. With one argument it is a unit of\n" +
 			"the base environment of the project in this folder.\n" +
-			"Hooks and builds log to ~/.devcorb/envs/<env>/logs.",
+			"Hooks and builds log to ~/.devopus/envs/<env>/logs.",
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			st, u, err := a.findUnit(args)
@@ -144,7 +144,7 @@ func (a *app) execCmd() *cobra.Command {
 		Short: "Run a command in a module or service container (default: a shell)",
 		Long: "Runs a command in the container of a module, worker or service. With one argument\n" +
 			"before -- it is a unit of the base environment of the project in this folder.\n\n" +
-			"  devcorb exec api -- php artisan tinker",
+			"  devopus exec api -- php artisan tinker",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, command := args, []string{"sh"}
@@ -155,7 +155,7 @@ func (a *app) execCmd() *cobra.Command {
 				}
 			}
 			if len(target) < 1 || len(target) > 2 {
-				return fail(ExitInvalid, "usage: devcorb exec [env] <module|service> [-- command…]")
+				return fail(ExitInvalid, "usage: devopus exec [env] <module|service> [-- command…]")
 			}
 			st, u, err := a.findUnit(target)
 			if err != nil {

@@ -97,7 +97,7 @@ func fetch(url, cached, dst string) error {
 	return os.WriteFile(dst, data, 0o644)
 }
 
-// roundTrip exports the draft back to compose (base environment, no Devcorb routing) and
+// roundTrip exports the draft back to compose (base environment, no Devopus routing) and
 // lets Docker Compose validate it: the "no lock-in" promise of specs/workspace-yaml.md.
 func roundTrip(d *Draft, root string) string {
 	type svc struct {
@@ -152,7 +152,7 @@ func roundTrip(d *Draft, root string) string {
 		out.Services[n] = s
 	}
 	data, _ := yaml.Marshal(out)
-	file := filepath.Join(root, "devcorb-export.yml")
+	file := filepath.Join(root, "devopus-export.yml")
 	_ = os.WriteFile(file, data, 0o644)
 	cmd := exec.Command("docker", "compose", "-f", file, "config", "-q")
 	cmd.Dir = root

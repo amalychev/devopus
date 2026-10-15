@@ -1,4 +1,4 @@
-// Package api serves the agent's local API (proto/devcorb/agent/v1) to the CLI and
+// Package api serves the agent's local API (proto/devopus/agent/v1) to the CLI and
 // the local panel.
 package api
 
@@ -11,10 +11,10 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
-	"github.com/devcorb/devcorb/gen/devcorb/agent/v1/agentv1connect"
-	"github.com/devcorb/devcorb/internal/agent/store"
-	"github.com/devcorb/devcorb/internal/workspace"
+	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	"github.com/devopus/devopus/gen/devopus/agent/v1/agentv1connect"
+	"github.com/devopus/devopus/internal/agent/store"
+	"github.com/devopus/devopus/internal/workspace"
 )
 
 // Backend is what the API needs from the running agent.
@@ -71,7 +71,7 @@ func (s *Server) SetProxy(_ context.Context, req *connect.Request[agentv1.SetPro
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("port %d is out of range", p))
 		}
 		if p == 80 || p == 443 {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("the dev server must move off 80/443 for Devcorb to take them; pick other ports such as 8080 and 8443"))
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("the dev server must move off 80/443 for Devopus to take them; pick other ports such as 8080 and 8443"))
 		}
 	}
 	if m.CoexistHttpPort == 0 && m.CoexistHttpsPort != 0 {

@@ -1,4 +1,4 @@
-// Command devcorb is the stage-0 prototype for P-1 (workspace.yaml → stack on *.localhost
+// Command devopus is the stage-0 prototype for P-1 (workspace.yaml → stack on *.localhost
 // with HTTPS) and P-2 (Docker isolation between features). Throwaway code: see README.md.
 package main
 
@@ -25,16 +25,16 @@ func main() {
 	}
 }
 
-const usage = `devcorb (prototype P-1/P-2)
+const usage = `devopus (prototype P-1/P-2)
 
-  devcorb doctor                              check Docker, ports 80/443, *.localhost
-  devcorb validate [-f workspace.yaml]
-  devcorb up [-f workspace.yaml]              start the base env and every known feature
-  devcorb feature create <name> --modules a,b
-  devcorb feature rm <name> [--force]
-  devcorb list
-  devcorb routes
-  devcorb down [--purge] [--force]            stop everything; --purge also drops data and worktrees
+  devopus doctor                              check Docker, ports 80/443, *.localhost
+  devopus validate [-f workspace.yaml]
+  devopus up [-f workspace.yaml]              start the base env and every known feature
+  devopus feature create <name> --modules a,b
+  devopus feature rm <name> [--force]
+  devopus list
+  devopus routes
+  devopus down [--purge] [--force]            stop everything; --purge also drops data and worktrees
 `
 
 func run(args []string, out io.Writer) error {
@@ -64,7 +64,7 @@ func run(args []string, out io.Writer) error {
 		return cmdRoutes(out)
 	case "feature":
 		if len(pos) < 2 {
-			return errors.New("usage: devcorb feature create|rm <name>")
+			return errors.New("usage: devopus feature create|rm <name>")
 		}
 		switch pos[0] {
 		case "create":
@@ -138,7 +138,7 @@ func cmdDoctor(log func(string, ...any)) error {
 	for _, n := range notes {
 		log("• %s", n)
 	}
-	if addrs, err := net.LookupHost("probe.devcorb.localhost"); err != nil || len(addrs) == 0 {
+	if addrs, err := net.LookupHost("probe.devopus.localhost"); err != nil || len(addrs) == 0 {
 		log("✗ *.localhost does not resolve through the system resolver: browsers work, curl/Node/Python may not (needs /etc/resolver/localhost + local DNS; not done by the prototype)")
 	} else {
 		log("✓ *.localhost resolves to %s", strings.Join(addrs, ", "))
@@ -167,7 +167,7 @@ func cmdUp(configPath string, log func(string, ...any)) error {
 	} else if err != nil {
 		return err
 	} else if st.ConfigPath != abs {
-		return fmt.Errorf("the prototype manages one project; %s is already up (run `devcorb down --purge` first)", st.ConfigPath)
+		return fmt.Errorf("the prototype manages one project; %s is already up (run `devopus down --purge` first)", st.ConfigPath)
 	}
 
 	base := st.Base()
@@ -352,7 +352,7 @@ func cmdDown(purge, force bool, log func(string, ...any)) error {
 		log("purged %s: data volumes, worktrees and state removed", st.Project)
 		return os.Remove(statePath())
 	}
-	log("stopped %s; `devcorb up` brings back the base env and %d feature(s)", st.Project, len(st.Envs)-1)
+	log("stopped %s; `devopus up` brings back the base env and %d feature(s)", st.Project, len(st.Envs)-1)
 	return nil
 }
 

@@ -277,7 +277,7 @@ var runtimeImages = map[string]string{
 	"deno":   "denoland/deno",
 }
 
-// RuntimeImage is the image a platform runtime runs on. Until Devcorb ships its own
+// RuntimeImage is the image a platform runtime runs on. Until Devopus ships its own
 // runtime images (with ext-opentelemetry for PHP), it is the official image of the
 // language: php:8.3 → php:8.3, go:1.25 → golang:1.25.
 func RuntimeImage(runtime string) string {

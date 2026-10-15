@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const image = "devcorb-proto/p4-mysql:8.4.3"
+const image = "devopus-proto/p4-mysql:8.4.3"
 
 type target struct {
 	Key, Title string

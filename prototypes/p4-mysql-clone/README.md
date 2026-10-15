@@ -15,7 +15,7 @@
 База: одна таблица на 4,1 млн строк + 200 маленьких таблиц, всего 1114 МБ. Число таблиц важно: часть способов платит за каждую таблицу.
 
 ```bash
-docker build -t devcorb-proto/p4-mysql:8.4.3 .
+docker build -t devopus-proto/p4-mysql:8.4.3 .
 go run . -size 1 -runs 3          # ext4 и XFS с reflink
 go run . -size 1 -targets ext4
 ```

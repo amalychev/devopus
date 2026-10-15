@@ -31,7 +31,7 @@ func containerTests(p *pki) {
 	steps := [][]string{
 		{"network", "create", "--subnet", subnet, netName},
 		{"run", "-d", "--name", "p6-envoy", "--network", netName, "--ip", envoyIP, "-e", "ENVOY_UID=0",
-			"-v", p.Dir + ":/etc/devcorb:ro", envoyImg, "envoy", "-c", "/etc/devcorb/envoy.yaml", "--log-level", "warn"},
+			"-v", p.Dir + ":/etc/devopus:ro", envoyImg, "envoy", "-c", "/etc/devopus/envoy.yaml", "--log-level", "warn"},
 		{"run", "-d", "--name", "p6-coredns", "--network", netName, "--ip", dnsIP,
 			"-v", filepath.Join(p.Dir, "Corefile") + ":/Corefile:ro", "coredns/coredns:1.11.3", "-conf", "/Corefile"},
 	}
@@ -96,11 +96,11 @@ func containerTests(p *pki) {
 		args []string
 	}{
 		{"без настройки", nil},
-		{"агент: CA + env", []string{"-v", p.Dir + ":/devcorb:ro",
-			"-e", "SSL_CERT_FILE=/devcorb/bundle.pem", // OpenSSL: curl, Python, PHP
-			"-e", "NODE_EXTRA_CA_CERTS=/devcorb/ca.pem", // Node keeps its own roots and adds ours
-			"-e", "REQUESTS_CA_BUNDLE=/devcorb/bundle.pem", // Python requests (certifi)
-			"-e", "CURL_CA_BUNDLE=/devcorb/bundle.pem"}},
+		{"агент: CA + env", []string{"-v", p.Dir + ":/devopus:ro",
+			"-e", "SSL_CERT_FILE=/devopus/bundle.pem", // OpenSSL: curl, Python, PHP
+			"-e", "NODE_EXTRA_CA_CERTS=/devopus/ca.pem", // Node keeps its own roots and adds ours
+			"-e", "REQUESTS_CA_BUNDLE=/devopus/bundle.pem", // Python requests (certifi)
+			"-e", "CURL_CA_BUNDLE=/devopus/bundle.pem"}},
 	}
 	for _, m := range modes {
 		for _, c := range clients {
@@ -126,8 +126,8 @@ func containerTests(p *pki) {
 		"apk add -q socat >/dev/null && exec socat TCP-LISTEN:443,bind=127.0.0.1,fork,reuseaddr TCP:"+envoyIP+":443")
 	if err == nil {
 		time.Sleep(3 * time.Second)
-		out, err = run("docker", "run", "--rm", "--network", "container:p6-relay", "-v", p.Dir+":/devcorb:ro",
-			"-e", "CURL_CA_BUNDLE=/devcorb/bundle.pem", "curlimages/curl:8.11.0", "-sS", "--max-time", "5", "https://app.shop.localhost/")
+		out, err = run("docker", "run", "--rm", "--network", "container:p6-relay", "-v", p.Dir+":/devopus:ro",
+			"-e", "CURL_CA_BUNDLE=/devopus/bundle.pem", "curlimages/curl:8.11.0", "-sS", "--max-time", "5", "https://app.shop.localhost/")
 	}
 	record("containers", "curl + relay 127.0.0.1:443 → Envoy в сетевом пространстве модуля", err == nil && strings.Contains(out, "ok"), oneLine(out, err))
 }
@@ -159,7 +159,7 @@ func writeContainerConfigs(p *pki) error {
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
           common_tls_context:
-            tls_certificates: [{ certificate_chain: { filename: /etc/devcorb/%s }, private_key: { filename: /etc/devcorb/%s } }]
+            tls_certificates: [{ certificate_chain: { filename: /etc/devopus/%s }, private_key: { filename: /etc/devopus/%s } }]
       filters: [*hcm]`, name, filepath.Base(cert), filepath.Base(key))
 	}
 	envoy := `static_resources:

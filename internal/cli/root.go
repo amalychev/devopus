@@ -1,4 +1,4 @@
-// Package cli implements the devcorb command line (specs/cli.md).
+// Package cli implements the devopus command line (specs/cli.md).
 package cli
 
 import (
@@ -12,7 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/devcorb/devcorb/internal/workspace"
+	"github.com/devopus/devopus/internal/workspace"
 )
 
 // Exit codes of specs/cli.md.
@@ -52,7 +52,7 @@ type app struct {
 func Run(args []string, stdout, stderr io.Writer) int {
 	a := &app{stdout: stdout, stderr: stderr}
 	root := &cobra.Command{
-		Use:           "devcorb",
+		Use:           "devopus",
 		Short:         "Local environments for every feature branch",
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -91,11 +91,11 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	var ee *exitError
 	if errors.As(err, &ee) {
 		if ee.msg != "" {
-			fmt.Fprintln(stderr, "devcorb: "+ee.msg)
+			fmt.Fprintln(stderr, "devopus: "+ee.msg)
 		}
 		return ee.code
 	}
-	fmt.Fprintln(stderr, "devcorb: "+err.Error())
+	fmt.Fprintln(stderr, "devopus: "+err.Error())
 	// cobra reports unknown commands and arguments as plain errors.
 	return ExitInvalid
 }
@@ -117,7 +117,7 @@ func (a *app) workspaceFile() (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fail(ExitInvalid, "no %s here or in a parent directory; run 'devcorb init' or pass --file", workspace.FileName)
+			return "", fail(ExitInvalid, "no %s here or in a parent directory; run 'devopus init' or pass --file", workspace.FileName)
 		}
 		dir = parent
 	}

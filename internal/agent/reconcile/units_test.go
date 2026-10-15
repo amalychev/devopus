@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
-	"github.com/devcorb/devcorb/internal/agent/proxy"
-	"github.com/devcorb/devcorb/internal/agent/stack"
+	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	"github.com/devopus/devopus/internal/agent/proxy"
+	"github.com/devopus/devopus/internal/agent/stack"
 )
 
 const appYAML = `version: 1

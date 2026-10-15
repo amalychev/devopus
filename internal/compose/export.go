@@ -11,7 +11,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/devcorb/devcorb/internal/workspace"
+	"github.com/devopus/devopus/internal/workspace"
 )
 
 // Export renders the base environment as a docker-compose file: the "no lock-in"
@@ -157,7 +157,7 @@ func (x *exporter) service(name string, s *workspace.Service) (*composeService, 
 		out.Ports = []string{fmt.Sprintf("127.0.0.1:%d:%d", p, s.ExposePort())}
 	}
 	if s.Data != nil && s.Data.Seed != "" {
-		x.notes = append(x.notes, fmt.Sprintf("%s: data seed %s is applied by Devcorb only", name, s.Data.Seed))
+		x.notes = append(x.notes, fmt.Sprintf("%s: data seed %s is applied by Devopus only", name, s.Data.Seed))
 	}
 	return out, nil
 }
@@ -245,10 +245,10 @@ func (x *exporter) module(name string, m *workspace.Module) (map[string]*compose
 		out[fmt.Sprintf("%s-worker-%d", name, i+1)] = &s
 	}
 	if len(m.Cron) > 0 {
-		x.notes = append(x.notes, fmt.Sprintf("%s: %d cron entries are run by Devcorb only", name, len(m.Cron)))
+		x.notes = append(x.notes, fmt.Sprintf("%s: %d cron entries are run by Devopus only", name, len(m.Cron)))
 	}
 	if len(m.Routes) > 1 || (len(m.Routes) == 1 && m.Routes[0] != "/") {
-		x.notes = append(x.notes, fmt.Sprintf("%s: serves %s on one host behind Devcorb; here it has its own port", name, strings.Join(m.Routes, ", ")))
+		x.notes = append(x.notes, fmt.Sprintf("%s: serves %s on one host behind Devopus; here it has its own port", name, strings.Join(m.Routes, ", ")))
 	}
 	return out, nil
 }
@@ -314,8 +314,8 @@ func (x *exporter) expand(s string) (string, error) {
 
 func (x *exporter) header() string {
 	var b strings.Builder
-	b.WriteString("# Exported by `devcorb export compose` from workspace.yaml: the base environment\n")
-	b.WriteString("# without the Devcorb proxy, features or database clones.\n")
+	b.WriteString("# Exported by `devopus export compose` from workspace.yaml: the base environment\n")
+	b.WriteString("# without the Devopus proxy, features or database clones.\n")
 	b.WriteString("#   docker compose --env-file .env.secrets up\n")
 	var ports []string
 	for n, p := range x.hostPort {

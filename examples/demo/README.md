@@ -12,11 +12,11 @@
 
 ```bash
 cd examples/demo
-devcorb up              # первый раз скачивает образы node, python, php, postgres, mailpit
-devcorb open
-devcorb logs api
-devcorb exec api -- /venv/bin/python -c "import psycopg; print(psycopg.__version__)"
-devcorb down --volumes  # удалить вместе с базой
+devopus up              # первый раз скачивает образы node, python, php, postgres, mailpit
+devopus open
+devopus logs api
+devopus exec api -- /venv/bin/python -c "import psycopg; print(psycopg.__version__)"
+devopus down --volumes  # удалить вместе с базой
 ```
 
-Если 80/443 заняты, адреса будут на `:18443` (`devcorb status` покажет, кто занял порты). Пароль базы — в `.env.secrets` (в git его не кладут; здесь он демо).
+Если 80/443 заняты, адреса будут на `:18443` (`devopus status` покажет, кто занял порты). Пароль базы — в `.env.secrets` (в git его не кладут; здесь он демо).

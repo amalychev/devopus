@@ -88,9 +88,9 @@ func hostTests(p *pki) {
 		_, _ = run("docker", "rm", "-f", "p6-pub")
 	}
 
-	// 4. IPv6 shadowing: Devcorb listens on 127.0.0.1 only, another program on ::1.
+	// 4. IPv6 shadowing: Devopus listens on 127.0.0.1 only, another program on ::1.
 	const port = 18500
-	stopA := serveText(fmt.Sprintf("127.0.0.1:%d", port), "devcorb")
+	stopA := serveText(fmt.Sprintf("127.0.0.1:%d", port), "devopus")
 	stopB := serveText(fmt.Sprintf("[::1]:%d", port), "чужой сервер на ::1")
 	for _, c := range []struct{ who, cmd string }{
 		{"curl", fmt.Sprintf("curl -s http://app.shop.localhost:%d/", port)},
@@ -99,7 +99,7 @@ func hostTests(p *pki) {
 	} {
 		out, err := shell(c.cmd)
 		out = strings.TrimSpace(out)
-		record("host", "IPv6: Devcorb на 127.0.0.1, чужой на ::1 → "+c.who, out == "devcorb", "ответил: "+oneLine(out, err))
+		record("host", "IPv6: Devopus на 127.0.0.1, чужой на ::1 → "+c.who, out == "devopus", "ответил: "+oneLine(out, err))
 	}
 	stopA()
 	stopB()
@@ -117,7 +117,7 @@ func tlsChecks(p *pki, variant, caPath string, good, evil *tls.Certificate, tlsP
 	_ = os.WriteFile(hosts, []byte("127.0.0.1 app.shop.localhost evil.example.com\n"), 0o644)
 	store := filepath.Join(p.Dir, fmt.Sprintf("truststore-%d.p12", tlsPort))
 	_ = os.Remove(store)
-	_, keytoolErr := run("keytool", "-importcert", "-noprompt", "-alias", "devcorb", "-file", caPath,
+	_, keytoolErr := run("keytool", "-importcert", "-noprompt", "-alias", "devopus", "-file", caPath,
 		"-keystore", store, "-storetype", "PKCS12", "-storepass", "changeit")
 	javaSrc := filepath.Join(p.Dir, "Get.java")
 	_ = os.WriteFile(javaSrc, []byte(`class Get { public static void main(String[] a) throws Exception {

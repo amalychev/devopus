@@ -1,4 +1,4 @@
-module github.com/devcorb/proto-p1p2
+module github.com/devopus/proto-p1p2
 
 go 1.27.2
 

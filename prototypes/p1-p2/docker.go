@@ -16,10 +16,10 @@ import (
 // will use the Docker Engine API and compose-go (docs/architecture/tech-stack.md).
 
 const (
-	labelProject = "com.devcorb.project"
-	labelEnv     = "com.devcorb.env"
-	labelModule  = "com.devcorb.module"
-	envoyName    = "devcorb-envoy"
+	labelProject = "com.devopus.project"
+	labelEnv     = "com.devopus.env"
+	labelModule  = "com.devopus.module"
+	envoyName    = "devopus-envoy"
 )
 
 func docker(args ...string) (string, error) {
@@ -37,7 +37,7 @@ func moduleImage(ws *Workspace, name string) string {
 	if m.Image != "" {
 		return m.Image
 	}
-	return fmt.Sprintf("devcorb-proto/%s-%s:dev", ws.Project, name)
+	return fmt.Sprintf("devopus-proto/%s-%s:dev", ws.Project, name)
 }
 
 // BuildImages builds module images once; features reuse them and mount their own worktree.
@@ -142,10 +142,10 @@ func Compose(st *State, ws *Workspace, env *Env) composeFile {
 		for k, v := range m.Env {
 			vars[k] = v
 		}
-		vars["DEVCORB_ENV_ID"] = env.ID
-		vars["DEVCORB_ENV_KIND"] = env.Kind
-		vars["DEVCORB_ENV_SLUG"] = env.Slug
-		vars["DEVCORB_ENV_URL"] = st.URL(env, ws)
+		vars["DEVOPUS_ENV_ID"] = env.ID
+		vars["DEVOPUS_ENV_KIND"] = env.Kind
+		vars["DEVOPUS_ENV_SLUG"] = env.Slug
+		vars["DEVOPUS_ENV_URL"] = st.URL(env, ws)
 		vars["PORT"] = fmt.Sprint(m.Port)
 		cf.Services[name] = composeService{
 			Image:         moduleImage(ws, name),

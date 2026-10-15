@@ -1,6 +1,6 @@
-# Devcorb — платформа локальных dev-окружений
+# Devopus — платформа локальных dev-окружений
 
-> Название продукта — **Devcorb** (решено 14.10.2026; домен ещё не выбран). Источники: «Платформа локальных dev-окружений: архитектура и онбординг» и «Технические проблемы платформы локальных dev-окружений и их решения» (оба от 14.10.2026).
+> Название продукта — **Devopus** (решено 14.10.2026; домен ещё не выбран). Источники: «Платформа локальных dev-окружений: архитектура и онбординг» и «Технические проблемы платформы локальных dev-окружений и их решения» (оба от 14.10.2026).
 
 **Одной фразой:** параллельные изолированные окружения на каждую ветку и каждого AI-агента, с данными, для всей команды — локально в Docker, с единой веб-панелью.
 
@@ -56,23 +56,23 @@
 
 ```bash
 go test ./...                          # все тесты
-go build -o devcorb ./cmd/devcorb      # бинарник
+go build -o devopus ./cmd/devopus      # бинарник
 
-./devcorb init                         # workspace.yaml из compose-файла в текущей папке
-./devcorb validate                     # проверка по схеме и правилам, с номерами строк
-./devcorb export compose -o out.yml    # обратно в docker-compose
-./devcorb schema                       # JSON Schema для редактора
-./devcorb up                           # поднять базовое окружение (стартует агента в фоне)
-./devcorb status                       # агент, runtime, прокси, окружения и их модули
-./devcorb open                         # открыть окружение в браузере
-./devcorb routes                       # таблица маршрутов прокси
-./devcorb logs api --follow            # вывод модуля или сервиса
-./devcorb exec api -- sh               # команда в контейнере модуля
-./devcorb doctor --fix                 # проверки; доверие к локальному CA
-./devcorb down                         # остановить (данные остаются)
-./devcorb down --volumes               # удалить окружения проекта с данными
+./devopus init                         # workspace.yaml из compose-файла в текущей папке
+./devopus validate                     # проверка по схеме и правилам, с номерами строк
+./devopus export compose -o out.yml    # обратно в docker-compose
+./devopus schema                       # JSON Schema для редактора
+./devopus up                           # поднять базовое окружение (стартует агента в фоне)
+./devopus status                       # агент, runtime, прокси, окружения и их модули
+./devopus open                         # открыть окружение в браузере
+./devopus routes                       # таблица маршрутов прокси
+./devopus logs api --follow            # вывод модуля или сервиса
+./devopus exec api -- sh               # команда в контейнере модуля
+./devopus doctor --fix                 # проверки; доверие к локальному CA
+./devopus down                         # остановить (данные остаются)
+./devopus down --volumes               # удалить окружения проекта с данными
 
 go tool -modfile=tools/go.mod buf generate   # после правок proto/
 ```
 
-Данные агента — в `~/.devcorb` (или `$DEVCORB_HOME`).
+Данные агента — в `~/.devopus` (или `$DEVOPUS_HOME`).

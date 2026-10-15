@@ -14,9 +14,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
-	"github.com/devcorb/devcorb/gen/devcorb/agent/v1/agentv1connect"
-	"github.com/devcorb/devcorb/internal/agent/paths"
+	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	"github.com/devopus/devopus/gen/devopus/agent/v1/agentv1connect"
+	"github.com/devopus/devopus/internal/agent/paths"
 )
 
 // New returns an API client over the agent's unix socket.
@@ -28,7 +28,7 @@ func New(socket string) agentv1connect.AgentServiceClient {
 		},
 	}
 	// The host is ignored: every request goes to the socket.
-	return agentv1connect.NewAgentServiceClient(&http.Client{Transport: tr}, "http://devcorb-agent")
+	return agentv1connect.NewAgentServiceClient(&http.Client{Transport: tr}, "http://devopus-agent")
 }
 
 // ErrNotRunning: nothing answers on the socket.
@@ -46,7 +46,7 @@ func Ping(ctx context.Context, c agentv1connect.AgentServiceClient) error {
 }
 
 // Ensure returns a client to a running agent, starting one in the background if
-// needed. started reports whether it did. Until `devcorb install` registers a service
+// needed. started reports whether it did. Until `devopus install` registers a service
 // (milestone M9), this is how the agent comes up.
 func Ensure(ctx context.Context) (c agentv1connect.AgentServiceClient, started bool, err error) {
 	c = New(paths.Socket())
@@ -68,7 +68,7 @@ func Ensure(ctx context.Context) (c agentv1connect.AgentServiceClient, started b
 	return nil, true, fmt.Errorf("the agent did not answer within 10s; see %s", paths.Log())
 }
 
-// spawn starts `devcorb agent run` detached from the terminal, logging to a file.
+// spawn starts `devopus agent run` detached from the terminal, logging to a file.
 func spawn() error {
 	exe, err := os.Executable()
 	if err != nil {

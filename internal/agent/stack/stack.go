@@ -20,16 +20,16 @@ import (
 
 	"github.com/mattn/go-shellwords"
 
-	"github.com/devcorb/devcorb/internal/agent/runtime"
-	"github.com/devcorb/devcorb/internal/workspace"
+	"github.com/devopus/devopus/internal/agent/runtime"
+	"github.com/devopus/devopus/internal/workspace"
 )
 
 // Labels on the containers of an environment, besides the common ones.
 const (
 	// LabelUnit is the unit's name in the environment: mysql, api, api-worker-1.
-	LabelUnit = "com.devcorb.unit"
+	LabelUnit = "com.devopus.unit"
 	// LabelModule is the module or service a unit belongs to.
-	LabelModule = "com.devcorb.module"
+	LabelModule = "com.devopus.module"
 )
 
 // Roles of the containers (runtime.LabelRole).
@@ -43,8 +43,8 @@ const (
 // Where the local CA appears in module containers (local-networking.md: no image
 // rebuild, environment variables point at the files).
 const (
-	CAPath     = "/devcorb/ca.pem"
-	BundlePath = "/devcorb/bundle.pem"
+	CAPath     = "/devopus/ca.pem"
+	BundlePath = "/devopus/bundle.pem"
 )
 
 // Env is what the plan needs to know about the environment besides workspace.yaml.
@@ -406,7 +406,7 @@ func (b *builder) build(name, ctxDir string, bd *workspace.Build) (runtime.Build
 	spec := runtime.BuildSpec{Context: ctxDir, Dockerfile: bd.Dockerfile, Target: bd.Target, Args: args}
 	key, _ := json.Marshal(spec)
 	sum := sha256.Sum256(append(key, content...))
-	spec.Tag = "devcorb/" + b.env.Project + "-" + name + ":" + hex.EncodeToString(sum[:])[:12]
+	spec.Tag = "devopus/" + b.env.Project + "-" + name + ":" + hex.EncodeToString(sum[:])[:12]
 	spec.Labels = map[string]string{runtime.LabelManaged: "true", runtime.LabelProject: b.env.Project, runtime.LabelInstance: b.env.Labels[runtime.LabelInstance]}
 	return spec, nil
 }

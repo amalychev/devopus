@@ -15,12 +15,12 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
 
-	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
-	"github.com/devcorb/devcorb/internal/agent/git"
-	"github.com/devcorb/devcorb/internal/agent/proxy"
-	"github.com/devcorb/devcorb/internal/agent/runtime"
-	"github.com/devcorb/devcorb/internal/agent/stack"
-	"github.com/devcorb/devcorb/internal/workspace"
+	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	"github.com/devopus/devopus/internal/agent/git"
+	"github.com/devopus/devopus/internal/agent/proxy"
+	"github.com/devopus/devopus/internal/agent/runtime"
+	"github.com/devopus/devopus/internal/agent/stack"
+	"github.com/devopus/devopus/internal/workspace"
 )
 
 // SecretsFile holds the values of ${{ secrets.* }} next to workspace.yaml (stage 1).
@@ -176,7 +176,7 @@ func (r *Reconciler) ensureImages(ctx context.Context, env *agentv1.EnvironmentS
 		if ok {
 			continue
 		}
-		name := strings.TrimPrefix(b.Tag[:strings.LastIndex(b.Tag, ":")], "devcorb/"+env.Project+"-")
+		name := strings.TrimPrefix(b.Tag[:strings.LastIndex(b.Tag, ":")], "devopus/"+env.Project+"-")
 		r.stepMessage(env.Id, "images", "building "+name)
 		log, err := r.logFile(env.Id, "build-"+name)
 		if err != nil {

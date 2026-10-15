@@ -35,7 +35,7 @@ func newPKI(dir string) (*pki, error) {
 	caKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	caTmpl := &x509.Certificate{
 		SerialNumber:                serial(),
-		Subject:                     pkix.Name{CommonName: "Devcorb P-6 local CA"},
+		Subject:                     pkix.Name{CommonName: "Devopus P-6 local CA"},
 		NotBefore:                   time.Now().Add(-time.Hour),
 		NotAfter:                    time.Now().AddDate(1, 0, 0),
 		IsCA:                        true,
@@ -107,7 +107,7 @@ func constrainedCA(cn string) *x509.Certificate {
 
 func (p *pki) withIntermediate() error {
 	rootKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	rootTmpl := constrainedCA("Devcorb P-6 root")
+	rootTmpl := constrainedCA("Devopus P-6 root")
 	rootDER, err := x509.CreateCertificate(rand.Reader, rootTmpl, rootTmpl, &rootKey.PublicKey, rootKey)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (p *pki) withIntermediate() error {
 		return err
 	}
 	intKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	intTmpl := constrainedCA("Devcorb P-6 intermediate")
+	intTmpl := constrainedCA("Devopus P-6 intermediate")
 	intTmpl.MaxPathLenZero = true
 	intDER, err := x509.CreateCertificate(rand.Reader, intTmpl, root, &intKey.PublicKey, rootKey)
 	if err != nil {

@@ -14,14 +14,14 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/devcorb/devcorb/internal/agent/pki"
+	"github.com/devopus/devopus/internal/agent/pki"
 )
 
 // Trusted reports whether the system verifier accepts a certificate the local CA
 // issues. On macOS Go asks the keychain's trust settings, so this sees exactly what
 // Safari and Chrome see.
 func Trusted(ca *pki.CA) (bool, error) {
-	leaf, err := ca.Issue([]string{"devcorb-doctor.localhost"})
+	leaf, err := ca.Issue([]string{"devopus-doctor.localhost"})
 	if err != nil {
 		return false, err
 	}
@@ -33,7 +33,7 @@ func Trusted(ca *pki.CA) (bool, error) {
 	for _, c := range certs[1:] {
 		inter.AddCert(c)
 	}
-	_, err = certs[0].Verify(x509.VerifyOptions{DNSName: "devcorb-doctor.localhost", Intermediates: inter, CurrentTime: time.Now()})
+	_, err = certs[0].Verify(x509.VerifyOptions{DNSName: "devopus-doctor.localhost", Intermediates: inter, CurrentTime: time.Now()})
 	return err == nil, nil
 }
 
@@ -59,14 +59,14 @@ func Install(rootPath string) error {
 	return nil
 }
 
-// ManualSteps tells people what to run where Devcorb does not install the CA itself.
+// ManualSteps tells people what to run where Devopus does not install the CA itself.
 func ManualSteps(rootPath string) string {
 	switch runtime.GOOS {
 	case "darwin":
 		return fmt.Sprintf("security add-trusted-cert -r trustRoot -p ssl -k ~/Library/Keychains/login.keychain-db %s", rootPath)
 	case "linux":
-		return fmt.Sprintf("Debian/Ubuntu: sudo cp %[1]s /usr/local/share/ca-certificates/devcorb.crt && sudo update-ca-certificates; "+
-			"Fedora: sudo cp %[1]s /etc/pki/ca-trust/source/anchors/devcorb.pem && sudo update-ca-trust", rootPath)
+		return fmt.Sprintf("Debian/Ubuntu: sudo cp %[1]s /usr/local/share/ca-certificates/devopus.crt && sudo update-ca-certificates; "+
+			"Fedora: sudo cp %[1]s /etc/pki/ca-trust/source/anchors/devopus.pem && sudo update-ca-trust", rootPath)
 	}
 	return "add " + rootPath + " to the system's trusted roots"
 }

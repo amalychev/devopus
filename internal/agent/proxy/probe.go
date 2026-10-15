@@ -49,8 +49,8 @@ func probeOnce(ctx context.Context, c *http.Client, host string) error {
 	}
 	defer res.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 1<<16))
-	if res.Header.Get("server") != "devcorb" {
-		return fmt.Errorf("answered by %q, not the Devcorb proxy", res.Header.Get("server"))
+	if res.Header.Get("server") != "devopus" {
+		return fmt.Errorf("answered by %q, not the Devopus proxy", res.Header.Get("server"))
 	}
 	return nil
 }

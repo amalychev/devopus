@@ -149,8 +149,8 @@ func EnvoyConfig(st *State, ws *Workspace) (m, error) {
 					"typed_config": m{
 						"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext",
 						"common_tls_context": m{"tls_certificates": []m{{
-							"certificate_chain": m{"filename": "/etc/devcorb/tls/cert.pem"},
-							"private_key":       m{"filename": "/etc/devcorb/tls/key.pem"},
+							"certificate_chain": m{"filename": "/etc/devopus/tls/cert.pem"},
+							"private_key":       m{"filename": "/etc/devopus/tls/key.pem"},
 						}}},
 					},
 				},
@@ -243,9 +243,9 @@ func ApplyEnvoy(st *State, ws *Workspace) error {
 			"-e", "ENVOY_UID=0",
 			"-p", fmt.Sprintf("127.0.0.1:%d:8080", st.HTTPPort),
 			"-p", fmt.Sprintf("127.0.0.1:%d:8443", st.HTTPSPort),
-			"-v", dir+":/etc/devcorb:ro",
+			"-v", dir+":/etc/devopus:ro",
 			"--restart", "unless-stopped",
-			envoyImage, "envoy", "-c", "/etc/devcorb/envoy.yaml", "--log-level", "warn")
+			envoyImage, "envoy", "-c", "/etc/devopus/envoy.yaml", "--log-level", "warn")
 		if err != nil {
 			return err
 		}

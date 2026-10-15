@@ -1,3 +1,3 @@
-module github.com/devcorb/proto-p5
+module github.com/devopus/proto-p5
 
 go 1.27.2

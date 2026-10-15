@@ -41,11 +41,11 @@ func (c Conflict) Hint() string {
 	case c.Kind == "runtime":
 		return fmt.Sprintf("a container publishes port %d: docker ps --filter publish=%d", port, port)
 	case c.Kind != "":
-		return fmt.Sprintf("move %s to 8080/8443, then 'devcorb proxy coexist --http 8080 --https 8443': Devcorb takes 80/443 and passes unknown hosts to it", c.Kind)
+		return fmt.Sprintf("move %s to 8080/8443, then 'devopus proxy coexist --http 8080 --https 8443': Devopus takes 80/443 and passes unknown hosts to it", c.Kind)
 	case c.Owner == "":
 		return fmt.Sprintf("sudo lsof -nP -iTCP:%d -sTCP:LISTEN shows the owner", port)
 	}
-	return fmt.Sprintf("stop %s or leave Devcorb on the fallback ports", c.Owner)
+	return fmt.Sprintf("stop %s or leave Devopus on the fallback ports", c.Owner)
 }
 
 // Taken probes the loopback addresses of ports and returns those someone listens on.

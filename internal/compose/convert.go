@@ -12,7 +12,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/types"
 
-	"github.com/devcorb/devcorb/internal/workspace"
+	"github.com/devopus/devopus/internal/workspace"
 )
 
 var (
@@ -77,7 +77,7 @@ func convert(ctx context.Context, active, all *types.Project, root, name string,
 				Build:       &workspace.Build{Context: ctx, Dockerfile: svc.Build.Dockerfile, Target: svc.Build.Target},
 			}
 			if strings.HasPrefix(ctx, "..") {
-				rep.Errors = append(rep.Errors, name+": build context "+ctx+" is outside the repository; run devcorb init from the repository root")
+				rep.Errors = append(rep.Errors, name+": build context "+ctx+" is outside the repository; run devopus init from the repository root")
 			}
 			if m.Build.Dockerfile == "Dockerfile" {
 				m.Build.Dockerfile = ""

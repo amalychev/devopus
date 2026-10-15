@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/devcorb/devcorb/internal/agent/runtime"
-	"github.com/devcorb/devcorb/internal/workspace"
+	"github.com/devopus/devopus/internal/agent/runtime"
+	"github.com/devopus/devopus/internal/workspace"
 )
 
 const config = `version: 1
@@ -200,7 +200,7 @@ func TestPlanModuleSpecs(t *testing.T) {
 	}
 
 	api := unit(t, p, "api")
-	if len(p.Builds) != 1 || api.Spec.Image != p.Builds[0].Tag || !strings.HasPrefix(api.Spec.Image, "devcorb/shop-api:") {
+	if len(p.Builds) != 1 || api.Spec.Image != p.Builds[0].Tag || !strings.HasPrefix(api.Spec.Image, "devopus/shop-api:") {
 		t.Fatalf("api image %s builds %+v", api.Spec.Image, p.Builds)
 	}
 	if b := p.Builds[0]; b.Context != filepath.Join(env.Root, "api") || b.Dockerfile != "Dockerfile.dev" || b.Args["PHP_VERSION"] != "8.3" {

@@ -15,7 +15,7 @@ import (
 )
 
 // ServerName is the name the agent's xDS server presents and Envoy checks.
-const ServerName = "devcorb-agent"
+const ServerName = "devopus-agent"
 
 // Control holds the mutual TLS material of the xDS link: Envoy trusts only the control
 // CA and presents the client certificate; the agent accepts only clients of that CA.
@@ -65,7 +65,7 @@ func newControl() (*Control, error) {
 	now := time.Now()
 	caTmpl := &x509.Certificate{
 		SerialNumber:          serial(),
-		Subject:               pkix.Name{CommonName: "Devcorb control CA", Organization: []string{"Devcorb"}},
+		Subject:               pkix.Name{CommonName: "Devopus control CA", Organization: []string{"Devopus"}},
 		NotBefore:             now.Add(-time.Hour),
 		NotAfter:              now.Add(caLifetime),
 		IsCA:                  true,
@@ -105,7 +105,7 @@ func newControl() (*Control, error) {
 	if c.ServerPEM, c.ServerKey, err = issue(ServerName, x509.ExtKeyUsageServerAuth, []string{ServerName}); err != nil {
 		return nil, err
 	}
-	if c.ClientPEM, c.ClientKey, err = issue("devcorb-proxy", x509.ExtKeyUsageClientAuth, nil); err != nil {
+	if c.ClientPEM, c.ClientKey, err = issue("devopus-proxy", x509.ExtKeyUsageClientAuth, nil); err != nil {
 		return nil, err
 	}
 	return c, nil

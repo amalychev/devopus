@@ -20,8 +20,8 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	"github.com/devcorb/devcorb/internal/agent/pki"
-	"github.com/devcorb/devcorb/internal/agent/runtime"
+	"github.com/devopus/devopus/internal/agent/pki"
+	"github.com/devopus/devopus/internal/agent/runtime"
 )
 
 // Image is the Envoy the agent runs, pinned by digest: a tag can move under us.
@@ -31,7 +31,7 @@ const Image = "envoyproxy/envoy:v1.39.4@sha256:74bd4eb5629708d3fadca1a5e6b85d208
 // it is readable by that user only.
 const envoyUID = 101
 
-const bootstrapPath = "/etc/devcorb/envoy.json"
+const bootstrapPath = "/etc/devopus/envoy.json"
 
 // Ports are the host ports the proxy is published on.
 type Ports struct {
@@ -102,8 +102,8 @@ func ContainerSpec(name string, labels map[string]string, ports Ports, xdsPort i
 
 // Labels with the published ports, so an agent restart knows the mode without probing.
 const (
-	LabelHTTPPort  = "com.devcorb.proxy.http-port"
-	LabelHTTPSPort = "com.devcorb.proxy.https-port"
+	LabelHTTPPort  = "com.devopus.proxy.http-port"
+	LabelHTTPSPort = "com.devopus.proxy.https-port"
 )
 
 // PortsOf reads the published ports back from a proxy container's labels.
@@ -150,9 +150,9 @@ func Bootstrap(xdsPort int, ctl *pki.Control) ([]byte, error) {
 		return nil, err
 	}
 	b := &bootstrapv3.Bootstrap{
-		Node: &corev3.Node{Id: NodeID, Cluster: "devcorb"},
+		Node: &corev3.Node{Id: NodeID, Cluster: "devopus"},
 		Admin: &bootstrapv3.Admin{
-			// Inside the container only: `docker exec devcorb-proxy curl localhost:9901/…`.
+			// Inside the container only: `docker exec devopus-proxy curl localhost:9901/…`.
 			Address: socketAddress("127.0.0.1", 9901),
 		},
 		DynamicResources: &bootstrapv3.Bootstrap_DynamicResources{

@@ -109,7 +109,7 @@ func createCA(dir string) (*CA, error) {
 	if err != nil {
 		return nil, err
 	}
-	rootTmpl := constrainedCA("Devcorb local CA (" + host + ")")
+	rootTmpl := constrainedCA("Devopus local CA (" + host + ")")
 	rootDER, err := x509.CreateCertificate(rand.Reader, rootTmpl, rootTmpl, &rootKey.PublicKey, rootKey)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func createCA(dir string) (*CA, error) {
 	if err != nil {
 		return nil, err
 	}
-	interTmpl := constrainedCA("Devcorb local intermediate (" + host + ")")
+	interTmpl := constrainedCA("Devopus local intermediate (" + host + ")")
 	interTmpl.MaxPathLenZero = true
 	interTmpl.NotAfter = root.NotAfter.Add(-24 * time.Hour)
 	interDER, err := x509.CreateCertificate(rand.Reader, interTmpl, root, &interKey.PublicKey, rootKey)
@@ -156,7 +156,7 @@ func constrainedCA(cn string) *x509.Certificate {
 	now := time.Now()
 	return &x509.Certificate{
 		SerialNumber:                serial(),
-		Subject:                     pkix.Name{CommonName: cn, Organization: []string{"Devcorb"}},
+		Subject:                     pkix.Name{CommonName: cn, Organization: []string{"Devopus"}},
 		NotBefore:                   now.Add(-time.Hour),
 		NotAfter:                    now.Add(caLifetime),
 		IsCA:                        true,

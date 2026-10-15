@@ -11,16 +11,16 @@ import (
 	"sync"
 	"time"
 
-	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
-	"github.com/devcorb/devcorb/internal/agent/proxy"
-	"github.com/devcorb/devcorb/internal/agent/runtime"
-	"github.com/devcorb/devcorb/internal/agent/stack"
-	"github.com/devcorb/devcorb/internal/workspace"
+	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	"github.com/devopus/devopus/internal/agent/proxy"
+	"github.com/devopus/devopus/internal/agent/runtime"
+	"github.com/devopus/devopus/internal/agent/stack"
+	"github.com/devopus/devopus/internal/workspace"
 )
 
 // LabelGeneration is the proxy generation the container was made for; a newer one in
-// the desired state recreates it (devcorb proxy restart).
-const LabelGeneration = "com.devcorb.proxy.generation"
+// the desired state recreates it (devopus proxy restart).
+const LabelGeneration = "com.devopus.proxy.generation"
 
 // proxyState is the running proxy as this pass knows it.
 type proxyState struct {
@@ -346,12 +346,12 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 	project := html.EscapeString(env.Project)
 	switch {
 	case env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED:
-		return page(proxy.Page{Status: 503, Title: env.Project + " is stopped", Text: "Run <code>devcorb up</code> in the project to start it."}, "proxy page: stopped")
+		return page(proxy.Page{Status: 503, Title: env.Project + " is stopped", Text: "Run <code>devopus up</code> in the project to start it."}, "proxy page: stopped")
 	case p.plan == nil && p.err != nil:
 		return page(proxy.Page{Status: 502, Title: env.Project + " did not start",
-			Text: fmt.Sprintf("Step <code>%s</code> failed:</p><pre>%s</pre><p>Run <code>devcorb status</code> for details.", html.EscapeString(p.failed), html.EscapeString(p.err.Error()))}, "proxy page: "+p.failed+" failed")
+			Text: fmt.Sprintf("Step <code>%s</code> failed:</p><pre>%s</pre><p>Run <code>devopus status</code> for details.", html.EscapeString(p.failed), html.EscapeString(p.err.Error()))}, "proxy page: "+p.failed+" failed")
 	case p.plan == nil:
-		return page(proxy.Page{Status: 503, Title: env.Project + " is starting", Text: "Devcorb is preparing environment <code>" + env.Id + "</code> of <code>" + project + "</code>."}, "proxy page: starting")
+		return page(proxy.Page{Status: 503, Title: env.Project + " is starting", Text: "Devopus is preparing environment <code>" + env.Id + "</code> of <code>" + project + "</code>."}, "proxy page: starting")
 	}
 
 	var routes []*agentv1.Route
@@ -440,7 +440,7 @@ func (r *Reconciler) waitAnswers(ctx context.Context, p *prepared, ports proxy.P
 		}
 		msg := "waiting for " + strings.Join(names, ", ")
 		if time.Now().After(deadline) {
-			return msg + " (devcorb logs " + pending[0].Name + ")", errWaiting
+			return msg + " (devopus logs " + pending[0].Name + ")", errWaiting
 		}
 		r.stepMessage(p.env.Id, "ready", msg)
 		select {

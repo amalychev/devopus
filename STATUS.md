@@ -16,7 +16,7 @@
 - Проверено на Docker Desktop, Colima и OrbStack (macOS 26, Apple Silicon).
 - Выводы прототипов внесены в [PRD MVP](specs/mvp-prd.md#решения-из-прототипов-этапа-0) и [спецификацию `workspace.yaml`](specs/workspace-yaml.md).
 - Комплект для интервью и пилотов — [docs/stage-0/](docs/stage-0/README.md).
-- Решения: лицензия агента — Apache 2.0 (ADR-0010), название — Devcorb.
+- Решения: лицензия агента — Apache 2.0 (ADR-0010), название — Devopus.
 
 ## Что делать дальше
 
@@ -38,7 +38,7 @@
 | По итогам интервью (Г2, А7) | Решить по гибридному режиму (приложение на хосте) и по Windows (риск R15) — правки в roadmap и PRD |
 | Пришли compose-файлы команд | Повторить прогон P-8 (`prototypes/p8-compose-import`) на их файлах |
 | 5 LOI подписаны | Этап 0 закрыт формально (разработка этапа 1 уже идёт) |
-| Пришли compose-файлы команд | Прогнать `devcorb init` на них (как корпус P-8) |
+| Пришли compose-файлы команд | Прогнать `devopus init` на них (как корпус P-8) |
 
 ### Не блокирует, но нужно до этапа 1–2
 
@@ -48,9 +48,9 @@
 ## Состояние окружения
 
 - Docker-контекст: `desktop-linux`.
-- Репозиторий: https://github.com/amalychev/devcorb (приватный).
+- Репозиторий: https://github.com/amalychev/devopus (приватный).
 - Colima и OrbStack установлены, VM остановлены (`colima start` / `orb start`, если понадобятся). `colima start` и `orb start` переключают Docker-контекст на себя — после них вернуть `docker context use desktop-linux`. Тесты на них запускать через `DOCKER_HOST` (`~/.colima/default/docker.sock`, `~/.orbstack/run/docker.sock`).
-- На этой машине 80/443 занимает brew-nginx, поэтому прокси Devcorb работает на 18080/18443 (fallback).
-- `~/.devcorb` создан, агент может работать в фоне (`pkill -f 'devcorb agent run'` — остановить). **CA `~/.devcorb/ca/root.pem` не в связке ключей**: там корень от прежнего названия (Docklet). Для проверки в браузере — `devcorb doctor --fix` (и удалить старый корень «Docklet» в «Связке ключей»).
+- На этой машине 80/443 занимает brew-nginx, поэтому прокси Devopus работает на 18080/18443 (fallback).
+- `~/.devopus` создан, агент может работать в фоне (`pkill -f 'devopus agent run'` — остановить). **CA `~/.devopus/ca/root.pem` не в связке ключей**: там корень от прежнего названия (Docklet). Для проверки в браузере — `devopus doctor --fix` (и удалить старый корень «Docklet» в «Связке ключей»).
 - `~/.docklet` и бинарник `docklet` в старом scratchpad — остатки до переименования. Агент `docklet` (держал 18080/18443) остановлен 15.10.2026, его контейнеры удалены; `~/.docklet/state.json` не тронут.
 - Опубликованный roadmap: https://claude.ai/artifact/XXRWjdCqmh1wb7WVczCjK7

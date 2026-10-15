@@ -75,7 +75,7 @@ func ChoosePorts() (httpPort, httpsPort int, notes []string) {
 		note := fmt.Sprintf("%s is taken by %s", pc.Addr, pc.Owner)
 		for _, k := range knownDevServers {
 			if strings.Contains(strings.ToLower(pc.Owner), k) {
-				note += "; it is a known dev server: move it to 8080 to let Devcorb take 80/443 (coexistence mode)"
+				note += "; it is a known dev server: move it to 8080 to let Devopus take 80/443 (coexistence mode)"
 				break
 			}
 		}

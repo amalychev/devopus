@@ -26,12 +26,12 @@ import (
 const (
 	// LabelInstance separates agents with different data directories (a test agent
 	// next to the real one): each observes and collects only its own resources.
-	LabelInstance = "com.devcorb.instance"
+	LabelInstance = "com.devopus.instance"
 	// LabelRole is proxy, dns, module, service…
-	LabelRole = "com.devcorb.role"
+	LabelRole = "com.devopus.role"
 	// LabelConfig is a hash of what the container was created from; a different hash
 	// means the container must be recreated.
-	LabelConfig = "com.devcorb.config"
+	LabelConfig = "com.devopus.config"
 )
 
 // Container is a container as the agent sees it.

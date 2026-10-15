@@ -1,4 +1,4 @@
-module github.com/devcorb/devcorb/tools
+module github.com/devopus/devopus/tools
 
 go 1.27.2
 

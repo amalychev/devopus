@@ -19,13 +19,13 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
-	"github.com/devcorb/devcorb/gen/devcorb/agent/v1/agentv1connect"
-	"github.com/devcorb/devcorb/internal/agent/client"
-	"github.com/devcorb/devcorb/internal/agent/paths"
-	"github.com/devcorb/devcorb/internal/agent/proxy"
-	"github.com/devcorb/devcorb/internal/agent/runtime"
-	"github.com/devcorb/devcorb/internal/agent/store"
+	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	"github.com/devopus/devopus/gen/devopus/agent/v1/agentv1connect"
+	"github.com/devopus/devopus/internal/agent/client"
+	"github.com/devopus/devopus/internal/agent/paths"
+	"github.com/devopus/devopus/internal/agent/proxy"
+	"github.com/devopus/devopus/internal/agent/runtime"
+	"github.com/devopus/devopus/internal/agent/store"
 )
 
 // TestAgentEndToEnd runs the agent against the real runtime: up brings a module and a
@@ -48,7 +48,7 @@ func TestAgentEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(home) })
-	t.Setenv("DEVCORB_HOME", home)
+	t.Setenv("DEVOPUS_HOME", home)
 
 	project := "e2e-" + store.NewID()
 	// Free high ports: a real agent may hold 80/443 or the fallback ports.
@@ -85,7 +85,7 @@ func TestAgentEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err := os.MkdirTemp(userHome, ".devcorb-e2e-")
+	root, err := os.MkdirTemp(userHome, ".devopus-e2e-")
 	if err != nil {
 		t.Fatal(err)
 	}

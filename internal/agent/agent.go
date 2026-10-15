@@ -1,4 +1,4 @@
-// Package agent runs the local Devcorb agent: the desired-state store, the
+// Package agent runs the local Devopus agent: the desired-state store, the
 // reconcile loop and the local API on a unix socket (docs/architecture/agent.md).
 package agent
 
@@ -22,15 +22,15 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
-	"github.com/devcorb/devcorb/gen/devcorb/agent/v1/agentv1connect"
-	"github.com/devcorb/devcorb/internal/agent/api"
-	"github.com/devcorb/devcorb/internal/agent/paths"
-	"github.com/devcorb/devcorb/internal/agent/pki"
-	"github.com/devcorb/devcorb/internal/agent/proxy"
-	"github.com/devcorb/devcorb/internal/agent/reconcile"
-	"github.com/devcorb/devcorb/internal/agent/runtime"
-	"github.com/devcorb/devcorb/internal/agent/store"
+	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	"github.com/devopus/devopus/gen/devopus/agent/v1/agentv1connect"
+	"github.com/devopus/devopus/internal/agent/api"
+	"github.com/devopus/devopus/internal/agent/paths"
+	"github.com/devopus/devopus/internal/agent/pki"
+	"github.com/devopus/devopus/internal/agent/proxy"
+	"github.com/devopus/devopus/internal/agent/reconcile"
+	"github.com/devopus/devopus/internal/agent/runtime"
+	"github.com/devopus/devopus/internal/agent/store"
 )
 
 // Intervals of the reconcile loop: a periodic pass catches changes made behind the
@@ -196,9 +196,9 @@ func Run(ctx context.Context, opt Options) error {
 }
 
 // loop runs passes one at a time. A change of the desired state interrupts a running
-// pass: a long install must not hold up 'devcorb down' or another project's 'up'. Every
+// pass: a long install must not hold up 'devopus down' or another project's 'up'. Every
 // step is idempotent, so the next pass picks up where the interrupted one stopped. A new
-// revision with nothing else changed (a repeated 'devcorb up') does not interrupt: it
+// revision with nothing else changed (a repeated 'devopus up') does not interrupt: it
 // gets a pass of its own right after.
 func (a *Agent) loop(ctx context.Context) {
 	timer := time.NewTimer(0)

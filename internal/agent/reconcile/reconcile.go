@@ -19,13 +19,13 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
-	"github.com/devcorb/devcorb/internal/agent/git"
-	"github.com/devcorb/devcorb/internal/agent/pki"
-	"github.com/devcorb/devcorb/internal/agent/proxy"
-	"github.com/devcorb/devcorb/internal/agent/runtime"
-	"github.com/devcorb/devcorb/internal/agent/stack"
-	"github.com/devcorb/devcorb/internal/workspace"
+	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	"github.com/devopus/devopus/internal/agent/git"
+	"github.com/devopus/devopus/internal/agent/pki"
+	"github.com/devopus/devopus/internal/agent/proxy"
+	"github.com/devopus/devopus/internal/agent/runtime"
+	"github.com/devopus/devopus/internal/agent/stack"
+	"github.com/devopus/devopus/internal/workspace"
 )
 
 // Runtime is the part of the container runtime the reconciler uses.
@@ -120,10 +120,10 @@ func New(rt Runtime, opt Options, publish func(*agentv1.EnvironmentStatus)) *Rec
 	}
 	// Never relative to wherever the agent runs.
 	if opt.SourcesDir == "" {
-		opt.SourcesDir = filepath.Join(os.TempDir(), "devcorb", "src")
+		opt.SourcesDir = filepath.Join(os.TempDir(), "devopus", "src")
 	}
 	if opt.EnvsDir == "" {
-		opt.EnvsDir = filepath.Join(os.TempDir(), "devcorb", "envs")
+		opt.EnvsDir = filepath.Join(os.TempDir(), "devopus", "envs")
 	}
 	if opt.ReadyTimeout == 0 {
 		opt.ReadyTimeout = 90 * time.Second

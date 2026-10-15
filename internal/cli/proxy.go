@@ -11,9 +11,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/devcorb/devcorb/gen/devcorb/agent/v1"
-	"github.com/devcorb/devcorb/internal/agent/client"
-	"github.com/devcorb/devcorb/internal/agent/paths"
+	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	"github.com/devopus/devopus/internal/agent/client"
+	"github.com/devopus/devopus/internal/agent/paths"
 )
 
 func (a *app) routesCmd() *cobra.Command {
@@ -112,8 +112,8 @@ func (a *app) proxyCmd() *cobra.Command {
 		Use:   "coexist --http PORT [--https PORT] | --off",
 		Short: "Share 80/443 with a dev server (Herd, Valet, nginx) moved to other ports",
 		Long: "Move your dev server off 80/443 first (to 8080/8443, say), then run\n" +
-			"  devcorb proxy coexist --http 8080 --https 8443\n" +
-			"Devcorb takes 80/443 and passes every host it does not serve to the dev server:\n" +
+			"  devopus proxy coexist --http 8080 --https 8443\n" +
+			"Devopus takes 80/443 and passes every host it does not serve to the dev server:\n" +
 			"HTTP as is, HTTPS without decrypting it.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

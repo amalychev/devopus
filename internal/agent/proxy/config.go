@@ -62,11 +62,11 @@ type Config struct {
 	HTTPPort  uint32
 	HTTPSPort uint32
 	Sites     []Site
-	// Coexist sends hosts Devcorb does not serve to a dev server moved off 80/443.
+	// Coexist sends hosts Devopus does not serve to a dev server moved off 80/443.
 	Coexist *Coexist
 }
 
-// Coexist is a dev server on the host (Herd, Valet, nginx) that gave 80/443 to Devcorb.
+// Coexist is a dev server on the host (Herd, Valet, nginx) that gave 80/443 to Devopus.
 type Coexist struct {
 	HTTPPort  uint32
 	HTTPSPort uint32 // 0: TLS for foreign hosts is not passed through
@@ -287,7 +287,7 @@ func httpManager(stat, routes string) (*listenerv3.Filter, error) {
 		}},
 		HttpFilters:   []*hcmv3.HttpFilter{{Name: "envoy.filters.http.router", ConfigType: &hcmv3.HttpFilter_TypedConfig{TypedConfig: router}}},
 		AccessLog:     []*accesslogv3.AccessLog{{Name: "envoy.access_loggers.stdout", ConfigType: &accesslogv3.AccessLog_TypedConfig{TypedConfig: stdout}}},
-		ServerName:    "devcorb",
+		ServerName:    "devopus",
 		NormalizePath: wrapperspb.Bool(true),
 		MergeSlashes:  true,
 		// Hosts match with or without the fallback port.
@@ -303,7 +303,7 @@ func httpManager(stat, routes string) (*listenerv3.Filter, error) {
 
 // HealthPath is answered by the proxy itself on every site: the agent checks with it
 // that a site is served, without waiting for the modules behind it.
-const HealthPath = "/.devcorb/health"
+const HealthPath = "/.devopus/health"
 
 func healthRoute() *routev3.Route {
 	return &routev3.Route{
@@ -360,7 +360,7 @@ func pageRoute(prefix string, p Page) *routev3.Route {
 
 func renderPage(p Page) string {
 	return "<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>" +
-		"<title>" + html.EscapeString(p.Title) + " · Devcorb</title>" +
+		"<title>" + html.EscapeString(p.Title) + " · Devopus</title>" +
 		"<style>body{font:16px/1.5 system-ui,sans-serif;max-width:40rem;margin:4rem auto;padding:0 1rem;color:#222;background:#fff}" +
 		"@media(prefers-color-scheme:dark){body{color:#ddd;background:#16171a}}code{font-size:.95em}</style>" +
 		"<h1>" + html.EscapeString(p.Title) + "</h1><p>" + p.Text + "</p></html>"
@@ -368,11 +368,11 @@ func renderPage(p Page) string {
 
 func unknownText(known []string) string {
 	if len(known) == 0 {
-		return "Devcorb serves no environments yet. Run <code>devcorb up</code> in a project."
+		return "Devopus serves no environments yet. Run <code>devopus up</code> in a project."
 	}
 	sort.Strings(known)
 	var b strings.Builder
-	b.WriteString("Devcorb has no environment at this address. It serves:</p><ul>")
+	b.WriteString("Devopus has no environment at this address. It serves:</p><ul>")
 	for _, h := range known {
 		fmt.Fprintf(&b, "<li><a href='https://%s/'>%s</a></li>", html.EscapeString(h), html.EscapeString(h))
 	}

@@ -37,9 +37,9 @@ sequenceDiagram
 
 ## 2. Локальный старт без команды (MVP, этап 1)
 
-1. `brew install devcorb` → агент регистрируется как служба.
-2. `devcorb init` в папке проекта: импорт `docker-compose.yml` → черновик `workspace.yaml`.
-3. `devcorb up` → preflight (Docker runtime, порты 80/443, DNS `*.localhost`, CA) → базовое окружение на `shop.localhost`.
+1. `brew install devopus` → агент регистрируется как служба.
+2. `devopus init` в папке проекта: импорт `docker-compose.yml` → черновик `workspace.yaml`.
+3. `devopus up` → preflight (Docker runtime, порты 80/443, DNS `*.localhost`, CA) → базовое окружение на `shop.localhost`.
 4. Локальная веб-панель агента показывает статус окружений.
 
 ## 3. Создание фичи

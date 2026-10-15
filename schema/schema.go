@@ -8,7 +8,7 @@ import _ "embed"
 var WorkspaceV1 []byte
 
 // WorkspaceV1ID is the $id of the schema.
-const WorkspaceV1ID = "urn:devcorb:workspace:v1"
+const WorkspaceV1ID = "urn:devopus:workspace:v1"
 
 // URL is where the schema is published for editors (yaml-language-server).
-const URL = "https://raw.githubusercontent.com/devcorb/devcorb/main/schema/workspace.v1.json"
+const URL = "https://raw.githubusercontent.com/devopus/devopus/main/schema/workspace.v1.json"
