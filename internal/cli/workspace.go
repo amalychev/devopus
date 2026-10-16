@@ -23,16 +23,24 @@ func (a *app) validateCmd() *cobra.Command {
 				return err
 			}
 			ds := res.Diagnostics
+			missing, err := missingSecrets(file)
+			if err != nil {
+				return fail(ExitError, "%v", err)
+			}
 			if a.json {
 				if err := a.writeJSON(map[string]any{
-					"file":        file,
-					"valid":       !ds.HasErrors(),
-					"diagnostics": nonNil(ds),
+					"file":            file,
+					"valid":           !ds.HasErrors(),
+					"diagnostics":     nonNil(ds),
+					"missing_secrets": nonNilStrings(missing),
 				}); err != nil {
 					return err
 				}
 			} else {
 				a.printDiagnostics(file, ds)
+				if len(missing) > 0 {
+					fmt.Fprintf(a.stderr, "%s: warning: %s; 'devopus up' fails without them\n", display(file), secretsHint(file, missing))
+				}
 				if !ds.HasErrors() {
 					fmt.Fprintf(a.stdout, "%s is valid", display(file))
 					if n := len(ds.Warnings()); n > 0 {
@@ -129,4 +137,11 @@ func nonNil(ds workspace.Diagnostics) workspace.Diagnostics {
 		return workspace.Diagnostics{}
 	}
 	return ds
+}
+
+func nonNilStrings(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }

@@ -159,6 +159,23 @@ func TestInitTemplateIsValid(t *testing.T) {
 	if code != ExitOK {
 		t.Fatalf("template does not validate: %d\n%s\n%s", code, out, errOut)
 	}
+	// The template's database password is a secret init creates: up must not fail on it.
+	if strings.Contains(errOut, "not in .env.secrets") {
+		t.Fatalf("validate reports missing secrets after init:\n%s", errOut)
+	}
+	secrets, err := os.ReadFile(filepath.Join(dir, ".env.secrets"))
+	if err != nil || !strings.HasPrefix(string(secrets), "POSTGRES_PASSWORD=") || len(secrets) < 30 {
+		t.Fatalf(".env.secrets: %q %v", secrets, err)
+	}
+
+	// A secret the file uses but .env.secrets lacks is a warning in validate.
+	if err := os.WriteFile(filepath.Join(dir, ".env.secrets"), []byte("# empty\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, _, errOut = run(t, dir, "validate")
+	if code != ExitOK || !strings.Contains(errOut, "uses POSTGRES_PASSWORD, which is not in .env.secrets") {
+		t.Fatalf("missing secret: exit %d\n%s", code, errOut)
+	}
 }
 
 func TestSchemaIsJSON(t *testing.T) {

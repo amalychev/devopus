@@ -508,7 +508,7 @@ func (b *builder) expand(s string) (string, error) {
 		case workspace.RefSecret:
 			v, ok := b.env.Secrets[r.Name]
 			if !ok {
-				return "", fmt.Errorf("secret %s is not in .env.secrets", r.Name)
+				return "", fmt.Errorf("secret %s is not in .env.secrets next to workspace.yaml; add a line %s=value there", r.Name, r.Name)
 			}
 			return v, nil
 		case workspace.RefEnv:

@@ -3,6 +3,8 @@ package cli
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -157,10 +159,27 @@ func (a *app) initTemplate(target, project string) error {
 	if err := os.WriteFile(target, data, 0o644); err != nil {
 		return err
 	}
-	if a.json {
-		return a.writeJSON(map[string]any{"file": target, "template": true})
+	// The template's database needs a password; a random one keeps it out of the file.
+	buf := make([]byte, 18)
+	if _, err := rand.Read(buf); err != nil {
+		return err
 	}
-	fmt.Fprintf(a.stdout, "Wrote %s from a template: describe your modules and services, then run 'devopus validate'.\n", target)
+	secretsNote, err := writeSecrets(filepath.Dir(target), map[string]string{"POSTGRES_PASSWORD": base64.RawURLEncoding.EncodeToString(buf)})
+	if err != nil {
+		return err
+	}
+	if a.json {
+		return a.writeJSON(map[string]any{"file": target, "template": true, "secrets": secretsNote})
+	}
+	fmt.Fprintf(a.stdout, "Wrote %s from a template. It describes a Node app in this folder with a Postgres\n"+
+		"database: change modules and services to match your project, then run 'devopus validate'.\n", target)
+	if secretsNote != "" {
+		fmt.Fprintln(a.stdout, secretsNote)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(target), "package.json")); errors.Is(err, os.ErrNotExist) {
+		fmt.Fprintln(a.stdout, "\nThere is no package.json here: as written, 'devopus up' fails on the app module's 'npm ci'.\n"+
+			"Point the module at your code first, or try examples/demo from the Devopus repository.")
+	}
 	return nil
 }
 
@@ -205,16 +224,8 @@ func writeSecrets(dir string, secrets map[string]string) (string, error) {
 		return "", nil
 	}
 	path := filepath.Join(dir, SecretsFile)
-	have := map[string]bool{}
-	if f, err := os.Open(path); err == nil {
-		sc := bufio.NewScanner(f)
-		for sc.Scan() {
-			if k, _, ok := strings.Cut(sc.Text(), "="); ok {
-				have[strings.TrimSpace(k)] = true
-			}
-		}
-		f.Close()
-	} else if !errors.Is(err, os.ErrNotExist) {
+	have, err := secretKeys(path)
+	if err != nil {
 		return "", err
 	}
 	var keys []string
@@ -241,6 +252,61 @@ func writeSecrets(dir string, secrets map[string]string) (string, error) {
 		note += " Add " + SecretsFile + " to .gitignore: it must not be committed."
 	}
 	return note, nil
+}
+
+// secretKeys lists the names in a .env.secrets file; a missing file has none.
+func secretKeys(path string) (map[string]bool, error) {
+	have := map[string]bool{}
+	f, err := os.Open(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return have, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		if k, _, ok := strings.Cut(strings.TrimPrefix(line, "export "), "="); ok {
+			have[strings.TrimSpace(k)] = true
+		}
+	}
+	return have, sc.Err()
+}
+
+var secretRef = regexp.MustCompile(`\$\{\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}`)
+
+// missingSecrets lists the secrets workspace.yaml uses that .env.secrets next to it
+// does not have: the agent cannot start the environment without them.
+func missingSecrets(file string) ([]string, error) {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	have, err := secretKeys(filepath.Join(filepath.Dir(file), SecretsFile))
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, m := range secretRef.FindAllStringSubmatch(string(data), -1) {
+		if n := m[1]; !have[n] && !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// secretsHint tells how to add the missing secrets.
+func secretsHint(file string, missing []string) string {
+	return fmt.Sprintf("%s uses %s, which %s not in %s; add a line NAME=value for each",
+		display(file), strings.Join(missing, ", "), plural(len(missing), "is", "are"), display(filepath.Join(filepath.Dir(file), SecretsFile)))
 }
 
 func dotenvQuote(v string) string {

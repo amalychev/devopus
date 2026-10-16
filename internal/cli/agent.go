@@ -373,6 +373,11 @@ func (a *app) upCmd() *cobra.Command {
 				a.printDiagnostics(file, res.Diagnostics.Errors())
 				return fail(ExitInvalid, "fix the errors above, then run 'devopus up' again")
 			}
+			if missing, err := missingSecrets(file); err != nil {
+				return fail(ExitError, "%v", err)
+			} else if len(missing) > 0 {
+				return fail(ExitInvalid, "%s, then run 'devopus up' again", secretsHint(file, missing))
+			}
 			abs, err := filepath.Abs(file)
 			if err != nil {
 				return err
