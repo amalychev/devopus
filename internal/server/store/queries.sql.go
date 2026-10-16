@@ -51,6 +51,44 @@ func (q *Queries) AddAudit(ctx context.Context, arg AddAuditParams) error {
 	return err
 }
 
+const addDeviceEnvironment = `-- name: AddDeviceEnvironment :exec
+INSERT INTO device_environments (workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+`
+
+type AddDeviceEnvironmentParams struct {
+	WorkspaceID   string
+	DeviceID      string
+	UserID        string
+	EnvID         string
+	Project       string
+	Kind          string
+	Name          string
+	Branch        string
+	Phase         string
+	Url           string
+	Error         string
+	ConfigVersion int32
+}
+
+func (q *Queries) AddDeviceEnvironment(ctx context.Context, arg AddDeviceEnvironmentParams) error {
+	_, err := q.db.Exec(ctx, addDeviceEnvironment,
+		arg.WorkspaceID,
+		arg.DeviceID,
+		arg.UserID,
+		arg.EnvID,
+		arg.Project,
+		arg.Kind,
+		arg.Name,
+		arg.Branch,
+		arg.Phase,
+		arg.Url,
+		arg.Error,
+		arg.ConfigVersion,
+	)
+	return err
+}
+
 const addMember = `-- name: AddMember :exec
 INSERT INTO members (workspace_id, user_id, role, joined_at) VALUES ($1, $2, $3, $4)
 `
@@ -150,6 +188,21 @@ func (q *Queries) Audit(ctx context.Context, arg AuditParams) ([]AuditRow, error
 		return nil, err
 	}
 	return items, nil
+}
+
+const clearDeviceEnvironments = `-- name: ClearDeviceEnvironments :exec
+DELETE FROM device_environments WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3
+`
+
+type ClearDeviceEnvironmentsParams struct {
+	WorkspaceID string
+	DeviceID    string
+	UserID      string
+}
+
+func (q *Queries) ClearDeviceEnvironments(ctx context.Context, arg ClearDeviceEnvironmentsParams) error {
+	_, err := q.db.Exec(ctx, clearDeviceEnvironments, arg.WorkspaceID, arg.DeviceID, arg.UserID)
+	return err
 }
 
 const createInvite = `-- name: CreateInvite :one
@@ -266,6 +319,87 @@ DELETE FROM workspaces WHERE id = $1
 func (q *Queries) DeleteWorkspace(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, deleteWorkspace, id)
 	return err
+}
+
+const deviceEnvironments = `-- name: DeviceEnvironments :many
+SELECT workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version FROM device_environments WHERE workspace_id = $1 ORDER BY project, kind, name
+`
+
+func (q *Queries) DeviceEnvironments(ctx context.Context, workspaceID string) ([]DeviceEnvironment, error) {
+	rows, err := q.db.Query(ctx, deviceEnvironments, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeviceEnvironment
+	for rows.Next() {
+		var i DeviceEnvironment
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.DeviceID,
+			&i.UserID,
+			&i.EnvID,
+			&i.Project,
+			&i.Kind,
+			&i.Name,
+			&i.Branch,
+			&i.Phase,
+			&i.Url,
+			&i.Error,
+			&i.ConfigVersion,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const devices = `-- name: Devices :many
+SELECT d.workspace_id, d.device_id, d.user_id, d.name, d.agent_version, d.last_seen, u.email FROM devices d JOIN users u ON u.id = d.user_id
+WHERE d.workspace_id = $1
+ORDER BY u.email, d.name
+`
+
+type DevicesRow struct {
+	WorkspaceID  string
+	DeviceID     string
+	UserID       string
+	Name         string
+	AgentVersion string
+	LastSeen     time.Time
+	Email        string
+}
+
+func (q *Queries) Devices(ctx context.Context, workspaceID string) ([]DevicesRow, error) {
+	rows, err := q.db.Query(ctx, devices, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DevicesRow
+	for rows.Next() {
+		var i DevicesRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.DeviceID,
+			&i.UserID,
+			&i.Name,
+			&i.AgentVersion,
+			&i.LastSeen,
+			&i.Email,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const grant = `-- name: Grant :exec
@@ -838,6 +972,34 @@ type SetProjectVersionParams struct {
 
 func (q *Queries) SetProjectVersion(ctx context.Context, arg SetProjectVersionParams) error {
 	_, err := q.db.Exec(ctx, setProjectVersion, arg.ID, arg.Version)
+	return err
+}
+
+const upsertDevice = `-- name: UpsertDevice :exec
+INSERT INTO devices (workspace_id, device_id, user_id, name, agent_version, last_seen)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (workspace_id, device_id, user_id)
+DO UPDATE SET name = excluded.name, agent_version = excluded.agent_version, last_seen = excluded.last_seen
+`
+
+type UpsertDeviceParams struct {
+	WorkspaceID  string
+	DeviceID     string
+	UserID       string
+	Name         string
+	AgentVersion string
+	LastSeen     time.Time
+}
+
+func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error {
+	_, err := q.db.Exec(ctx, upsertDevice,
+		arg.WorkspaceID,
+		arg.DeviceID,
+		arg.UserID,
+		arg.Name,
+		arg.AgentVersion,
+		arg.LastSeen,
+	)
 	return err
 }
 

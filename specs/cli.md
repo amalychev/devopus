@@ -29,7 +29,7 @@
 | **Расхождения** | `drift [--project]` — у кого какая версия, личные переопределения (`devopus.yaml`), кто не применил | админ, тимлид | 3 |
 | **Компоненты на машине** | `agent …`, `panel …` — ниже; `agent install --server` — агент на сервере админа для staging и production | все / `--server` — админ | ✅; `--server` — 5 |
 | **Сервер воркспейса (self-hosted)** | `server install`, `server upgrade`, `server status`, `server backup`, `server uninstall` — «пульт» на своём сервере | админ | 4 |
-| **Окружения** | `up [проект…]`, `down`, `open`, `status`, `logs`, `exec`, `routes`; `env create staging\|production --project … --branch …` на сервере админа | все в проекте; staging/production — `servers.manage` | ✅ (сейчас из `workspace.yaml`); staging — 5 |
+| **Окружения** | `up [проект…] [--dir]` (проекты текущего воркспейса; в папке с `workspace.yaml` — её проект до конца этапа 3), `down [проект]`, `open`, `status`, `logs`, `exec`, `routes`; `env create staging\|production --project … --branch …` на сервере админа | все в проекте; staging/production — `servers.manage` | ✅ (сейчас из `workspace.yaml`); staging — 5 |
 | **Фичи и данные** | `feature …`, `db …` — ниже | все в проекте | ✅ |
 | **AI-агенты** | `mcp` | все в проекте | 7 |
 | **Уходят** | `init`, `validate`, `export compose`, `schema` — работа с `workspace.yaml` без воркспейса. Режима без воркспейса не будет; импорт compose — `project create --from-compose`, отладка — демо-воркспейс | — | есть в v0.1.0, убираются на этапе 3 |

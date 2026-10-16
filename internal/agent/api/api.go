@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -34,6 +35,8 @@ type Backend interface {
 	CA() *agentv2.CAInfo
 	// Account is the user the agent works for; nil when nobody is signed in.
 	Account() *agentv2.AccountInfo
+	// Link is the state of the link to the workspace server.
+	Link() *agentv2.LinkInfo
 	// Unsaved describes work in a feature's worktrees that exists nowhere else.
 	Unsaved(ctx context.Context, env *agentv2.EnvironmentSpec, ws *spec.Project) (map[string]string, error)
 	// Force lets the removal of a feature drop its worktrees even with work in them.
@@ -59,7 +62,7 @@ func (s *Server) Status(context.Context, *connect.Request[agentv2.StatusRequest]
 	st := s.b.Store().Snapshot()
 	projects := st.Projects
 	for _, p := range projects {
-		p.Config = nil // the CLI needs names and roots, not files
+		p.Config, p.Spec = nil, nil // the CLI needs names and roots, not files
 	}
 	return connect.NewResponse(&agentv2.StatusResponse{
 		AgentVersion:    s.b.Version(),
@@ -70,6 +73,7 @@ func (s *Server) Status(context.Context, *connect.Request[agentv2.StatusRequest]
 		Proxy:           s.b.Proxy(),
 		Ca:              s.b.CA(),
 		Account:         s.b.Account(),
+		Link:            s.b.Link(),
 	}), nil
 }
 
@@ -104,6 +108,14 @@ func (s *Server) SetProxy(_ context.Context, req *connect.Request[agentv2.SetPro
 }
 
 func (s *Server) Up(_ context.Context, req *connect.Request[agentv2.UpRequest]) (*connect.Response[agentv2.UpResponse], error) {
+	if d := req.Msg.Dir; d != "" {
+		if st, err := os.Stat(d); err != nil || !st.IsDir() || !filepath.IsAbs(d) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("--dir %s: not an absolute path to a folder", d))
+		}
+		if _, err := s.b.Store().Link(req.Msg.Project, d); err != nil {
+			return nil, storeError(err)
+		}
+	}
 	ws, path, config, err := s.workspaceOf(req.Msg.Project, req.Msg.WorkspacePath, req.Msg.Config)
 	if err != nil {
 		return nil, err
@@ -206,7 +218,7 @@ func (s *Server) RemoveFeature(ctx context.Context, req *connect.Request[agentv2
 	var ws *spec.Project
 	for _, p := range s.b.Store().Snapshot().Projects {
 		if p.Name == m.Project {
-			if proj, _, err := importer.Parse(p.Config); err == nil {
+			if proj, err := store.ParseProject(p); err == nil {
 				ws = proj
 			}
 		}
@@ -250,7 +262,7 @@ func (s *Server) ResetData(_ context.Context, req *connect.Request[agentv2.Reset
 	st := s.b.Store()
 	for _, p := range st.Snapshot().Projects {
 		if p.Name == m.Project {
-			if proj, _, err := importer.Parse(p.Config); err == nil {
+			if proj, err := store.ParseProject(p); err == nil {
 				ws = proj
 			}
 		}

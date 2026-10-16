@@ -143,3 +143,96 @@ func TestOpenMigratesV1(t *testing.T) {
 		t.Fatalf("forked apps %v", got)
 	}
 }
+
+func TestSyncServer(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "state.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := func(name string) string { return "/data/projects/" + name }
+	shop := ServerProject{Name: "shop", Spec: []byte("name: shop\ndomain: shop.localhost\n"), Version: 1}
+	blog := ServerProject{Name: "blog", Spec: []byte("name: blog\ndomain: blog.localhost\n"), Version: 4}
+	if _, _, err := s.Up("local", "/src/local", []byte("version: 1\nproject: local\n")); err != nil {
+		t.Fatal(err)
+	}
+	clash := ServerProject{Name: "local", Spec: []byte("name: local\n"), Version: 1}
+
+	rev, conflicts, err := s.SyncServer("wsp_1", "admin@acme.dev", []ServerProject{shop, blog, clash}, root)
+	if err != nil || len(conflicts) != 1 || conflicts[0] != "local" {
+		t.Fatalf("sync: %v %v", conflicts, err)
+	}
+	phase := func(project string) agentv2.DesiredPhase {
+		for _, e := range s.Snapshot().Environments {
+			if e.Project == project && e.Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE {
+				return e.Phase
+			}
+		}
+		return -1
+	}
+	project := func(name string) *agentv2.ProjectSpec {
+		for _, p := range s.Snapshot().Projects {
+			if p.Name == name {
+				return p
+			}
+		}
+		return nil
+	}
+	// New projects come up on their own: a new member does nothing.
+	if phase("shop") != agentv2.DesiredPhase_DESIRED_PHASE_RUNNING || project("shop").Root != "/data/projects/shop" || project("shop").AdminEmail != "admin@acme.dev" {
+		t.Fatalf("shop: %v %+v", phase("shop"), project("shop"))
+	}
+	if p, err := ParseProject(project("shop")); err != nil || p.Domain != "shop.localhost" {
+		t.Fatalf("parse: %+v %v", p, err)
+	}
+	if string(project("local").Config) != "version: 1\nproject: local\n" {
+		t.Error("the folder's project was replaced")
+	}
+	// The same state again changes nothing.
+	if again, _, _ := s.SyncServer("wsp_1", "admin@acme.dev", []ServerProject{shop, blog, clash}, root); again != rev {
+		t.Errorf("revision moved without a change: %d → %d", rev, again)
+	}
+
+	// Held with down: a new version does not start it; up does.
+	if _, err := s.Down("shop", false); err != nil {
+		t.Fatal(err)
+	}
+	shop.Version, shop.Spec = 2, []byte("name: shop\ndomain: shop.test\n")
+	s.SyncServer("wsp_1", "admin@acme.dev", []ServerProject{shop, blog}, root)
+	if phase("shop") != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED || project("shop").ConfigVersion != 2 || !project("shop").Held {
+		t.Fatalf("held shop: %v %+v", phase("shop"), project("shop"))
+	}
+	if _, _, err := s.Up("shop", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if phase("shop") != agentv2.DesiredPhase_DESIRED_PHASE_RUNNING || project("shop").Held || project("shop").Root != "/data/projects/shop" {
+		t.Fatalf("up shop: %v %+v", phase("shop"), project("shop"))
+	}
+
+	// Gone from the server: stopped, kept, and not to be brought up.
+	s.SyncServer("wsp_1", "admin@acme.dev", []ServerProject{shop}, root)
+	if !project("blog").Orphaned || phase("blog") != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED {
+		t.Fatalf("blog: %+v", project("blog"))
+	}
+	if _, _, err := s.Up("blog", "", nil); !errors.Is(err, ErrUnknownProject) {
+		t.Errorf("up of an orphan: %v", err)
+	}
+	// Back on the server: it comes up again.
+	s.SyncServer("wsp_1", "admin@acme.dev", []ServerProject{shop, blog}, root)
+	if project("blog").Orphaned || phase("blog") != agentv2.DesiredPhase_DESIRED_PHASE_RUNNING {
+		t.Fatalf("blog back: %+v", project("blog"))
+	}
+
+	// down --volumes of a server project drops its environments, keeps it held.
+	if _, err := s.Down("blog", true); err != nil {
+		t.Fatal(err)
+	}
+	if project("blog") == nil || !project("blog").Held || phase("blog") != -1 {
+		t.Fatalf("purged blog: %+v %v", project("blog"), phase("blog"))
+	}
+	if _, err := s.Link("blog", "/src/blog"); err != nil || project("blog").Root != "/src/blog" {
+		t.Errorf("link: %v", err)
+	}
+	if _, err := s.Link("local", "/x"); !errors.Is(err, ErrUnknownProject) {
+		t.Errorf("link of a folder's project: %v", err)
+	}
+}

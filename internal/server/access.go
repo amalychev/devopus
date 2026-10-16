@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
@@ -18,8 +19,10 @@ import (
 // caller is the signed-in user of a call and, in a workspace, what they may do there.
 type caller struct {
 	userID, email string
-	workspace     string
-	subject       authz.Subject
+	// expires is when the access token stops working: long streams end there.
+	expires   time.Time
+	workspace string
+	subject   authz.Subject
 	// projectIDs maps the names of the projects the caller has a role in to their ids.
 	projectIDs map[string]string
 }
@@ -45,51 +48,99 @@ func AccessOf(m protoreflect.MethodDescriptor) *workspacev1.Access {
 
 // accessInterceptor is the one place permissions are checked: it reads the access a
 // method declares, authenticates the caller and checks the permission in the
-// request's workspace or project. A method that declares nothing is refused.
-func (s *Service) accessInterceptor() connect.UnaryInterceptorFunc {
-	return func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			m, _ := req.Spec().Schema.(protoreflect.MethodDescriptor)
-			var access *workspacev1.Access
-			if m != nil {
-				access = AccessOf(m)
-			}
-			if access == nil {
-				return nil, connect.NewError(connect.CodeInternal, errors.New(req.Spec().Procedure+" declares no access"))
-			}
-			c, err := s.authenticate(ctx, req.Header().Get("Authorization"))
-			if err != nil {
-				return nil, err
-			}
-			if access.Scope != workspacev1.Scope_SCOPE_SIGNED_IN {
-				msg, ok := req.Any().(proto.Message)
-				if !ok {
-					return nil, internal(errors.New("request is not a message"))
-				}
-				ws := field(msg, "workspace_id")
-				if ws == "" {
-					return nil, invalid("the workspace is not set: 'devopus workspace use <name>'")
-				}
-				project := ""
-				if access.Scope == workspacev1.Scope_SCOPE_PROJECT {
-					if project = field(msg, "project"); project == "" {
-						return nil, invalid("the project is not set: --project <name>")
-					}
-				}
-				if err := s.load(ctx, c, ws); err != nil {
-					return nil, err
-				}
-				perm := authz.Permission(access.Permission)
-				if !c.subject.Can(perm, project) {
-					if project != "" {
-						return nil, denied("this needs the permission %s in project %q; ask its teamlead or the workspace admin", perm, project)
-					}
-					return nil, denied("this needs the permission %s in the workspace; ask its admin", perm)
-				}
-			}
-			return next(context.WithValue(ctx, callerKey{}, c), req)
+// request's workspace or project. A method that declares nothing is refused. Streams
+// are checked on their request message, before the handler sees it.
+func (s *Service) accessInterceptor() connect.Interceptor { return &access{s: s} }
+
+type access struct{ s *Service }
+
+func (i *access) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		msg, _ := req.Any().(proto.Message)
+		c, err := i.s.authorize(ctx, req.Spec(), req.Header().Get("Authorization"), msg)
+		if err != nil {
+			return nil, err
+		}
+		return next(context.WithValue(ctx, callerKey{}, c), req)
+	}
+}
+
+func (i *access) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return next
+}
+
+func (i *access) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+		c := &caller{} // filled once the request arrives
+		return next(context.WithValue(ctx, callerKey{}, c), &checkedConn{StreamingHandlerConn: conn, s: i.s, ctx: ctx, c: c})
+	}
+}
+
+// checkedConn checks the access of a stream on its first message.
+type checkedConn struct {
+	connect.StreamingHandlerConn
+	s       *Service
+	ctx     context.Context
+	c       *caller
+	checked bool
+}
+
+func (cc *checkedConn) Receive(m any) error {
+	if err := cc.StreamingHandlerConn.Receive(m); err != nil {
+		return err
+	}
+	if cc.checked {
+		return nil
+	}
+	msg, _ := m.(proto.Message)
+	c, err := cc.s.authorize(cc.ctx, cc.Spec(), cc.RequestHeader().Get("Authorization"), msg)
+	if err != nil {
+		return err
+	}
+	*cc.c, cc.checked = *c, true
+	return nil
+}
+
+func (s *Service) authorize(ctx context.Context, spec connect.Spec, header string, msg proto.Message) (*caller, error) {
+	m, _ := spec.Schema.(protoreflect.MethodDescriptor)
+	var access *workspacev1.Access
+	if m != nil {
+		access = AccessOf(m)
+	}
+	if access == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New(spec.Procedure+" declares no access"))
+	}
+	c, err := s.authenticate(ctx, header)
+	if err != nil {
+		return nil, err
+	}
+	if access.Scope == workspacev1.Scope_SCOPE_SIGNED_IN {
+		return c, nil
+	}
+	if msg == nil {
+		return nil, internal(errors.New("request is not a message"))
+	}
+	ws := field(msg, "workspace_id")
+	if ws == "" {
+		return nil, invalid("the workspace is not set: 'devopus workspace use <name>'")
+	}
+	project := ""
+	if access.Scope == workspacev1.Scope_SCOPE_PROJECT {
+		if project = field(msg, "project"); project == "" {
+			return nil, invalid("the project is not set: --project <name>")
 		}
 	}
+	if err := s.load(ctx, c, ws); err != nil {
+		return nil, err
+	}
+	perm := authz.Permission(access.Permission)
+	if !c.subject.Can(perm, project) {
+		if project != "" {
+			return nil, denied("this needs the permission %s in project %q; ask its teamlead or the workspace admin", perm, project)
+		}
+		return nil, denied("this needs the permission %s in the workspace; ask its admin", perm)
+	}
+	return c, nil
 }
 
 // field reads a string field of a request by name.
@@ -116,7 +167,7 @@ func (s *Service) authenticate(ctx context.Context, header string) (*caller, err
 	if claims.Email == "" {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("the token has no email; sign in again: devopus login"))
 	}
-	c := &caller{userID: claims.Subject, email: normalizeEmail(claims.Email)}
+	c := &caller{userID: claims.Subject, email: normalizeEmail(claims.Email), expires: claims.ExpiresAt()}
 	if e, ok := s.seen.Load(c.userID); !ok || e != c.email {
 		if err := s.q.UpsertUser(ctx, store.UpsertUserParams{ID: c.userID, Email: c.email, SeenAt: s.now()}); err != nil {
 			return nil, internal(err)

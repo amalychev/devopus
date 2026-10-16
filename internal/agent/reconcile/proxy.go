@@ -17,7 +17,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/stack"
-	"github.com/amalychev/devopus/internal/importer"
+	"github.com/amalychev/devopus/internal/agent/store"
 	"github.com/amalychev/devopus/internal/spec"
 )
 
@@ -521,20 +521,22 @@ func (r *Reconciler) whyNotServed(err error) error {
 type parsed struct {
 	ws   *spec.Project
 	root string
-	err  error
+	// admin is whom to ask for access to the repositories: the workspace's admin.
+	admin string
+	err   error
 }
 
 func parseProjects(projects []*agentv2.ProjectSpec) map[string]*parsed {
 	out := map[string]*parsed{}
 	for _, p := range projects {
-		proj, _, err := importer.Parse(p.Config)
+		proj, err := store.ParseProject(p)
 		switch {
 		case err != nil:
 			out[p.Name] = &parsed{err: err}
 		case proj.Domain == "":
 			out[p.Name] = &parsed{err: errors.New("no domain")}
 		default:
-			out[p.Name] = &parsed{ws: proj, root: p.Root}
+			out[p.Name] = &parsed{ws: proj, root: p.Root, admin: p.AdminEmail}
 		}
 	}
 	return out

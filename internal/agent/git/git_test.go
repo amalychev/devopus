@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -132,5 +133,21 @@ func TestWorktrees(t *testing.T) {
 	}
 	if _, err := Head(ctx, half); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestNoAccess(t *testing.T) {
+	for _, msg := range []string{
+		"git clone: git@github.com: Permission denied (publickey).\nfatal: Could not read from remote repository.",
+		"git clone: remote: Repository not found.\nfatal: repository 'https://github.com/acme/secret.git/' not found",
+		"git clone: fatal: Authentication failed for 'https://gitlab.com/acme/api.git/'",
+		"git clone: fatal: could not read Username for 'https://github.com': terminal prompts disabled",
+	} {
+		if !NoAccess(errors.New(msg)) {
+			t.Errorf("not recognised: %s", msg)
+		}
+	}
+	if NoAccess(errors.New("git clone: fatal: unable to access: Could not resolve host: github.com")) || NoAccess(nil) {
+		t.Error("a network error is not about access")
 	}
 }

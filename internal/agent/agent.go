@@ -26,6 +26,7 @@ import (
 	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
 	"github.com/amalychev/devopus/internal/agent/api"
 	"github.com/amalychev/devopus/internal/agent/lifecycle"
+	"github.com/amalychev/devopus/internal/agent/link"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/pki"
 	"github.com/amalychev/devopus/internal/agent/proxy"
@@ -68,6 +69,8 @@ type Agent struct {
 	life *lifecycle.Manager
 	// creds keeps the access token of the user signed in on this device.
 	creds *credentials.Keeper
+	// link brings the projects of the current workspace from its server.
+	link *link.Link
 	// kick asks the loop for a pass now.
 	kick chan struct{}
 
@@ -129,6 +132,11 @@ func (a *Agent) Account() *agentv2.AccountInfo {
 		return nil
 	}
 	return &agentv2.AccountInfo{Email: s.Email, UserId: s.UserID, SessionId: s.SessionID, AuthUrl: s.AuthURL}
+}
+
+func (a *Agent) Link() *agentv2.LinkInfo {
+	s := a.link.State()
+	return &agentv2.LinkInfo{Workspace: s.Workspace, Server: s.Server, Connected: s.Connected, Error: s.Error}
 }
 
 func (a *Agent) Runtime() *agentv2.RuntimeInfo {
@@ -242,6 +250,11 @@ func Run(ctx context.Context, opt Options) error {
 		log.Info("environment", "id", s.Id, "project", s.Project, "phase", s.Phase.String(), "error", s.Error, "removed", s.Removed)
 		a.hub.Publish(s)
 	})
+
+	changes, unsubscribe := a.hub.Subscribe()
+	defer unsubscribe()
+	a.link = link.New(link.Options{Store: st, Token: a.creds.Token, Statuses: a.rec.Statuses, Changed: changes, Version: opt.Version, Log: log})
+	go a.link.Run(ctx)
 
 	waker := lifecycle.NewWaker(a.life, roots, proxyPorts)
 	go func() {

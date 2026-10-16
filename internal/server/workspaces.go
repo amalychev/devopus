@@ -175,6 +175,7 @@ func (s *Service) DeleteWorkspace(ctx context.Context, req *connect.Request[work
 		return nil, internal(err)
 	}
 	s.cfg.Log.Info("workspace deleted", "workspace", w.ID, "name", w.Name, "by", c.email)
+	s.hub.wake(w.ID)
 	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{}), nil
 }
 

@@ -1,0 +1,114 @@
+// The link between agents and the workspace server (specs/agent-protocol.md). The agent
+// opens it, outgoing, so it passes NAT and proxies; it signs in with its user's access
+// token. The server sends the desired state, not commands: every message describes all
+// the device should run, so a lost one breaks nothing.
+syntax = "proto3";
+
+package devopus.sync.v1;
+
+import "devopus/workspace/v1/workspace.proto";
+import "google/protobuf/timestamp.proto";
+
+service SyncService {
+  // Watch is the agent's connection: the device's desired state now, then again on
+  // every change. The server closes it when the access token expires; the agent
+  // reconnects with a fresh one. A member removed from the workspace is cut off.
+  rpc Watch(WatchRequest) returns (stream WatchResponse) {
+    option (devopus.workspace.v1.access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  // ReportStatus tells the server what the device runs: every environment, features
+  // created on the device included, and the version of the settings it applied.
+  rpc ReportStatus(ReportStatusRequest) returns (ReportStatusResponse) {
+    option (devopus.workspace.v1.access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  // ListDevices shows devices and what they run: the admin sees all, a teamlead the
+  // devices that run projects they manage, everyone their own.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse) {
+    option (devopus.workspace.v1.access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+}
+
+message Device {
+  // The device's random id (credentials.DeviceID).
+  string id = 1;
+  // Its host name.
+  string name = 2;
+  string agent_version = 3;
+}
+
+message WatchRequest {
+  string workspace_id = 1;
+  Device device = 2;
+}
+
+// DesiredProject is a project the device runs, in the version the server has now.
+message DesiredProject {
+  string id = 1;
+  string name = 2;
+  int32 version = 3;
+  // The project in the YAML form of internal/spec.
+  string config_yaml = 4;
+}
+
+// WatchResponse is the device's whole desired state in the workspace.
+message WatchResponse {
+  string workspace_id = 1;
+  string workspace_name = 2;
+  // Whom to ask for access to repositories.
+  string admin_email = 3;
+  // The projects of the workspace the user works in (env.use).
+  repeated DesiredProject projects = 4;
+}
+
+message EnvironmentReport {
+  string project = 1;
+  // The environment's id on the device.
+  string id = 2;
+  // base or feature.
+  string kind = 3;
+  // A feature's name and branch.
+  string name = 4;
+  string branch = 5;
+  // creating, running, sleeping, stopped, error…
+  string phase = 6;
+  string url = 7;
+  string error = 8;
+  // The version of the project's settings the device runs.
+  int32 config_version = 9;
+}
+
+message ReportStatusRequest {
+  string workspace_id = 1;
+  Device device = 2;
+  repeated EnvironmentReport environments = 3;
+}
+
+message ReportStatusResponse {}
+
+message ListDevicesRequest {
+  string workspace_id = 1;
+  // Only devices that run this project; empty: all.
+  string project = 2;
+}
+
+message DeviceStatus {
+  Device device = 1;
+  string user_email = 2;
+  google.protobuf.Timestamp last_seen = 3;
+  // Seen in the last two minutes.
+  bool online = 4;
+  repeated EnvironmentReport environments = 5;
+}
+
+message ListDevicesResponse {
+  repeated DeviceStatus devices = 1;
+}

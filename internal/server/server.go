@@ -23,6 +23,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/amalychev/devopus/gen/devopus/sync/v1/syncv1connect"
 	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
 	"github.com/amalychev/devopus/internal/auth/mail"
 	"github.com/amalychev/devopus/internal/auth/token"
@@ -53,6 +54,7 @@ type Service struct {
 	q    *store.Queries
 
 	seen sync.Map // user id → email already saved
+	hub  hub      // wakes the agents' watchers of a workspace
 }
 
 // New opens the server on a migrated database.
@@ -77,7 +79,9 @@ func (s *Service) now() time.Time { return s.cfg.Now().UTC().Truncate(time.Micro
 // Handler serves the API: every call goes through the access check.
 func (s *Service) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle(workspacev1connect.NewWorkspaceServiceHandler(s, connect.WithInterceptors(s.accessInterceptor())))
+	check := connect.WithInterceptors(s.accessInterceptor())
+	mux.Handle(workspacev1connect.NewWorkspaceServiceHandler(s, check))
+	mux.Handle(syncv1connect.NewSyncServiceHandler(&syncService{s: s}, check))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if err := s.pool.Ping(r.Context()); err != nil {
 			http.Error(w, "database: "+err.Error(), http.StatusServiceUnavailable)
@@ -88,9 +92,16 @@ func (s *Service) Handler() http.Handler {
 	return mux
 }
 
-// tx runs fn in a transaction.
+// tx runs fn in a transaction. A committed change wakes the agents of the caller's
+// workspace: they look at their desired state again.
 func (s *Service) tx(ctx context.Context, fn func(q *store.Queries) error) error {
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error { return fn(s.q.WithTx(tx)) })
+	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error { return fn(s.q.WithTx(tx)) }); err != nil {
+		return err
+	}
+	if ws := callerOf(ctx).workspace; ws != "" {
+		s.hub.wake(ws)
+	}
+	return nil
 }
 
 // audit records a change in the workspace's log.

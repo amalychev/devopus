@@ -139,3 +139,24 @@ SELECT v.version, v.message, v.created_at, u.email AS author FROM project_versio
 WHERE v.project_id = $1
 ORDER BY v.version DESC
 LIMIT $2;
+
+-- name: UpsertDevice :exec
+INSERT INTO devices (workspace_id, device_id, user_id, name, agent_version, last_seen)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (workspace_id, device_id, user_id)
+DO UPDATE SET name = excluded.name, agent_version = excluded.agent_version, last_seen = excluded.last_seen;
+
+-- name: ClearDeviceEnvironments :exec
+DELETE FROM device_environments WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3;
+
+-- name: AddDeviceEnvironment :exec
+INSERT INTO device_environments (workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
+
+-- name: Devices :many
+SELECT d.*, u.email FROM devices d JOIN users u ON u.id = d.user_id
+WHERE d.workspace_id = $1
+ORDER BY u.email, d.name;
+
+-- name: DeviceEnvironments :many
+SELECT * FROM device_environments WHERE workspace_id = $1 ORDER BY project, kind, name;

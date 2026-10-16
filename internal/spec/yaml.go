@@ -86,7 +86,7 @@ func (p *Project) Check() error {
 			errs = append(errs, fmt.Sprintf("apps.%s: empty", n))
 			continue
 		}
-		if a.Repo == "" && a.Path == "" && a.Image == "" {
+		if a.Repo == "" && a.Path == "" {
 			errs = append(errs, fmt.Sprintf("apps.%s: where is the code? set a repository (--repo) or a folder (--path)", n))
 		}
 	}

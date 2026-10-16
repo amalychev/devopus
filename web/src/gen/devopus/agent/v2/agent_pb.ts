@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file devopus/agent/v2/agent.proto.
  */
 export const file_devopus_agent_v2_agent: GenFile = /*@__PURE__*/
-  fileDesc("ChxkZXZvcHVzL2FnZW50L3YyL2FnZW50LnByb3RvEhBkZXZvcHVzLmFnZW50LnYyIrwBCgxEZXNpcmVkU3RhdGUSEAoIcmV2aXNpb24YASABKAQSLwoIcHJvamVjdHMYAiADKAsyHS5kZXZvcHVzLmFnZW50LnYyLlByb2plY3RTcGVjEjcKDGVudmlyb25tZW50cxgDIAMoCzIhLmRldm9wdXMuYWdlbnQudjIuRW52aXJvbm1lbnRTcGVjEjAKBmRldmljZRgEIAEoCzIgLmRldm9wdXMuYWdlbnQudjIuRGV2aWNlU2V0dGluZ3MiYQoORGV2aWNlU2V0dGluZ3MSGQoRY29leGlzdF9odHRwX3BvcnQYASABKA0SGgoSY29leGlzdF9odHRwc19wb3J0GAIgASgNEhgKEHByb3h5X2dlbmVyYXRpb24YAyABKAQiTgoLUHJvamVjdFNwZWMSDAoEbmFtZRgBIAEoCRIMCgRyb290GAIgASgJEg4KBmNvbmZpZxgDIAEoDBITCgtjb25maWdfaGFzaBgEIAEoCSLKAgoPRW52aXJvbm1lbnRTcGVjEgoKAmlkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSLwoEa2luZBgDIAEoDjIhLmRldm9wdXMuYWdlbnQudjIuRW52aXJvbm1lbnRLaW5kEgwKBHNsdWcYBCABKAkSDgoGYnJhbmNoGAUgASgJEhMKC2ZvcmtlZF9hcHBzGAYgAygJEi0KBXBoYXNlGAcgASgOMh4uZGV2b3B1cy5hZ2VudC52Mi5EZXNpcmVkUGhhc2USDAoEbmFtZRgIIAEoCRJGCgtkYXRhX3Jlc2V0cxgJIAMoCzIxLmRldm9wdXMuYWdlbnQudjIuRW52aXJvbm1lbnRTcGVjLkRhdGFSZXNldHNFbnRyeRoxCg9EYXRhUmVzZXRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgEOgI4ASK6AQoMU3RlcFByb2dyZXNzEgwKBG5hbWUYASABKAkSKgoFc3RhdGUYAiABKA4yGy5kZXZvcHVzLmFnZW50LnYyLlN0ZXBTdGF0ZRIPCgdtZXNzYWdlGAMgASgJEi4KCnN0YXJ0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCItCg1OZXR3b3JrU3RhdHVzEgwKBG5hbWUYASABKAkSDgoGc3VibmV0GAIgASgJIuYFChFFbnZpcm9ubWVudFN0YXR1cxIKCgJpZBgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEi8KBGtpbmQYAyABKA4yIS5kZXZvcHVzLmFnZW50LnYyLkVudmlyb25tZW50S2luZBIMCgRzbHVnGAQgASgJEiYKBXBoYXNlGAUgASgOMhcuZGV2b3B1cy5hZ2VudC52Mi5QaGFzZRItCgVzdGVwcxgGIAMoCzIeLmRldm9wdXMuYWdlbnQudjIuU3RlcFByb2dyZXNzEgsKA3VybBgHIAEoCRINCgVlcnJvchgIIAEoCRIwCgduZXR3b3JrGAkgASgLMh8uZGV2b3B1cy5hZ2VudC52Mi5OZXR3b3JrU3RhdHVzEhgKEGFwcGxpZWRfcmV2aXNpb24YCiABKAQSLgoKdXBkYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHcmVtb3ZlZBgMIAEoCBIrCgV1bml0cxgNIAMoCzIcLmRldm9wdXMuYWdlbnQudjIuVW5pdFN0YXR1cxIMCgRuYW1lGA4gASgJEg4KBmJyYW5jaBgPIAEoCRITCgtmb3JrZWRfYXBwcxgQIAMoCRIsCgdzb3VyY2VzGBEgAygLMhsuZGV2b3B1cy5hZ2VudC52Mi5BcHBTb3VyY2USDgoGc2hhcmVkGBIgAygJEg0KBW5vdGVzGBMgAygJEhEKCWNvZGVfcm9vdBgUIAEoCRIqCgRkYXRhGBUgAygLMhwuZGV2b3B1cy5hZ2VudC52Mi5EYXRhU3RhdHVzEi8KC2xhc3RfYWN0aXZlGBYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxzbGVlcF9yZWFzb24YFyABKAkSMgoOc2xlZXBpbmdfc2luY2UYGCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBm1lcmdlZBgZIAEoCCKIAQoKRGF0YVN0YXR1cxIPCgdzZXJ2aWNlGAEgASgJEg4KBmVuZ2luZRgCIAEoCRItCgljb3BpZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBmJlaGluZBgEIAEoCBIMCgRzaXplGAUgASgJEgwKBG5vdGUYBiABKAkiSAoJQXBwU291cmNlEgsKA2FwcBgBIAEoCRIMCgRwYXRoGAIgASgJEhAKCGNoZWNrb3V0GAMgASgJEg4KBmJyYW5jaBgEIAEoCSJ6CgpVbml0U3RhdHVzEgwKBG5hbWUYASABKAkSDAoEcm9sZRgCIAEoCRIRCgljb250YWluZXIYAyABKAkSDQoFc3RhdGUYBCABKAkSDwoHYWRkcmVzcxgFIAEoCRIOCgZyb3V0ZXMYBiADKAkSDQoFZXJyb3IYByABKAkicwoLUnVudGltZUluZm8SDAoEbmFtZRgBIAEoCRIQCghlbmRwb2ludBgCIAEoCRIWCg5zZXJ2ZXJfdmVyc2lvbhgDIAEoCRIKCgJvcxgEIAEoCRIRCglyZWFjaGFibGUYBSABKAgSDQoFZXJyb3IYBiABKAkiDwoNU3RhdHVzUmVxdWVzdCLyAgoOU3RhdHVzUmVzcG9uc2USFQoNYWdlbnRfdmVyc2lvbhgBIAEoCRIYChBkZXNpcmVkX3JldmlzaW9uGAIgASgEEi4KB3J1bnRpbWUYAyABKAsyHS5kZXZvcHVzLmFnZW50LnYyLlJ1bnRpbWVJbmZvEi8KCHByb2plY3RzGAQgAygLMh0uZGV2b3B1cy5hZ2VudC52Mi5Qcm9qZWN0U3BlYxI5CgxlbnZpcm9ubWVudHMYBSADKAsyIy5kZXZvcHVzLmFnZW50LnYyLkVudmlyb25tZW50U3RhdHVzEiwKBXByb3h5GAYgASgLMh0uZGV2b3B1cy5hZ2VudC52Mi5Qcm94eVN0YXR1cxIkCgJjYRgHIAEoCzIYLmRldm9wdXMuYWdlbnQudjIuQ0FJbmZvEi4KB2FjY291bnQYCSABKAsyHS5kZXZvcHVzLmFnZW50LnYyLkFjY291bnRJbmZvSgQICBAJUglwYW5lbF91cmwiUwoLQWNjb3VudEluZm8SDQoFZW1haWwYASABKAkSDwoHdXNlcl9pZBgCIAEoCRISCgpzZXNzaW9uX2lkGAMgASgJEhAKCGF1dGhfdXJsGAQgASgJIlcKDFBvcnRDb25mbGljdBIPCgdhZGRyZXNzGAEgASgJEg0KBW93bmVyGAIgASgJEgsKA3BpZBgDIAEoBRIMCgRraW5kGAQgASgJEgwKBGhpbnQYBSABKAkiqgIKC1Byb3h5U3RhdHVzEg0KBXN0YXRlGAEgASgJEgwKBG1vZGUYAiABKAkSEQoJaHR0cF9wb3J0GAMgASgNEhIKCmh0dHBzX3BvcnQYBCABKA0SDQoFZXJyb3IYBSABKAkSMQoJY29uZmxpY3RzGAYgAygLMh4uZGV2b3B1cy5hZ2VudC52Mi5Qb3J0Q29uZmxpY3QSEQoJY29ubmVjdGVkGAcgASgIEhYKDmNvbmZpZ192ZXJzaW9uGAggASgJEhAKCHJlamVjdGVkGAkgASgJEhEKCWNvbnRhaW5lchgKIAEoCRIZChFjb2V4aXN0X2h0dHBfcG9ydBgLIAEoDRIaChJjb2V4aXN0X2h0dHBzX3BvcnQYDCABKA0SDgoGcmVsYXlzGA0gAygJIl8KBkNBSW5mbxIRCglyb290X3BhdGgYASABKAkSEwoLZmluZ2VycHJpbnQYAiABKAkSLQoJbm90X2FmdGVyGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJpCgVSb3V0ZRIMCgRob3N0GAEgASgJEhYKDmVudmlyb25tZW50X2lkGAIgASgJEg8KB3Byb2plY3QYAyABKAkSDAoEcGF0aBgEIAEoCRIOCgZ0YXJnZXQYBSABKAkSCwoDdXJsGAYgASgJIicKDVJvdXRlc1JlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkiZwoOUm91dGVzUmVzcG9uc2USJwoGcm91dGVzGAEgAygLMhcuZGV2b3B1cy5hZ2VudC52Mi5Sb3V0ZRIsCgVwcm94eRgCIAEoCzIdLmRldm9wdXMuYWdlbnQudjIuUHJveHlTdGF0dXMiWQoPU2V0UHJveHlSZXF1ZXN0EhkKEWNvZXhpc3RfaHR0cF9wb3J0GAEgASgNEhoKEmNvZXhpc3RfaHR0cHNfcG9ydBgCIAEoDRIPCgdyZXN0YXJ0GAMgASgIIiQKEFNldFByb3h5UmVzcG9uc2USEAoIcmV2aXNpb24YASABKAQiRAoJVXBSZXF1ZXN0EhYKDndvcmtzcGFjZV9wYXRoGAEgASgJEg4KBmNvbmZpZxgCIAEoDBIPCgdwcm9qZWN0GAMgASgJIjYKClVwUmVzcG9uc2USFgoOZW52aXJvbm1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAQiLQoLRG93blJlcXVlc3QSDwoHcHJvamVjdBgBIAEoCRINCgVwdXJnZRgCIAEoCCIgCgxEb3duUmVzcG9uc2USEAoIcmV2aXNpb24YASABKAQiJgoMV2F0Y2hSZXF1ZXN0EhYKDmVudmlyb25tZW50X2lkGAEgASgJIlQKDVdhdGNoUmVzcG9uc2USMwoGc3RhdHVzGAEgASgLMiMuZGV2b3B1cy5hZ2VudC52Mi5FbnZpcm9ubWVudFN0YXR1cxIOCgZzeW5jZWQYAiABKAgiewoUQ3JlYXRlRmVhdHVyZVJlcXVlc3QSFgoOd29ya3NwYWNlX3BhdGgYASABKAkSDgoGY29uZmlnGAIgASgMEgwKBG5hbWUYAyABKAkSDAoEYXBwcxgEIAMoCRIOCgZicmFuY2gYBSABKAkSDwoHcHJvamVjdBgGIAEoCSJ8ChVDcmVhdGVGZWF0dXJlUmVzcG9uc2USFgoOZW52aXJvbm1lbnRfaWQYASABKAkSDAoEc2x1ZxgCIAEoCRIOCgZicmFuY2gYAyABKAkSEAoIcmV2aXNpb24YBCABKAQSGwoTYmFzZV9lbnZpcm9ubWVudF9pZBgFIAEoCSJvChVBZGRGZWF0dXJlQXBwc1JlcXVlc3QSFgoOd29ya3NwYWNlX3BhdGgYASABKAkSDgoGY29uZmlnGAIgASgMEg8KB2ZlYXR1cmUYAyABKAkSDAoEYXBwcxgEIAMoCRIPCgdwcm9qZWN0GAUgASgJIkIKFkFkZEZlYXR1cmVBcHBzUmVzcG9uc2USFgoOZW52aXJvbm1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAQiRwoUUmVtb3ZlRmVhdHVyZVJlcXVlc3QSDwoHcHJvamVjdBgBIAEoCRIPCgdmZWF0dXJlGAIgASgJEg0KBWZvcmNlGAMgASgIIkEKFVJlbW92ZUZlYXR1cmVSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoBCJKChBSZXNldERhdGFSZXF1ZXN0Eg8KB3Byb2plY3QYASABKAkSEwoLZW52aXJvbm1lbnQYAiABKAkSEAoIc2VydmljZXMYAyADKAkiTwoRUmVzZXREYXRhUmVzcG9uc2USFgoOZW52aXJvbm1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAQSEAoIc2VydmljZXMYAyADKAkiQwoPU2V0U2xlZXBSZXF1ZXN0Eg8KB3Byb2plY3QYASABKAkSDwoHZmVhdHVyZRgCIAEoCRIOCgZhc2xlZXAYAyABKAgiKgoQU2V0U2xlZXBSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSI4ChZEZXNjcmliZVByb2plY3RSZXF1ZXN0Eg8KB3Byb2plY3QYASABKAkSDQoFZm9ya3MYAiADKAkiRwoHQXBwSW5mbxIMCgRuYW1lGAEgASgJEg4KBnJvdXRlcxgCIAMoCRIQCghvcHRpb25hbBgDIAEoCBIMCgR1c2VzGAQgAygJInAKC0ZlYXR1cmVQbGFuEg4KBmZvcmtlZBgBIAMoCRISCgpkZXBlbmRlbnRzGAIgAygJEg4KBmNvcGllcxgDIAMoCRILCgNvd24YBCADKAkSDgoGc2hhcmVkGAUgAygJEhAKCHdhcm5pbmdzGAYgAygJItEBChdEZXNjcmliZVByb2plY3RSZXNwb25zZRIPCgdwcm9qZWN0GAEgASgJEhYKDndvcmtzcGFjZV9wYXRoGAIgASgJEg4KBmRvbWFpbhgDIAEoCRInCgRhcHBzGAQgAygLMhkuZGV2b3B1cy5hZ2VudC52Mi5BcHBJbmZvEhAKCHNlcnZpY2VzGAUgAygJEhUKDWJyYW5jaF9wcmVmaXgYBiABKAkSKwoEcGxhbhgHIAEoCzIdLmRldm9wdXMuYWdlbnQudjIuRmVhdHVyZVBsYW4iVwoJTG9nU291cmNlEgwKBHVuaXQYASABKAkSDAoEZmlsZRgCIAEoCRIuCgp1cGRhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIrChFMb2dTb3VyY2VzUmVxdWVzdBIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSJCChJMb2dTb3VyY2VzUmVzcG9uc2USLAoHc291cmNlcxgBIAMoCzIbLmRldm9wdXMuYWdlbnQudjIuTG9nU291cmNlInAKC0xvZ3NSZXF1ZXN0EhYKDmVudmlyb25tZW50X2lkGAEgASgJEisKBnNvdXJjZRgCIAEoCzIbLmRldm9wdXMuYWdlbnQudjIuTG9nU291cmNlEgwKBHRhaWwYAyABKA0SDgoGZm9sbG93GAQgASgIIlEKB0xvZ0xpbmUSDAoEdGV4dBgBIAEoCRIOCgZzdGRlcnIYAiABKAgSKAoEdGltZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiOAoMTG9nc1Jlc3BvbnNlEigKBWxpbmVzGAEgAygLMhkuZGV2b3B1cy5hZ2VudC52Mi5Mb2dMaW5lIioKEFJlc291cmNlc1JlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkiXgoNVW5pdFJlc291cmNlcxIMCgRuYW1lGAEgASgJEhMKC2NwdV9wZXJjZW50GAIgASgBEhQKDG1lbW9yeV9ieXRlcxgDIAEoBBIUCgxtZW1vcnlfbGltaXQYBCABKAQiQwoRUmVzb3VyY2VzUmVzcG9uc2USLgoFdW5pdHMYASADKAsyHy5kZXZvcHVzLmFnZW50LnYyLlVuaXRSZXNvdXJjZXMqbAoPRW52aXJvbm1lbnRLaW5kEiAKHEVOVklST05NRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIZChVFTlZJUk9OTUVOVF9LSU5EX0JBU0UQARIcChhFTlZJUk9OTUVOVF9LSU5EX0ZFQVRVUkUQAipjCgxEZXNpcmVkUGhhc2USHQoZREVTSVJFRF9QSEFTRV9VTlNQRUNJRklFRBAAEhkKFURFU0lSRURfUEhBU0VfUlVOTklORxABEhkKFURFU0lSRURfUEhBU0VfU1RPUFBFRBACKpEBCgVQaGFzZRIVChFQSEFTRV9VTlNQRUNJRklFRBAAEhIKDlBIQVNFX0NSRUFUSU5HEAESEQoNUEhBU0VfUlVOTklORxACEhEKDVBIQVNFX1NUT1BQRUQQAxIPCgtQSEFTRV9FUlJPUhAEEhIKDlBIQVNFX0RFTEVUSU5HEAUSEgoOUEhBU0VfU0xFRVBJTkcQBiqDAQoJU3RlcFN0YXRlEhoKFlNURVBfU1RBVEVfVU5TUEVDSUZJRUQQABIWChJTVEVQX1NUQVRFX1BFTkRJTkcQARIWChJTVEVQX1NUQVRFX1JVTk5JTkcQAhITCg9TVEVQX1NUQVRFX0RPTkUQAxIVChFTVEVQX1NUQVRFX0ZBSUxFRBAEMoEKCgxBZ2VudFNlcnZpY2USSwoGU3RhdHVzEh8uZGV2b3B1cy5hZ2VudC52Mi5TdGF0dXNSZXF1ZXN0GiAuZGV2b3B1cy5hZ2VudC52Mi5TdGF0dXNSZXNwb25zZRI/CgJVcBIbLmRldm9wdXMuYWdlbnQudjIuVXBSZXF1ZXN0GhwuZGV2b3B1cy5hZ2VudC52Mi5VcFJlc3BvbnNlEkUKBERvd24SHS5kZXZvcHVzLmFnZW50LnYyLkRvd25SZXF1ZXN0Gh4uZGV2b3B1cy5hZ2VudC52Mi5Eb3duUmVzcG9uc2USSgoFV2F0Y2gSHi5kZXZvcHVzLmFnZW50LnYyLldhdGNoUmVxdWVzdBofLmRldm9wdXMuYWdlbnQudjIuV2F0Y2hSZXNwb25zZTABEksKBlJvdXRlcxIfLmRldm9wdXMuYWdlbnQudjIuUm91dGVzUmVxdWVzdBogLmRldm9wdXMuYWdlbnQudjIuUm91dGVzUmVzcG9uc2USUQoIU2V0UHJveHkSIS5kZXZvcHVzLmFnZW50LnYyLlNldFByb3h5UmVxdWVzdBoiLmRldm9wdXMuYWdlbnQudjIuU2V0UHJveHlSZXNwb25zZRJgCg1DcmVhdGVGZWF0dXJlEiYuZGV2b3B1cy5hZ2VudC52Mi5DcmVhdGVGZWF0dXJlUmVxdWVzdBonLmRldm9wdXMuYWdlbnQudjIuQ3JlYXRlRmVhdHVyZVJlc3BvbnNlEmMKDkFkZEZlYXR1cmVBcHBzEicuZGV2b3B1cy5hZ2VudC52Mi5BZGRGZWF0dXJlQXBwc1JlcXVlc3QaKC5kZXZvcHVzLmFnZW50LnYyLkFkZEZlYXR1cmVBcHBzUmVzcG9uc2USYAoNUmVtb3ZlRmVhdHVyZRImLmRldm9wdXMuYWdlbnQudjIuUmVtb3ZlRmVhdHVyZVJlcXVlc3QaJy5kZXZvcHVzLmFnZW50LnYyLlJlbW92ZUZlYXR1cmVSZXNwb25zZRJUCglSZXNldERhdGESIi5kZXZvcHVzLmFnZW50LnYyLlJlc2V0RGF0YVJlcXVlc3QaIy5kZXZvcHVzLmFnZW50LnYyLlJlc2V0RGF0YVJlc3BvbnNlElEKCFNldFNsZWVwEiEuZGV2b3B1cy5hZ2VudC52Mi5TZXRTbGVlcFJlcXVlc3QaIi5kZXZvcHVzLmFnZW50LnYyLlNldFNsZWVwUmVzcG9uc2USZgoPRGVzY3JpYmVQcm9qZWN0EiguZGV2b3B1cy5hZ2VudC52Mi5EZXNjcmliZVByb2plY3RSZXF1ZXN0GikuZGV2b3B1cy5hZ2VudC52Mi5EZXNjcmliZVByb2plY3RSZXNwb25zZRJXCgpMb2dTb3VyY2VzEiMuZGV2b3B1cy5hZ2VudC52Mi5Mb2dTb3VyY2VzUmVxdWVzdBokLmRldm9wdXMuYWdlbnQudjIuTG9nU291cmNlc1Jlc3BvbnNlEkcKBExvZ3MSHS5kZXZvcHVzLmFnZW50LnYyLkxvZ3NSZXF1ZXN0Gh4uZGV2b3B1cy5hZ2VudC52Mi5Mb2dzUmVzcG9uc2UwARJUCglSZXNvdXJjZXMSIi5kZXZvcHVzLmFnZW50LnYyLlJlc291cmNlc1JlcXVlc3QaIy5kZXZvcHVzLmFnZW50LnYyLlJlc291cmNlc1Jlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChxkZXZvcHVzL2FnZW50L3YyL2FnZW50LnByb3RvEhBkZXZvcHVzLmFnZW50LnYyIrwBCgxEZXNpcmVkU3RhdGUSEAoIcmV2aXNpb24YASABKAQSLwoIcHJvamVjdHMYAiADKAsyHS5kZXZvcHVzLmFnZW50LnYyLlByb2plY3RTcGVjEjcKDGVudmlyb25tZW50cxgDIAMoCzIhLmRldm9wdXMuYWdlbnQudjIuRW52aXJvbm1lbnRTcGVjEjAKBmRldmljZRgEIAEoCzIgLmRldm9wdXMuYWdlbnQudjIuRGV2aWNlU2V0dGluZ3MiYQoORGV2aWNlU2V0dGluZ3MSGQoRY29leGlzdF9odHRwX3BvcnQYASABKA0SGgoSY29leGlzdF9odHRwc19wb3J0GAIgASgNEhgKEHByb3h5X2dlbmVyYXRpb24YAyABKAQivwEKC1Byb2plY3RTcGVjEgwKBG5hbWUYASABKAkSDAoEcm9vdBgCIAEoCRIOCgZjb25maWcYAyABKAwSEwoLY29uZmlnX2hhc2gYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEgwKBHNwZWMYBiABKAwSFgoOY29uZmlnX3ZlcnNpb24YByABKAUSEwoLYWRtaW5fZW1haWwYCCABKAkSEAoIb3JwaGFuZWQYCSABKAgSDAoEaGVsZBgKIAEoCCLKAgoPRW52aXJvbm1lbnRTcGVjEgoKAmlkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSLwoEa2luZBgDIAEoDjIhLmRldm9wdXMuYWdlbnQudjIuRW52aXJvbm1lbnRLaW5kEgwKBHNsdWcYBCABKAkSDgoGYnJhbmNoGAUgASgJEhMKC2ZvcmtlZF9hcHBzGAYgAygJEi0KBXBoYXNlGAcgASgOMh4uZGV2b3B1cy5hZ2VudC52Mi5EZXNpcmVkUGhhc2USDAoEbmFtZRgIIAEoCRJGCgtkYXRhX3Jlc2V0cxgJIAMoCzIxLmRldm9wdXMuYWdlbnQudjIuRW52aXJvbm1lbnRTcGVjLkRhdGFSZXNldHNFbnRyeRoxCg9EYXRhUmVzZXRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgEOgI4ASK6AQoMU3RlcFByb2dyZXNzEgwKBG5hbWUYASABKAkSKgoFc3RhdGUYAiABKA4yGy5kZXZvcHVzLmFnZW50LnYyLlN0ZXBTdGF0ZRIPCgdtZXNzYWdlGAMgASgJEi4KCnN0YXJ0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCItCg1OZXR3b3JrU3RhdHVzEgwKBG5hbWUYASABKAkSDgoGc3VibmV0GAIgASgJIuYFChFFbnZpcm9ubWVudFN0YXR1cxIKCgJpZBgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEi8KBGtpbmQYAyABKA4yIS5kZXZvcHVzLmFnZW50LnYyLkVudmlyb25tZW50S2luZBIMCgRzbHVnGAQgASgJEiYKBXBoYXNlGAUgASgOMhcuZGV2b3B1cy5hZ2VudC52Mi5QaGFzZRItCgVzdGVwcxgGIAMoCzIeLmRldm9wdXMuYWdlbnQudjIuU3RlcFByb2dyZXNzEgsKA3VybBgHIAEoCRINCgVlcnJvchgIIAEoCRIwCgduZXR3b3JrGAkgASgLMh8uZGV2b3B1cy5hZ2VudC52Mi5OZXR3b3JrU3RhdHVzEhgKEGFwcGxpZWRfcmV2aXNpb24YCiABKAQSLgoKdXBkYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHcmVtb3ZlZBgMIAEoCBIrCgV1bml0cxgNIAMoCzIcLmRldm9wdXMuYWdlbnQudjIuVW5pdFN0YXR1cxIMCgRuYW1lGA4gASgJEg4KBmJyYW5jaBgPIAEoCRITCgtmb3JrZWRfYXBwcxgQIAMoCRIsCgdzb3VyY2VzGBEgAygLMhsuZGV2b3B1cy5hZ2VudC52Mi5BcHBTb3VyY2USDgoGc2hhcmVkGBIgAygJEg0KBW5vdGVzGBMgAygJEhEKCWNvZGVfcm9vdBgUIAEoCRIqCgRkYXRhGBUgAygLMhwuZGV2b3B1cy5hZ2VudC52Mi5EYXRhU3RhdHVzEi8KC2xhc3RfYWN0aXZlGBYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxzbGVlcF9yZWFzb24YFyABKAkSMgoOc2xlZXBpbmdfc2luY2UYGCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBm1lcmdlZBgZIAEoCCKIAQoKRGF0YVN0YXR1cxIPCgdzZXJ2aWNlGAEgASgJEg4KBmVuZ2luZRgCIAEoCRItCgljb3BpZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBmJlaGluZBgEIAEoCBIMCgRzaXplGAUgASgJEgwKBG5vdGUYBiABKAkiSAoJQXBwU291cmNlEgsKA2FwcBgBIAEoCRIMCgRwYXRoGAIgASgJEhAKCGNoZWNrb3V0GAMgASgJEg4KBmJyYW5jaBgEIAEoCSJ6CgpVbml0U3RhdHVzEgwKBG5hbWUYASABKAkSDAoEcm9sZRgCIAEoCRIRCgljb250YWluZXIYAyABKAkSDQoFc3RhdGUYBCABKAkSDwoHYWRkcmVzcxgFIAEoCRIOCgZyb3V0ZXMYBiADKAkSDQoFZXJyb3IYByABKAkicwoLUnVudGltZUluZm8SDAoEbmFtZRgBIAEoCRIQCghlbmRwb2ludBgCIAEoCRIWCg5zZXJ2ZXJfdmVyc2lvbhgDIAEoCRIKCgJvcxgEIAEoCRIRCglyZWFjaGFibGUYBSABKAgSDQoFZXJyb3IYBiABKAkiDwoNU3RhdHVzUmVxdWVzdCKcAwoOU3RhdHVzUmVzcG9uc2USFQoNYWdlbnRfdmVyc2lvbhgBIAEoCRIYChBkZXNpcmVkX3JldmlzaW9uGAIgASgEEi4KB3J1bnRpbWUYAyABKAsyHS5kZXZvcHVzLmFnZW50LnYyLlJ1bnRpbWVJbmZvEi8KCHByb2plY3RzGAQgAygLMh0uZGV2b3B1cy5hZ2VudC52Mi5Qcm9qZWN0U3BlYxI5CgxlbnZpcm9ubWVudHMYBSADKAsyIy5kZXZvcHVzLmFnZW50LnYyLkVudmlyb25tZW50U3RhdHVzEiwKBXByb3h5GAYgASgLMh0uZGV2b3B1cy5hZ2VudC52Mi5Qcm94eVN0YXR1cxIkCgJjYRgHIAEoCzIYLmRldm9wdXMuYWdlbnQudjIuQ0FJbmZvEi4KB2FjY291bnQYCSABKAsyHS5kZXZvcHVzLmFnZW50LnYyLkFjY291bnRJbmZvEigKBGxpbmsYCiABKAsyGi5kZXZvcHVzLmFnZW50LnYyLkxpbmtJbmZvSgQICBAJUglwYW5lbF91cmwiTwoITGlua0luZm8SEQoJd29ya3NwYWNlGAEgASgJEg4KBnNlcnZlchgCIAEoCRIRCgljb25uZWN0ZWQYAyABKAgSDQoFZXJyb3IYBCABKAkiUwoLQWNjb3VudEluZm8SDQoFZW1haWwYASABKAkSDwoHdXNlcl9pZBgCIAEoCRISCgpzZXNzaW9uX2lkGAMgASgJEhAKCGF1dGhfdXJsGAQgASgJIlcKDFBvcnRDb25mbGljdBIPCgdhZGRyZXNzGAEgASgJEg0KBW93bmVyGAIgASgJEgsKA3BpZBgDIAEoBRIMCgRraW5kGAQgASgJEgwKBGhpbnQYBSABKAkiqgIKC1Byb3h5U3RhdHVzEg0KBXN0YXRlGAEgASgJEgwKBG1vZGUYAiABKAkSEQoJaHR0cF9wb3J0GAMgASgNEhIKCmh0dHBzX3BvcnQYBCABKA0SDQoFZXJyb3IYBSABKAkSMQoJY29uZmxpY3RzGAYgAygLMh4uZGV2b3B1cy5hZ2VudC52Mi5Qb3J0Q29uZmxpY3QSEQoJY29ubmVjdGVkGAcgASgIEhYKDmNvbmZpZ192ZXJzaW9uGAggASgJEhAKCHJlamVjdGVkGAkgASgJEhEKCWNvbnRhaW5lchgKIAEoCRIZChFjb2V4aXN0X2h0dHBfcG9ydBgLIAEoDRIaChJjb2V4aXN0X2h0dHBzX3BvcnQYDCABKA0SDgoGcmVsYXlzGA0gAygJIl8KBkNBSW5mbxIRCglyb290X3BhdGgYASABKAkSEwoLZmluZ2VycHJpbnQYAiABKAkSLQoJbm90X2FmdGVyGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJpCgVSb3V0ZRIMCgRob3N0GAEgASgJEhYKDmVudmlyb25tZW50X2lkGAIgASgJEg8KB3Byb2plY3QYAyABKAkSDAoEcGF0aBgEIAEoCRIOCgZ0YXJnZXQYBSABKAkSCwoDdXJsGAYgASgJIicKDVJvdXRlc1JlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkiZwoOUm91dGVzUmVzcG9uc2USJwoGcm91dGVzGAEgAygLMhcuZGV2b3B1cy5hZ2VudC52Mi5Sb3V0ZRIsCgVwcm94eRgCIAEoCzIdLmRldm9wdXMuYWdlbnQudjIuUHJveHlTdGF0dXMiWQoPU2V0UHJveHlSZXF1ZXN0EhkKEWNvZXhpc3RfaHR0cF9wb3J0GAEgASgNEhoKEmNvZXhpc3RfaHR0cHNfcG9ydBgCIAEoDRIPCgdyZXN0YXJ0GAMgASgIIiQKEFNldFByb3h5UmVzcG9uc2USEAoIcmV2aXNpb24YASABKAQiUQoJVXBSZXF1ZXN0EhYKDndvcmtzcGFjZV9wYXRoGAEgASgJEg4KBmNvbmZpZxgCIAEoDBIPCgdwcm9qZWN0GAMgASgJEgsKA2RpchgEIAEoCSI2CgpVcFJlc3BvbnNlEhYKDmVudmlyb25tZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgEIi0KC0Rvd25SZXF1ZXN0Eg8KB3Byb2plY3QYASABKAkSDQoFcHVyZ2UYAiABKAgiIAoMRG93blJlc3BvbnNlEhAKCHJldmlzaW9uGAEgASgEIiYKDFdhdGNoUmVxdWVzdBIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSJUCg1XYXRjaFJlc3BvbnNlEjMKBnN0YXR1cxgBIAEoCzIjLmRldm9wdXMuYWdlbnQudjIuRW52aXJvbm1lbnRTdGF0dXMSDgoGc3luY2VkGAIgASgIInsKFENyZWF0ZUZlYXR1cmVSZXF1ZXN0EhYKDndvcmtzcGFjZV9wYXRoGAEgASgJEg4KBmNvbmZpZxgCIAEoDBIMCgRuYW1lGAMgASgJEgwKBGFwcHMYBCADKAkSDgoGYnJhbmNoGAUgASgJEg8KB3Byb2plY3QYBiABKAkifAoVQ3JlYXRlRmVhdHVyZVJlc3BvbnNlEhYKDmVudmlyb25tZW50X2lkGAEgASgJEgwKBHNsdWcYAiABKAkSDgoGYnJhbmNoGAMgASgJEhAKCHJldmlzaW9uGAQgASgEEhsKE2Jhc2VfZW52aXJvbm1lbnRfaWQYBSABKAkibwoVQWRkRmVhdHVyZUFwcHNSZXF1ZXN0EhYKDndvcmtzcGFjZV9wYXRoGAEgASgJEg4KBmNvbmZpZxgCIAEoDBIPCgdmZWF0dXJlGAMgASgJEgwKBGFwcHMYBCADKAkSDwoHcHJvamVjdBgFIAEoCSJCChZBZGRGZWF0dXJlQXBwc1Jlc3BvbnNlEhYKDmVudmlyb25tZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgEIkcKFFJlbW92ZUZlYXR1cmVSZXF1ZXN0Eg8KB3Byb2plY3QYASABKAkSDwoHZmVhdHVyZRgCIAEoCRINCgVmb3JjZRgDIAEoCCJBChVSZW1vdmVGZWF0dXJlUmVzcG9uc2USFgoOZW52aXJvbm1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAQiSgoQUmVzZXREYXRhUmVxdWVzdBIPCgdwcm9qZWN0GAEgASgJEhMKC2Vudmlyb25tZW50GAIgASgJEhAKCHNlcnZpY2VzGAMgAygJIk8KEVJlc2V0RGF0YVJlc3BvbnNlEhYKDmVudmlyb25tZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgEEhAKCHNlcnZpY2VzGAMgAygJIkMKD1NldFNsZWVwUmVxdWVzdBIPCgdwcm9qZWN0GAEgASgJEg8KB2ZlYXR1cmUYAiABKAkSDgoGYXNsZWVwGAMgASgIIioKEFNldFNsZWVwUmVzcG9uc2USFgoOZW52aXJvbm1lbnRfaWQYASABKAkiOAoWRGVzY3JpYmVQcm9qZWN0UmVxdWVzdBIPCgdwcm9qZWN0GAEgASgJEg0KBWZvcmtzGAIgAygJIkcKB0FwcEluZm8SDAoEbmFtZRgBIAEoCRIOCgZyb3V0ZXMYAiADKAkSEAoIb3B0aW9uYWwYAyABKAgSDAoEdXNlcxgEIAMoCSJwCgtGZWF0dXJlUGxhbhIOCgZmb3JrZWQYASADKAkSEgoKZGVwZW5kZW50cxgCIAMoCRIOCgZjb3BpZXMYAyADKAkSCwoDb3duGAQgAygJEg4KBnNoYXJlZBgFIAMoCRIQCgh3YXJuaW5ncxgGIAMoCSLfAQoXRGVzY3JpYmVQcm9qZWN0UmVzcG9uc2USDwoHcHJvamVjdBgBIAEoCRIWCg53b3Jrc3BhY2VfcGF0aBgCIAEoCRIOCgZkb21haW4YAyABKAkSJwoEYXBwcxgEIAMoCzIZLmRldm9wdXMuYWdlbnQudjIuQXBwSW5mbxIQCghzZXJ2aWNlcxgFIAMoCRIVCg1icmFuY2hfcHJlZml4GAYgASgJEisKBHBsYW4YByABKAsyHS5kZXZvcHVzLmFnZW50LnYyLkZlYXR1cmVQbGFuEgwKBHNwZWMYCCABKAwiVwoJTG9nU291cmNlEgwKBHVuaXQYASABKAkSDAoEZmlsZRgCIAEoCRIuCgp1cGRhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIrChFMb2dTb3VyY2VzUmVxdWVzdBIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSJCChJMb2dTb3VyY2VzUmVzcG9uc2USLAoHc291cmNlcxgBIAMoCzIbLmRldm9wdXMuYWdlbnQudjIuTG9nU291cmNlInAKC0xvZ3NSZXF1ZXN0EhYKDmVudmlyb25tZW50X2lkGAEgASgJEisKBnNvdXJjZRgCIAEoCzIbLmRldm9wdXMuYWdlbnQudjIuTG9nU291cmNlEgwKBHRhaWwYAyABKA0SDgoGZm9sbG93GAQgASgIIlEKB0xvZ0xpbmUSDAoEdGV4dBgBIAEoCRIOCgZzdGRlcnIYAiABKAgSKAoEdGltZRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiOAoMTG9nc1Jlc3BvbnNlEigKBWxpbmVzGAEgAygLMhkuZGV2b3B1cy5hZ2VudC52Mi5Mb2dMaW5lIioKEFJlc291cmNlc1JlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkiXgoNVW5pdFJlc291cmNlcxIMCgRuYW1lGAEgASgJEhMKC2NwdV9wZXJjZW50GAIgASgBEhQKDG1lbW9yeV9ieXRlcxgDIAEoBBIUCgxtZW1vcnlfbGltaXQYBCABKAQiQwoRUmVzb3VyY2VzUmVzcG9uc2USLgoFdW5pdHMYASADKAsyHy5kZXZvcHVzLmFnZW50LnYyLlVuaXRSZXNvdXJjZXMqbAoPRW52aXJvbm1lbnRLaW5kEiAKHEVOVklST05NRU5UX0tJTkRfVU5TUEVDSUZJRUQQABIZChVFTlZJUk9OTUVOVF9LSU5EX0JBU0UQARIcChhFTlZJUk9OTUVOVF9LSU5EX0ZFQVRVUkUQAipjCgxEZXNpcmVkUGhhc2USHQoZREVTSVJFRF9QSEFTRV9VTlNQRUNJRklFRBAAEhkKFURFU0lSRURfUEhBU0VfUlVOTklORxABEhkKFURFU0lSRURfUEhBU0VfU1RPUFBFRBACKpEBCgVQaGFzZRIVChFQSEFTRV9VTlNQRUNJRklFRBAAEhIKDlBIQVNFX0NSRUFUSU5HEAESEQoNUEhBU0VfUlVOTklORxACEhEKDVBIQVNFX1NUT1BQRUQQAxIPCgtQSEFTRV9FUlJPUhAEEhIKDlBIQVNFX0RFTEVUSU5HEAUSEgoOUEhBU0VfU0xFRVBJTkcQBiqDAQoJU3RlcFN0YXRlEhoKFlNURVBfU1RBVEVfVU5TUEVDSUZJRUQQABIWChJTVEVQX1NUQVRFX1BFTkRJTkcQARIWChJTVEVQX1NUQVRFX1JVTk5JTkcQAhITCg9TVEVQX1NUQVRFX0RPTkUQAxIVChFTVEVQX1NUQVRFX0ZBSUxFRBAEMoEKCgxBZ2VudFNlcnZpY2USSwoGU3RhdHVzEh8uZGV2b3B1cy5hZ2VudC52Mi5TdGF0dXNSZXF1ZXN0GiAuZGV2b3B1cy5hZ2VudC52Mi5TdGF0dXNSZXNwb25zZRI/CgJVcBIbLmRldm9wdXMuYWdlbnQudjIuVXBSZXF1ZXN0GhwuZGV2b3B1cy5hZ2VudC52Mi5VcFJlc3BvbnNlEkUKBERvd24SHS5kZXZvcHVzLmFnZW50LnYyLkRvd25SZXF1ZXN0Gh4uZGV2b3B1cy5hZ2VudC52Mi5Eb3duUmVzcG9uc2USSgoFV2F0Y2gSHi5kZXZvcHVzLmFnZW50LnYyLldhdGNoUmVxdWVzdBofLmRldm9wdXMuYWdlbnQudjIuV2F0Y2hSZXNwb25zZTABEksKBlJvdXRlcxIfLmRldm9wdXMuYWdlbnQudjIuUm91dGVzUmVxdWVzdBogLmRldm9wdXMuYWdlbnQudjIuUm91dGVzUmVzcG9uc2USUQoIU2V0UHJveHkSIS5kZXZvcHVzLmFnZW50LnYyLlNldFByb3h5UmVxdWVzdBoiLmRldm9wdXMuYWdlbnQudjIuU2V0UHJveHlSZXNwb25zZRJgCg1DcmVhdGVGZWF0dXJlEiYuZGV2b3B1cy5hZ2VudC52Mi5DcmVhdGVGZWF0dXJlUmVxdWVzdBonLmRldm9wdXMuYWdlbnQudjIuQ3JlYXRlRmVhdHVyZVJlc3BvbnNlEmMKDkFkZEZlYXR1cmVBcHBzEicuZGV2b3B1cy5hZ2VudC52Mi5BZGRGZWF0dXJlQXBwc1JlcXVlc3QaKC5kZXZvcHVzLmFnZW50LnYyLkFkZEZlYXR1cmVBcHBzUmVzcG9uc2USYAoNUmVtb3ZlRmVhdHVyZRImLmRldm9wdXMuYWdlbnQudjIuUmVtb3ZlRmVhdHVyZVJlcXVlc3QaJy5kZXZvcHVzLmFnZW50LnYyLlJlbW92ZUZlYXR1cmVSZXNwb25zZRJUCglSZXNldERhdGESIi5kZXZvcHVzLmFnZW50LnYyLlJlc2V0RGF0YVJlcXVlc3QaIy5kZXZvcHVzLmFnZW50LnYyLlJlc2V0RGF0YVJlc3BvbnNlElEKCFNldFNsZWVwEiEuZGV2b3B1cy5hZ2VudC52Mi5TZXRTbGVlcFJlcXVlc3QaIi5kZXZvcHVzLmFnZW50LnYyLlNldFNsZWVwUmVzcG9uc2USZgoPRGVzY3JpYmVQcm9qZWN0EiguZGV2b3B1cy5hZ2VudC52Mi5EZXNjcmliZVByb2plY3RSZXF1ZXN0GikuZGV2b3B1cy5hZ2VudC52Mi5EZXNjcmliZVByb2plY3RSZXNwb25zZRJXCgpMb2dTb3VyY2VzEiMuZGV2b3B1cy5hZ2VudC52Mi5Mb2dTb3VyY2VzUmVxdWVzdBokLmRldm9wdXMuYWdlbnQudjIuTG9nU291cmNlc1Jlc3BvbnNlEkcKBExvZ3MSHS5kZXZvcHVzLmFnZW50LnYyLkxvZ3NSZXF1ZXN0Gh4uZGV2b3B1cy5hZ2VudC52Mi5Mb2dzUmVzcG9uc2UwARJUCglSZXNvdXJjZXMSIi5kZXZvcHVzLmFnZW50LnYyLlJlc291cmNlc1JlcXVlc3QaIy5kZXZvcHVzLmFnZW50LnYyLlJlc291cmNlc1Jlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * DesiredState is what must exist on this device. Revision grows with every change.
@@ -91,32 +91,78 @@ export const DeviceSettingsSchema: GenMessage<DeviceSettings> = /*@__PURE__*/
  */
 export type ProjectSpec = Message<"devopus.agent.v2.ProjectSpec"> & {
   /**
-   * Name from workspace.yaml; unique on the device.
+   * Name from workspace.yaml or the workspace server; unique on the device.
    *
    * @generated from field: string name = 1;
    */
   name: string;
 
   /**
-   * Repository root: the folder of workspace.yaml.
+   * Repository root: the folder of workspace.yaml. For a project from the workspace
+   * server: the folder its path applications live in (devopus up --dir), or a folder
+   * of the agent's own.
    *
    * @generated from field: string root = 2;
    */
   root: string;
 
   /**
-   * workspace.yaml as it was when the project was applied.
+   * workspace.yaml as it was when the project was applied; empty for a project from
+   * the workspace server, which has spec instead.
    *
    * @generated from field: bytes config = 3;
    */
   config: Uint8Array;
 
   /**
-   * sha256 of config, hex.
+   * sha256 of config or spec, hex.
    *
    * @generated from field: string config_hash = 4;
    */
   configHash: string;
+
+  /**
+   * A project from the workspace server (R7): the workspace it belongs to.
+   *
+   * @generated from field: string workspace_id = 5;
+   */
+  workspaceId: string;
+
+  /**
+   * The project in the YAML form of internal/spec, as the server sent it.
+   *
+   * @generated from field: bytes spec = 6;
+   */
+  spec: Uint8Array;
+
+  /**
+   * The version of the project's settings on the server.
+   *
+   * @generated from field: int32 config_version = 7;
+   */
+  configVersion: number;
+
+  /**
+   * The workspace's admin: whom to ask for access to repositories.
+   *
+   * @generated from field: string admin_email = 8;
+   */
+  adminEmail: string;
+
+  /**
+   * The server no longer gives this project to this device: removed, access ended,
+   * or another workspace is current. Its environments are stopped, data kept.
+   *
+   * @generated from field: bool orphaned = 9;
+   */
+  orphaned: boolean;
+
+  /**
+   * Stopped on this device with devopus down: the server's changes do not start it.
+   *
+   * @generated from field: bool held = 10;
+   */
+  held: boolean;
 };
 
 /**
@@ -662,6 +708,13 @@ export type StatusResponse = Message<"devopus.agent.v2.StatusResponse"> & {
    * @generated from field: devopus.agent.v2.AccountInfo account = 9;
    */
   account?: AccountInfo | undefined;
+
+  /**
+   * The link to the workspace server the projects come from.
+   *
+   * @generated from field: devopus.agent.v2.LinkInfo link = 10;
+   */
+  link?: LinkInfo | undefined;
 };
 
 /**
@@ -670,6 +723,40 @@ export type StatusResponse = Message<"devopus.agent.v2.StatusResponse"> & {
  */
 export const StatusResponseSchema: GenMessage<StatusResponse> = /*@__PURE__*/
   messageDesc(file_devopus_agent_v2_agent, 12);
+
+/**
+ * @generated from message devopus.agent.v2.LinkInfo
+ */
+export type LinkInfo = Message<"devopus.agent.v2.LinkInfo"> & {
+  /**
+   * @generated from field: string workspace = 1;
+   */
+  workspace: string;
+
+  /**
+   * @generated from field: string server = 2;
+   */
+  server: string;
+
+  /**
+   * @generated from field: bool connected = 3;
+   */
+  connected: boolean;
+
+  /**
+   * Why it is not connected.
+   *
+   * @generated from field: string error = 4;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message devopus.agent.v2.LinkInfo.
+ * Use `create(LinkInfoSchema)` to create a new message.
+ */
+export const LinkInfoSchema: GenMessage<LinkInfo> = /*@__PURE__*/
+  messageDesc(file_devopus_agent_v2_agent, 13);
 
 /**
  * @generated from message devopus.agent.v2.AccountInfo
@@ -703,7 +790,7 @@ export type AccountInfo = Message<"devopus.agent.v2.AccountInfo"> & {
  * Use `create(AccountInfoSchema)` to create a new message.
  */
 export const AccountInfoSchema: GenMessage<AccountInfo> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 13);
+  messageDesc(file_devopus_agent_v2_agent, 14);
 
 /**
  * @generated from message devopus.agent.v2.PortConflict
@@ -744,7 +831,7 @@ export type PortConflict = Message<"devopus.agent.v2.PortConflict"> & {
  * Use `create(PortConflictSchema)` to create a new message.
  */
 export const PortConflictSchema: GenMessage<PortConflict> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 14);
+  messageDesc(file_devopus_agent_v2_agent, 15);
 
 /**
  * @generated from message devopus.agent.v2.ProxyStatus
@@ -834,7 +921,7 @@ export type ProxyStatus = Message<"devopus.agent.v2.ProxyStatus"> & {
  * Use `create(ProxyStatusSchema)` to create a new message.
  */
 export const ProxyStatusSchema: GenMessage<ProxyStatus> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 15);
+  messageDesc(file_devopus_agent_v2_agent, 16);
 
 /**
  * @generated from message devopus.agent.v2.CAInfo
@@ -865,7 +952,7 @@ export type CAInfo = Message<"devopus.agent.v2.CAInfo"> & {
  * Use `create(CAInfoSchema)` to create a new message.
  */
 export const CAInfoSchema: GenMessage<CAInfo> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 16);
+  messageDesc(file_devopus_agent_v2_agent, 17);
 
 /**
  * @generated from message devopus.agent.v2.Route
@@ -911,7 +998,7 @@ export type Route = Message<"devopus.agent.v2.Route"> & {
  * Use `create(RouteSchema)` to create a new message.
  */
 export const RouteSchema: GenMessage<Route> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 17);
+  messageDesc(file_devopus_agent_v2_agent, 18);
 
 /**
  * @generated from message devopus.agent.v2.RoutesRequest
@@ -930,7 +1017,7 @@ export type RoutesRequest = Message<"devopus.agent.v2.RoutesRequest"> & {
  * Use `create(RoutesRequestSchema)` to create a new message.
  */
 export const RoutesRequestSchema: GenMessage<RoutesRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 18);
+  messageDesc(file_devopus_agent_v2_agent, 19);
 
 /**
  * @generated from message devopus.agent.v2.RoutesResponse
@@ -952,7 +1039,7 @@ export type RoutesResponse = Message<"devopus.agent.v2.RoutesResponse"> & {
  * Use `create(RoutesResponseSchema)` to create a new message.
  */
 export const RoutesResponseSchema: GenMessage<RoutesResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 19);
+  messageDesc(file_devopus_agent_v2_agent, 20);
 
 /**
  * @generated from message devopus.agent.v2.SetProxyRequest
@@ -984,7 +1071,7 @@ export type SetProxyRequest = Message<"devopus.agent.v2.SetProxyRequest"> & {
  * Use `create(SetProxyRequestSchema)` to create a new message.
  */
 export const SetProxyRequestSchema: GenMessage<SetProxyRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 20);
+  messageDesc(file_devopus_agent_v2_agent, 21);
 
 /**
  * @generated from message devopus.agent.v2.SetProxyResponse
@@ -1001,7 +1088,7 @@ export type SetProxyResponse = Message<"devopus.agent.v2.SetProxyResponse"> & {
  * Use `create(SetProxyResponseSchema)` to create a new message.
  */
 export const SetProxyResponseSchema: GenMessage<SetProxyResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 21);
+  messageDesc(file_devopus_agent_v2_agent, 22);
 
 /**
  * @generated from message devopus.agent.v2.UpRequest
@@ -1021,12 +1108,19 @@ export type UpRequest = Message<"devopus.agent.v2.UpRequest"> & {
 
   /**
    * Instead of the file: a registered project, whose workspace.yaml the agent reads
-   * from its folder (the panel has no file to send). Also in CreateFeature and
-   * AddFeatureApps.
+   * from its folder (the panel has no file to send), or a project from the workspace
+   * server. Also in CreateFeature and AddFeatureApps.
    *
    * @generated from field: string project = 3;
    */
   project: string;
+
+  /**
+   * A project from the workspace server: the folder of its path applications.
+   *
+   * @generated from field: string dir = 4;
+   */
+  dir: string;
 };
 
 /**
@@ -1034,7 +1128,7 @@ export type UpRequest = Message<"devopus.agent.v2.UpRequest"> & {
  * Use `create(UpRequestSchema)` to create a new message.
  */
 export const UpRequestSchema: GenMessage<UpRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 22);
+  messageDesc(file_devopus_agent_v2_agent, 23);
 
 /**
  * @generated from message devopus.agent.v2.UpResponse
@@ -1056,7 +1150,7 @@ export type UpResponse = Message<"devopus.agent.v2.UpResponse"> & {
  * Use `create(UpResponseSchema)` to create a new message.
  */
 export const UpResponseSchema: GenMessage<UpResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 23);
+  messageDesc(file_devopus_agent_v2_agent, 24);
 
 /**
  * @generated from message devopus.agent.v2.DownRequest
@@ -1080,7 +1174,7 @@ export type DownRequest = Message<"devopus.agent.v2.DownRequest"> & {
  * Use `create(DownRequestSchema)` to create a new message.
  */
 export const DownRequestSchema: GenMessage<DownRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 24);
+  messageDesc(file_devopus_agent_v2_agent, 25);
 
 /**
  * @generated from message devopus.agent.v2.DownResponse
@@ -1097,7 +1191,7 @@ export type DownResponse = Message<"devopus.agent.v2.DownResponse"> & {
  * Use `create(DownResponseSchema)` to create a new message.
  */
 export const DownResponseSchema: GenMessage<DownResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 25);
+  messageDesc(file_devopus_agent_v2_agent, 26);
 
 /**
  * @generated from message devopus.agent.v2.WatchRequest
@@ -1116,7 +1210,7 @@ export type WatchRequest = Message<"devopus.agent.v2.WatchRequest"> & {
  * Use `create(WatchRequestSchema)` to create a new message.
  */
 export const WatchRequestSchema: GenMessage<WatchRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 26);
+  messageDesc(file_devopus_agent_v2_agent, 27);
 
 /**
  * @generated from message devopus.agent.v2.WatchResponse
@@ -1141,7 +1235,7 @@ export type WatchResponse = Message<"devopus.agent.v2.WatchResponse"> & {
  * Use `create(WatchResponseSchema)` to create a new message.
  */
 export const WatchResponseSchema: GenMessage<WatchResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 27);
+  messageDesc(file_devopus_agent_v2_agent, 28);
 
 /**
  * @generated from message devopus.agent.v2.CreateFeatureRequest
@@ -1187,7 +1281,7 @@ export type CreateFeatureRequest = Message<"devopus.agent.v2.CreateFeatureReques
  * Use `create(CreateFeatureRequestSchema)` to create a new message.
  */
 export const CreateFeatureRequestSchema: GenMessage<CreateFeatureRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 28);
+  messageDesc(file_devopus_agent_v2_agent, 29);
 
 /**
  * @generated from message devopus.agent.v2.CreateFeatureResponse
@@ -1224,7 +1318,7 @@ export type CreateFeatureResponse = Message<"devopus.agent.v2.CreateFeatureRespo
  * Use `create(CreateFeatureResponseSchema)` to create a new message.
  */
 export const CreateFeatureResponseSchema: GenMessage<CreateFeatureResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 29);
+  messageDesc(file_devopus_agent_v2_agent, 30);
 
 /**
  * @generated from message devopus.agent.v2.AddFeatureAppsRequest
@@ -1263,7 +1357,7 @@ export type AddFeatureAppsRequest = Message<"devopus.agent.v2.AddFeatureAppsRequ
  * Use `create(AddFeatureAppsRequestSchema)` to create a new message.
  */
 export const AddFeatureAppsRequestSchema: GenMessage<AddFeatureAppsRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 30);
+  messageDesc(file_devopus_agent_v2_agent, 31);
 
 /**
  * @generated from message devopus.agent.v2.AddFeatureAppsResponse
@@ -1285,7 +1379,7 @@ export type AddFeatureAppsResponse = Message<"devopus.agent.v2.AddFeatureAppsRes
  * Use `create(AddFeatureAppsResponseSchema)` to create a new message.
  */
 export const AddFeatureAppsResponseSchema: GenMessage<AddFeatureAppsResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 31);
+  messageDesc(file_devopus_agent_v2_agent, 32);
 
 /**
  * @generated from message devopus.agent.v2.RemoveFeatureRequest
@@ -1316,7 +1410,7 @@ export type RemoveFeatureRequest = Message<"devopus.agent.v2.RemoveFeatureReques
  * Use `create(RemoveFeatureRequestSchema)` to create a new message.
  */
 export const RemoveFeatureRequestSchema: GenMessage<RemoveFeatureRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 32);
+  messageDesc(file_devopus_agent_v2_agent, 33);
 
 /**
  * @generated from message devopus.agent.v2.RemoveFeatureResponse
@@ -1338,7 +1432,7 @@ export type RemoveFeatureResponse = Message<"devopus.agent.v2.RemoveFeatureRespo
  * Use `create(RemoveFeatureResponseSchema)` to create a new message.
  */
 export const RemoveFeatureResponseSchema: GenMessage<RemoveFeatureResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 33);
+  messageDesc(file_devopus_agent_v2_agent, 34);
 
 /**
  * @generated from message devopus.agent.v2.ResetDataRequest
@@ -1369,7 +1463,7 @@ export type ResetDataRequest = Message<"devopus.agent.v2.ResetDataRequest"> & {
  * Use `create(ResetDataRequestSchema)` to create a new message.
  */
 export const ResetDataRequestSchema: GenMessage<ResetDataRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 34);
+  messageDesc(file_devopus_agent_v2_agent, 35);
 
 /**
  * @generated from message devopus.agent.v2.ResetDataResponse
@@ -1396,7 +1490,7 @@ export type ResetDataResponse = Message<"devopus.agent.v2.ResetDataResponse"> & 
  * Use `create(ResetDataResponseSchema)` to create a new message.
  */
 export const ResetDataResponseSchema: GenMessage<ResetDataResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 35);
+  messageDesc(file_devopus_agent_v2_agent, 36);
 
 /**
  * @generated from message devopus.agent.v2.SetSleepRequest
@@ -1425,7 +1519,7 @@ export type SetSleepRequest = Message<"devopus.agent.v2.SetSleepRequest"> & {
  * Use `create(SetSleepRequestSchema)` to create a new message.
  */
 export const SetSleepRequestSchema: GenMessage<SetSleepRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 36);
+  messageDesc(file_devopus_agent_v2_agent, 37);
 
 /**
  * @generated from message devopus.agent.v2.SetSleepResponse
@@ -1442,7 +1536,7 @@ export type SetSleepResponse = Message<"devopus.agent.v2.SetSleepResponse"> & {
  * Use `create(SetSleepResponseSchema)` to create a new message.
  */
 export const SetSleepResponseSchema: GenMessage<SetSleepResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 37);
+  messageDesc(file_devopus_agent_v2_agent, 38);
 
 /**
  * @generated from message devopus.agent.v2.DescribeProjectRequest
@@ -1466,7 +1560,7 @@ export type DescribeProjectRequest = Message<"devopus.agent.v2.DescribeProjectRe
  * Use `create(DescribeProjectRequestSchema)` to create a new message.
  */
 export const DescribeProjectRequestSchema: GenMessage<DescribeProjectRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 38);
+  messageDesc(file_devopus_agent_v2_agent, 39);
 
 /**
  * @generated from message devopus.agent.v2.AppInfo
@@ -1498,7 +1592,7 @@ export type AppInfo = Message<"devopus.agent.v2.AppInfo"> & {
  * Use `create(AppInfoSchema)` to create a new message.
  */
 export const AppInfoSchema: GenMessage<AppInfo> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 39);
+  messageDesc(file_devopus_agent_v2_agent, 40);
 
 /**
  * @generated from message devopus.agent.v2.FeaturePlan
@@ -1546,7 +1640,7 @@ export type FeaturePlan = Message<"devopus.agent.v2.FeaturePlan"> & {
  * Use `create(FeaturePlanSchema)` to create a new message.
  */
 export const FeaturePlanSchema: GenMessage<FeaturePlan> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 40);
+  messageDesc(file_devopus_agent_v2_agent, 41);
 
 /**
  * @generated from message devopus.agent.v2.DescribeProjectResponse
@@ -1586,6 +1680,13 @@ export type DescribeProjectResponse = Message<"devopus.agent.v2.DescribeProjectR
    * @generated from field: devopus.agent.v2.FeaturePlan plan = 7;
    */
   plan?: FeaturePlan | undefined;
+
+  /**
+   * The project as the agent runs it, in the YAML form of internal/spec.
+   *
+   * @generated from field: bytes spec = 8;
+   */
+  spec: Uint8Array;
 };
 
 /**
@@ -1593,7 +1694,7 @@ export type DescribeProjectResponse = Message<"devopus.agent.v2.DescribeProjectR
  * Use `create(DescribeProjectResponseSchema)` to create a new message.
  */
 export const DescribeProjectResponseSchema: GenMessage<DescribeProjectResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 41);
+  messageDesc(file_devopus_agent_v2_agent, 42);
 
 /**
  * @generated from message devopus.agent.v2.LogSource
@@ -1622,7 +1723,7 @@ export type LogSource = Message<"devopus.agent.v2.LogSource"> & {
  * Use `create(LogSourceSchema)` to create a new message.
  */
 export const LogSourceSchema: GenMessage<LogSource> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 42);
+  messageDesc(file_devopus_agent_v2_agent, 43);
 
 /**
  * @generated from message devopus.agent.v2.LogSourcesRequest
@@ -1639,7 +1740,7 @@ export type LogSourcesRequest = Message<"devopus.agent.v2.LogSourcesRequest"> & 
  * Use `create(LogSourcesRequestSchema)` to create a new message.
  */
 export const LogSourcesRequestSchema: GenMessage<LogSourcesRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 43);
+  messageDesc(file_devopus_agent_v2_agent, 44);
 
 /**
  * @generated from message devopus.agent.v2.LogSourcesResponse
@@ -1656,7 +1757,7 @@ export type LogSourcesResponse = Message<"devopus.agent.v2.LogSourcesResponse"> 
  * Use `create(LogSourcesResponseSchema)` to create a new message.
  */
 export const LogSourcesResponseSchema: GenMessage<LogSourcesResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 44);
+  messageDesc(file_devopus_agent_v2_agent, 45);
 
 /**
  * @generated from message devopus.agent.v2.LogsRequest
@@ -1690,7 +1791,7 @@ export type LogsRequest = Message<"devopus.agent.v2.LogsRequest"> & {
  * Use `create(LogsRequestSchema)` to create a new message.
  */
 export const LogsRequestSchema: GenMessage<LogsRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 45);
+  messageDesc(file_devopus_agent_v2_agent, 46);
 
 /**
  * @generated from message devopus.agent.v2.LogLine
@@ -1717,7 +1818,7 @@ export type LogLine = Message<"devopus.agent.v2.LogLine"> & {
  * Use `create(LogLineSchema)` to create a new message.
  */
 export const LogLineSchema: GenMessage<LogLine> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 46);
+  messageDesc(file_devopus_agent_v2_agent, 47);
 
 /**
  * @generated from message devopus.agent.v2.LogsResponse
@@ -1734,7 +1835,7 @@ export type LogsResponse = Message<"devopus.agent.v2.LogsResponse"> & {
  * Use `create(LogsResponseSchema)` to create a new message.
  */
 export const LogsResponseSchema: GenMessage<LogsResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 47);
+  messageDesc(file_devopus_agent_v2_agent, 48);
 
 /**
  * @generated from message devopus.agent.v2.ResourcesRequest
@@ -1751,7 +1852,7 @@ export type ResourcesRequest = Message<"devopus.agent.v2.ResourcesRequest"> & {
  * Use `create(ResourcesRequestSchema)` to create a new message.
  */
 export const ResourcesRequestSchema: GenMessage<ResourcesRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 48);
+  messageDesc(file_devopus_agent_v2_agent, 49);
 
 /**
  * @generated from message devopus.agent.v2.UnitResources
@@ -1783,7 +1884,7 @@ export type UnitResources = Message<"devopus.agent.v2.UnitResources"> & {
  * Use `create(UnitResourcesSchema)` to create a new message.
  */
 export const UnitResourcesSchema: GenMessage<UnitResources> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 49);
+  messageDesc(file_devopus_agent_v2_agent, 50);
 
 /**
  * @generated from message devopus.agent.v2.ResourcesResponse
@@ -1800,7 +1901,7 @@ export type ResourcesResponse = Message<"devopus.agent.v2.ResourcesResponse"> & 
  * Use `create(ResourcesResponseSchema)` to create a new message.
  */
 export const ResourcesResponseSchema: GenMessage<ResourcesResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_agent_v2_agent, 50);
+  messageDesc(file_devopus_agent_v2_agent, 51);
 
 /**
  * @generated from enum devopus.agent.v2.EnvironmentKind

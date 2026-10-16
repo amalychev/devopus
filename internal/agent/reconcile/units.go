@@ -47,7 +47,7 @@ func (r *Reconciler) unitSteps(env *agentv2.EnvironmentSpec, root string, p *pre
 			if isFeature(env) {
 				sources, heads, codeRoot, msg, err = r.ensureFeatureSources(ctx, env, root, p)
 			} else {
-				sources, heads, msg, err = r.ensureSources(ctx, env, root, p.ws)
+				sources, heads, msg, err = r.ensureSources(ctx, env, root, p.ws, p.admin)
 			}
 			if err != nil {
 				return "", err
@@ -143,7 +143,7 @@ func (r *Reconciler) SourceDir(project, envID, application string) string {
 
 // ensureSources finds the code of every active application: a folder of the repository, or
 // a clone of the application's repository at its base branch, made once.
-func (r *Reconciler) ensureSources(ctx context.Context, env *agentv2.EnvironmentSpec, root string, ws *spec.Project) (map[string]string, map[string]string, string, error) {
+func (r *Reconciler) ensureSources(ctx context.Context, env *agentv2.EnvironmentSpec, root string, ws *spec.Project, admin string) (map[string]string, map[string]string, string, error) {
 	applications, _ := stack.Active(ws)
 	sources, heads := map[string]string{}, map[string]string{}
 	var cloned []string
@@ -170,6 +170,14 @@ func (r *Reconciler) ensureSources(ctx context.Context, env *agentv2.Environment
 			}
 			err = git.Clone(ctx, m.Repo, m.BaseBranch(), dir, log)
 			log.Close()
+			if git.NoAccess(err) {
+				// The agent clones with the developer's own git keys (user-flows §4).
+				whom := "the workspace admin"
+				if admin != "" {
+					whom += " (" + admin + ")"
+				}
+				return nil, nil, "", fmt.Errorf("%s: no access to %s with your git keys; ask %s to give your account access to this repository; the agent retries on its own (%w)", name, m.Repo, whom, err)
+			}
 			if err != nil {
 				return nil, nil, "", fmt.Errorf("%s: %w", name, err)
 			}

@@ -18,6 +18,30 @@ type Audit struct {
 	CreatedAt   time.Time
 }
 
+type Device struct {
+	WorkspaceID  string
+	DeviceID     string
+	UserID       string
+	Name         string
+	AgentVersion string
+	LastSeen     time.Time
+}
+
+type DeviceEnvironment struct {
+	WorkspaceID   string
+	DeviceID      string
+	UserID        string
+	EnvID         string
+	Project       string
+	Kind          string
+	Name          string
+	Branch        string
+	Phase         string
+	Url           string
+	Error         string
+	ConfigVersion int32
+}
+
 type Grant struct {
 	WorkspaceID string
 	ProjectID   string

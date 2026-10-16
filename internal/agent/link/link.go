@@ -1,0 +1,281 @@
+// Package link is the agent's connection to the workspace server (specs/agent-protocol.md):
+// it watches the desired state of the device in the current workspace, puts it in the
+// store, and reports what the device runs. The store keeps the last state it received:
+// without the network the agent goes on with it, and environments keep running.
+package link
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"math/rand/v2"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	"connectrpc.com/connect"
+
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	syncv1 "github.com/amalychev/devopus/gen/devopus/sync/v1"
+	"github.com/amalychev/devopus/gen/devopus/sync/v1/syncv1connect"
+	"github.com/amalychev/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/agent/store"
+	"github.com/amalychev/devopus/internal/credentials"
+)
+
+// Options of a link.
+type Options struct {
+	Store *store.Store
+	// Token is the user's access token.
+	Token func(ctx context.Context) (string, error)
+	// Statuses are the device's environments now; Changed signals a change of them.
+	Statuses func() []*agentv2.EnvironmentStatus
+	Changed  <-chan *agentv2.EnvironmentStatus
+	Version  string
+	Log      *slog.Logger
+	// Wait is how long the link waits for a workspace or a sign-in before looking
+	// again; 10 s when zero.
+	Wait time.Duration
+}
+
+// State is what the link is doing, for 'devopus status'.
+type State struct {
+	Workspace string
+	Server    string
+	Connected bool
+	// Error is why it is not connected.
+	Error string
+	// Received is when the last desired state came.
+	Received time.Time
+}
+
+// Link connects the agent to the workspace server.
+type Link struct {
+	opt Options
+	mu  sync.Mutex
+	st  State
+}
+
+func New(opt Options) *Link {
+	if opt.Log == nil {
+		opt.Log = slog.New(slog.DiscardHandler)
+	}
+	if opt.Wait == 0 {
+		opt.Wait = 10 * time.Second
+	}
+	return &Link{opt: opt}
+}
+
+// State is a copy of the link's state.
+func (l *Link) State() State {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.st
+}
+
+func (l *Link) set(fn func(*State)) {
+	l.mu.Lock()
+	fn(&l.st)
+	l.mu.Unlock()
+}
+
+// ProjectsDir is where projects of the workspace server live on the device unless
+// their folder is chosen: <data>/projects/<name>.
+func ProjectsDir(name string) string { return filepath.Join(paths.Home(), "projects", name) }
+
+func root(name string) string {
+	dir := ProjectsDir(name)
+	_ = os.MkdirAll(dir, 0o755)
+	return dir
+}
+
+// Run keeps the link up until ctx ends: it follows the device's current workspace and
+// sign-in, and comes back after every break, waiting longer each time it fails.
+func (l *Link) Run(ctx context.Context) {
+	go l.report(ctx)
+	failures := 0
+	for ctx.Err() == nil {
+		ws, err := credentials.CurrentWorkspace()
+		if err != nil || ws == nil {
+			l.set(func(s *State) { *s = State{Error: "no workspace chosen on this device: devopus workspace use <name>"} })
+			l.sleep(ctx, l.opt.Wait)
+			continue
+		}
+		tok, err := l.opt.Token(ctx)
+		if err != nil {
+			l.set(func(s *State) {
+				*s = State{Workspace: ws.Name, Server: ws.ServerURL, Error: "not signed in: " + err.Error()}
+			})
+			l.sleep(ctx, l.opt.Wait)
+			continue
+		}
+		err = l.watch(ctx, ws, tok)
+		switch {
+		case ctx.Err() != nil:
+			return
+		case err == nil:
+			failures = 0 // the token ran out or the workspace changed: again at once
+			continue
+		case connect.CodeOf(err) == connect.CodePermissionDenied:
+			// Not a member any more: the workspace's projects stop here.
+			if _, _, serr := l.opt.Store.SyncServer(ws.ID, "", nil, root); serr != nil {
+				l.opt.Log.Error("stop the workspace's projects", "err", serr)
+			}
+			l.opt.Log.Warn("the workspace server refused this device", "workspace", ws.Name, "err", err)
+		default:
+			l.opt.Log.Warn("workspace server link", "server", ws.ServerURL, "err", err)
+		}
+		l.set(func(s *State) { s.Connected, s.Error = false, err.Error() })
+		failures++
+		l.sleep(ctx, backoff(failures))
+	}
+}
+
+// backoff is a full-jitter delay: 1 s doubling up to a minute, so agents that lost
+// the server do not come back all at once.
+func backoff(failures int) time.Duration {
+	limit := time.Second << min(failures, 6)
+	if limit > time.Minute {
+		limit = time.Minute
+	}
+	return time.Duration(rand.Int64N(int64(limit))) + 500*time.Millisecond
+}
+
+func (l *Link) sleep(ctx context.Context, d time.Duration) {
+	select {
+	case <-ctx.Done():
+	case <-time.After(d):
+	}
+}
+
+func device(version string) *syncv1.Device {
+	return &syncv1.Device{Id: credentials.DeviceID(), Name: credentials.DeviceName(), AgentVersion: version}
+}
+
+func client(url string) syncv1connect.SyncServiceClient {
+	// No timeout on the client: the watch stream lives as long as the token.
+	return syncv1connect.NewSyncServiceClient(http.DefaultClient, url)
+}
+
+// watch follows the desired state until the stream ends, or the device switches to
+// another workspace.
+func (l *Link) watch(ctx context.Context, ws *credentials.Workspace, tok string) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		// Another workspace chosen on the device: end this stream.
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
+			}
+			if cur, err := credentials.CurrentWorkspace(); err == nil && (cur == nil || cur.ID != ws.ID || cur.ServerURL != ws.ServerURL) {
+				cancel()
+				return
+			}
+		}
+	}()
+	req := connect.NewRequest(&syncv1.WatchRequest{WorkspaceId: ws.ID, Device: device(l.opt.Version)})
+	req.Header().Set("Authorization", "Bearer "+tok)
+	stream, err := client(ws.ServerURL).Watch(ctx, req)
+	if err != nil {
+		return err
+	}
+	defer stream.Close()
+	for stream.Receive() {
+		m := stream.Msg()
+		projects := make([]store.ServerProject, 0, len(m.Projects))
+		for _, p := range m.Projects {
+			projects = append(projects, store.ServerProject{Name: p.Name, Spec: []byte(p.ConfigYaml), Version: p.Version})
+		}
+		_, conflicts, err := l.opt.Store.SyncServer(m.WorkspaceId, m.AdminEmail, projects, root)
+		if err != nil {
+			return err
+		}
+		if len(conflicts) > 0 {
+			l.opt.Log.Warn("projects of the workspace clash with projects of folders; 'devopus down --volumes --project <name>' frees the name",
+				"projects", strings.Join(conflicts, ", "))
+		}
+		l.set(func(s *State) {
+			*s = State{Workspace: m.WorkspaceName, Server: ws.ServerURL, Connected: true, Received: time.Now()}
+		})
+		l.opt.Log.Info("desired state from the workspace server", "workspace", m.WorkspaceName, "projects", len(m.Projects))
+	}
+	if ctx.Err() != nil {
+		return nil
+	}
+	return stream.Err()
+}
+
+// report tells the server what the device runs: after changes (gathered for a couple
+// of seconds) and every minute.
+func (l *Link) report(ctx context.Context) {
+	tick := time.NewTicker(time.Minute)
+	defer tick.Stop()
+	var soon <-chan time.Time
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case _, ok := <-l.opt.Changed:
+			if !ok {
+				return
+			}
+			if soon == nil {
+				soon = time.After(2 * time.Second)
+			}
+			continue
+		case <-soon:
+			soon = nil
+		case <-tick.C:
+		}
+		if err := l.Report(ctx); err != nil && !errors.Is(err, errNotLinked) {
+			l.opt.Log.Debug("report to the workspace server", "err", err)
+		}
+	}
+}
+
+var errNotLinked = errors.New("not linked to a workspace")
+
+// Report sends the statuses of the current workspace's environments now.
+func (l *Link) Report(ctx context.Context) error {
+	ws, err := credentials.CurrentWorkspace()
+	if err != nil || ws == nil || !l.State().Connected {
+		return errNotLinked
+	}
+	tok, err := l.opt.Token(ctx)
+	if err != nil {
+		return err
+	}
+	versions := map[string]int32{}
+	for _, p := range l.opt.Store.Snapshot().Projects {
+		if p.WorkspaceId == ws.ID && !p.Orphaned {
+			versions[p.Name] = p.ConfigVersion
+		}
+	}
+	msg := &syncv1.ReportStatusRequest{WorkspaceId: ws.ID, Device: device(l.opt.Version)}
+	for _, e := range l.opt.Statuses() {
+		v, ok := versions[e.Project]
+		if !ok || e.Removed {
+			continue
+		}
+		kind := "base"
+		if e.Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_FEATURE {
+			kind = "feature"
+		}
+		msg.Environments = append(msg.Environments, &syncv1.EnvironmentReport{
+			Project: e.Project, Id: e.Id, Kind: kind, Name: e.Name, Branch: e.Branch,
+			Phase: strings.ToLower(strings.TrimPrefix(e.Phase.String(), "PHASE_")), Url: e.Url, Error: e.Error, ConfigVersion: v,
+		})
+	}
+	req := connect.NewRequest(msg)
+	req.Header().Set("Authorization", "Bearer "+tok)
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	_, err = client(ws.ServerURL).ReportStatus(ctx, req)
+	return err
+}

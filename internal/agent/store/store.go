@@ -20,6 +20,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	"github.com/amalychev/devopus/internal/importer"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // Store is the desired state persisted as JSON. Every change bumps the revision,
@@ -111,10 +113,18 @@ func (s *Store) Up(name, root string, config []byte) (envID string, rev uint64, 
 	return envID, rev, err
 }
 
-// register adds or updates a project and makes sure it has a base environment.
+// register adds or updates a project and makes sure it has a base environment. A
+// project from the workspace server keeps its settings: only the server changes them.
 func register(st *agentv2.DesiredState, name, root string, config []byte) (*agentv2.EnvironmentSpec, error) {
 	sum := sha256.Sum256(config)
 	p := findProject(st, name)
+	if p != nil && p.WorkspaceId != "" {
+		if p.Orphaned {
+			return nil, fmt.Errorf("%w: %s is no longer given to this device by its workspace", ErrUnknownProject, name)
+		}
+		p.Held = false
+		return ensureBase(st, name), nil
+	}
 	if p != nil && p.Root != root {
 		return nil, fmt.Errorf("%w: %q is already used by %s", ErrProjectConflict, name, p.Root)
 	}
@@ -123,12 +133,110 @@ func register(st *agentv2.DesiredState, name, root string, config []byte) (*agen
 		st.Projects = append(st.Projects, p)
 	}
 	p.Config, p.ConfigHash = config, hex.EncodeToString(sum[:])
+	return ensureBase(st, name), nil
+}
+
+func ensureBase(st *agentv2.DesiredState, name string) *agentv2.EnvironmentSpec {
 	env := baseEnv(st, name)
 	if env == nil {
 		env = &agentv2.EnvironmentSpec{Id: NewID(), Project: name, Kind: agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE}
 		st.Environments = append(st.Environments, env)
 	}
-	return env, nil
+	return env
+}
+
+// ParseProject reads a registered project: the spec the workspace server sent, or
+// workspace.yaml v1 of a folder.
+func ParseProject(p *agentv2.ProjectSpec) (*spec.Project, error) {
+	if len(p.Spec) > 0 {
+		return spec.ParseYAML(p.Spec)
+	}
+	proj, _, err := importer.Parse(p.Config)
+	return proj, err
+}
+
+// ServerProject is a project the workspace server gives this device.
+type ServerProject struct {
+	Name    string
+	Spec    []byte
+	Version int32
+}
+
+// SyncServer makes the server's projects of a workspace the device's: new ones come
+// up at once (a new member does nothing to get them), changed ones get their new
+// settings, the ones the server no longer gives — removed, access ended, another
+// workspace — are stopped with their data kept. A project held with 'devopus down'
+// stays stopped. A project of a folder with the same name is left alone; its name is
+// returned. The revision moves only when something changed.
+func (s *Store) SyncServer(workspaceID, adminEmail string, projects []ServerProject, root func(name string) string) (rev uint64, conflicts []string, err error) {
+	rev, err = s.updateIfChanged(func(st *agentv2.DesiredState) error {
+		conflicts = nil // fn runs twice: once to see whether anything changes
+		given := map[string]bool{}
+		for _, sp := range projects {
+			p := findProject(st, sp.Name)
+			if p != nil && p.WorkspaceId == "" {
+				conflicts = append(conflicts, sp.Name)
+				continue
+			}
+			given[sp.Name] = true
+			start := false
+			if p == nil {
+				p = &agentv2.ProjectSpec{Name: sp.Name, Root: root(sp.Name)}
+				st.Projects = append(st.Projects, p)
+				start = true
+			}
+			start = start || p.Orphaned
+			sum := sha256.Sum256(sp.Spec)
+			p.WorkspaceId, p.Spec, p.ConfigVersion, p.AdminEmail = workspaceID, sp.Spec, sp.Version, adminEmail
+			p.Config, p.ConfigHash, p.Orphaned = nil, hex.EncodeToString(sum[:]), false
+			base := ensureBase(st, sp.Name)
+			if start && !p.Held {
+				base.Phase = agentv2.DesiredPhase_DESIRED_PHASE_RUNNING
+			}
+		}
+		for _, p := range st.Projects {
+			if p.WorkspaceId == "" || given[p.Name] || p.Orphaned {
+				continue
+			}
+			p.Orphaned = true
+			for _, e := range st.Environments {
+				if e.Project == p.Name {
+					e.Phase = agentv2.DesiredPhase_DESIRED_PHASE_STOPPED
+				}
+			}
+		}
+		return nil
+	})
+	return rev, conflicts, err
+}
+
+// updateIfChanged is update that keeps the revision when fn changed nothing.
+func (s *Store) updateIfChanged(fn func(st *agentv2.DesiredState) error) (uint64, error) {
+	s.mu.Lock()
+	next := proto.Clone(s.state).(*agentv2.DesiredState)
+	if err := fn(next); err != nil {
+		s.mu.Unlock()
+		return 0, err
+	}
+	same := proto.Equal(next, s.state)
+	rev := s.state.Revision
+	s.mu.Unlock()
+	if same {
+		return rev, nil
+	}
+	return s.update(fn)
+}
+
+// Link sets the folder of a server project's path applications on this device.
+func (s *Store) Link(name, dir string) (uint64, error) {
+	return s.update(func(st *agentv2.DesiredState) error {
+		p := findProject(st, name)
+		if p == nil || p.WorkspaceId == "" {
+			return fmt.Errorf("%w %q of the workspace", ErrUnknownProject, name)
+		}
+		p.Root = dir
+		return nil
+	})
 }
 
 // ErrFeatureExists: the project already has a feature with this name.
@@ -306,11 +414,20 @@ func sortedSet(list []string) []string {
 }
 
 // Down stops the project's environments, or with purge removes the project and
-// everything it owns.
+// everything it owns. A project of the workspace server stays registered and held:
+// the server's changes do not start it until 'devopus up'.
 func (s *Store) Down(name string, purge bool) (uint64, error) {
 	return s.update(func(st *agentv2.DesiredState) error {
-		if findProject(st, name) == nil {
+		p := findProject(st, name)
+		if p == nil {
 			return fmt.Errorf("%w %q", ErrUnknownProject, name)
+		}
+		if p.WorkspaceId != "" {
+			p.Held = true
+			if purge {
+				st.Environments = filter(st.Environments, func(e *agentv2.EnvironmentSpec) bool { return e.Project != name })
+				return nil
+			}
 		}
 		if purge {
 			st.Projects = filter(st.Projects, func(p *agentv2.ProjectSpec) bool { return p.Name != name })

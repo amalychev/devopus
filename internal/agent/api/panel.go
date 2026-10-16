@@ -48,8 +48,20 @@ func (s *Server) projectFile(project string) (string, []byte, error) {
 }
 
 // workspaceOf is the workspace.yaml of a request: sent by the caller, or read from the
-// project's folder when the caller names only the project.
+// project's folder when the caller names only the project. A project of the workspace
+// server has its settings in the store: no file, and nothing the caller sends changes it.
 func (s *Server) workspaceOf(project, path string, config []byte) (*spec.Project, string, []byte, error) {
+	if path == "" && project != "" {
+		for _, p := range s.b.Store().Snapshot().Projects {
+			if p.Name == project && p.WorkspaceId != "" {
+				ws, err := store.ParseProject(p)
+				if err != nil {
+					return nil, "", nil, connect.NewError(connect.CodeInternal, err)
+				}
+				return ws, filepath.Join(p.Root, workspace.FileName), nil, nil
+			}
+		}
+	}
 	if path == "" && project != "" {
 		var err error
 		if path, config, err = s.projectFile(project); err != nil {
@@ -74,6 +86,9 @@ func (s *Server) DescribeProject(_ context.Context, req *connect.Request[agentv2
 	res := &agentv2.DescribeProjectResponse{
 		Project: ws.Name, WorkspacePath: path, Domain: ws.Domain,
 		Services: containerServices(ws), BranchPrefix: ws.Policy().BranchPrefix,
+	}
+	if res.Spec, err = ws.YAML(); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	for _, n := range ws.AppNames() {
 		a := ws.Apps[n]

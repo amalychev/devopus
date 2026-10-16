@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -26,6 +27,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/credentials"
 	"github.com/amalychev/devopus/internal/service"
 	"github.com/amalychev/devopus/internal/trust"
 )
@@ -263,6 +265,12 @@ func (a *app) printStatus(s *agentv2.StatusResponse) {
 	} else {
 		fmt.Fprintln(a.stdout, "Account  the agent has no session yet ('devopus agent logs' tells why)")
 	}
+	switch l := s.Link; {
+	case l.GetConnected():
+		fmt.Fprintf(a.stdout, "Link     workspace %s at %s · connected\n", l.Workspace, l.Server)
+	case l.GetError() != "":
+		fmt.Fprintf(a.stdout, "Link     %s\n", l.Error)
+	}
 	rt := s.Runtime
 	if rt.Reachable {
 		fmt.Fprintf(a.stdout, "Runtime  %s %s (%s)\n", rt.Name, rt.ServerVersion, rt.Endpoint)
@@ -364,11 +372,20 @@ func (a *app) trustHint() {
 func (a *app) upCmd() *cobra.Command {
 	var detach bool
 	var timeout time.Duration
+	var dir string
 	cmd := &cobra.Command{
-		Use:   "up",
-		Short: "Bring up the base environment of the project",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		Use:   "up [project…]",
+		Short: "Bring up the projects of the workspace on this machine, or the project of workspace.yaml here",
+		Long: "Brings up the base environments of the current workspace's projects (all, or those\n" +
+			"named) on this machine; the agent gets them from the workspace server. In a folder\n" +
+			"with workspace.yaml it brings up that project instead (until stage 3 ends).\n\n" +
+			"--dir is the folder of a project's path applications on this machine (the demo:\n" +
+			"devopus up demo --dir examples/demo).",
+		Args: cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if _, ferr := a.workspaceFile(); len(args) > 0 || dir != "" || (ferr != nil && a.file == "") {
+				return a.upServer(args, dir, detach, timeout)
+			}
 			res, file, err := a.load()
 			if err != nil {
 				return err
@@ -416,7 +433,127 @@ func (a *app) upCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "return without waiting for the environment")
 	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Minute, "how long to wait")
+	cmd.Flags().StringVar(&dir, "dir", "", "folder of the project's path applications on this machine")
 	return cmd
+}
+
+// workspaceProjects are the projects of the current workspace the agent has. Right
+// after a sign-in or a switch the agent may still be fetching them: it waits a while.
+func (a *app) workspaceProjects(ctx context.Context, c agentv2connect.AgentServiceClient, want []string) (*credentials.Workspace, []*agentv2.ProjectSpec, error) {
+	cur, err := credentials.CurrentWorkspace()
+	if err != nil {
+		return nil, nil, fail(ExitError, "%v", err)
+	}
+	if cur == nil {
+		return nil, nil, fail(ExitInvalid, "no workspace.yaml here, and no workspace chosen on this machine: devopus workspace use <name>")
+	}
+	told := false
+	deadline := time.Now().Add(time.Minute)
+	for {
+		st, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
+		if err != nil {
+			return nil, nil, rpcError(err)
+		}
+		var have []*agentv2.ProjectSpec
+		names := map[string]bool{}
+		for _, p := range st.Msg.Projects {
+			if p.WorkspaceId == cur.ID && !p.Orphaned {
+				have = append(have, p)
+				names[p.Name] = true
+			}
+		}
+		missing := ""
+		for _, w := range want {
+			if !names[w] {
+				missing = w
+			}
+		}
+		connected := st.Msg.Link.GetConnected()
+		switch {
+		case len(have) > 0 && missing == "":
+			return cur, have, nil
+		case connected && missing != "":
+			return nil, nil, fail(ExitInvalid, "%s has no project %q for you; 'devopus project list' shows yours", cur.Name, missing)
+		case connected:
+			return nil, nil, fail(ExitInvalid, "%s has no projects for you yet; 'devopus project list' shows yours", cur.Name)
+		case time.Now().After(deadline):
+			why := st.Msg.Link.GetError()
+			if why == "" {
+				why = "no answer"
+			}
+			return nil, nil, fail(ExitError, "the agent did not get the projects of %s from %s: %s", cur.Name, cur.ServerURL, why)
+		}
+		if !told && !a.json {
+			fmt.Fprintf(a.stderr, "Waiting for the agent to get the projects of %s from the workspace server…\n", cur.Name)
+			told = true
+		}
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+}
+
+// upServer brings up projects of the current workspace.
+func (a *app) upServer(names []string, dir string, detach bool, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	c, err := a.connect(ctx)
+	if err != nil {
+		return err
+	}
+	_, projects, err := a.workspaceProjects(ctx, c, names)
+	if err != nil {
+		return err
+	}
+	if len(names) > 0 {
+		var chosen []*agentv2.ProjectSpec
+		for _, p := range projects {
+			if slices.Contains(names, p.Name) {
+				chosen = append(chosen, p)
+			}
+		}
+		projects = chosen
+	}
+	if dir != "" {
+		if len(projects) != 1 {
+			return fail(ExitInvalid, "--dir is the folder of one project: name it")
+		}
+		if dir, err = filepath.Abs(dir); err != nil {
+			return err
+		}
+	}
+	w, err := watch(ctx, c)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	type started struct {
+		name, env string
+		rev       uint64
+	}
+	var ups []started
+	for _, p := range projects {
+		res, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{Project: p.Name, Dir: dir}))
+		if err != nil {
+			return rpcError(err)
+		}
+		ups = append(ups, started{p.Name, res.Msg.EnvironmentId, res.Msg.Revision})
+	}
+	if detach {
+		var out []map[string]any
+		for _, u := range ups {
+			out = append(out, map[string]any{"project": u.name, "environment_id": u.env, "revision": u.rev})
+		}
+		return a.done(map[string]any{"projects": out}, "%d projects are coming up; 'devopus status' shows progress.\n", len(ups))
+	}
+	for _, u := range ups {
+		if err := a.awaitRunning(ctx, c, w, u.env, u.rev, u.name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // awaitRunning follows an environment until it runs, then prints its URL and routes.
@@ -450,10 +587,16 @@ func (a *app) downCmd() *cobra.Command {
 	var project string
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:   "down",
-		Short: "Stop the environments of the project; --volumes removes them with their data",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		Use:   "down [project]",
+		Short: "Stop the environments of a project; --volumes removes them with their data",
+		Long: "Stops the environments of a project on this machine: the project named, the --project\n" +
+			"flag, or the project of workspace.yaml here. A project of the workspace stays stopped\n" +
+			"here until 'devopus up', whatever changes on the server.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 {
+				project = args[0]
+			}
 			if project == "" {
 				res, _, err := a.load()
 				if err != nil {

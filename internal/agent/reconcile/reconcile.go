@@ -352,6 +352,7 @@ type prepared struct {
 	hosts []string
 	leaf  *pki.Leaf
 	ws    *spec.Project
+	admin string
 	url   string
 	plan  *stack.Plan
 	err   error
@@ -444,7 +445,7 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv2.En
 		}})
 		root := ""
 		if ws != nil {
-			root = ws.root
+			root, p.admin = ws.root, ws.admin
 		}
 		steps = append(steps, r.unitSteps(env, root, p, &nw, o)...)
 		defer func() { r.setUnits(ctx, env.Id, p.plan, p.hosts) }()

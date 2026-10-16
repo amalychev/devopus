@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/stack"
@@ -58,6 +59,34 @@ func (a *app) loadValid(again string) (*spec.Project, string, []byte, error) {
 	return proj, abs, config, nil
 }
 
+// featureProject is the project a feature command works on: the --project flag, a
+// project the agent runs (one of the workspace), or workspace.yaml of this folder.
+// path and config are set only for workspace.yaml.
+func (a *app) featureProject(ctx context.Context, c agentv2connect.AgentServiceClient, project, again string) (ws *spec.Project, path string, config []byte, err error) {
+	if _, ferr := a.workspaceFile(); project == "" && (ferr == nil || a.file != "") {
+		return a.loadValid(again)
+	}
+	if project == "" {
+		_, have, err := a.workspaceProjects(ctx, c, nil)
+		if err != nil {
+			return nil, "", nil, err
+		}
+		if len(have) != 1 {
+			return nil, "", nil, fail(ExitInvalid, "name the project: --project <name>")
+		}
+		project = have[0].Name
+	}
+	res, err := c.DescribeProject(ctx, connect.NewRequest(&agentv2.DescribeProjectRequest{Project: project}))
+	if err != nil {
+		return nil, "", nil, rpcError(err)
+	}
+	ws, err = spec.ParseYAML(res.Msg.Spec)
+	if err != nil {
+		return nil, "", nil, fail(ExitError, "%v", err)
+	}
+	return ws, "", nil, nil
+}
+
 func splitList(list []string) []string {
 	var out []string
 	for _, s := range list {
@@ -72,7 +101,7 @@ func splitList(list []string) []string {
 
 func (a *app) featureCreateCmd() *cobra.Command {
 	var apps []string
-	var branch string
+	var branch, project string
 	var detach bool
 	var timeout time.Duration
 	cmd := &cobra.Command{
@@ -88,7 +117,13 @@ func (a *app) featureCreateCmd() *cobra.Command {
 			if len(apps) == 0 {
 				return fail(ExitInvalid, "name the applications to fork: --apps a,b")
 			}
-			ws, abs, config, err := a.loadValid("devopus feature create")
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+			c, err := a.connect(ctx)
+			if err != nil {
+				return err
+			}
+			ws, abs, config, err := a.featureProject(ctx, c, project, "devopus feature create")
 			if err != nil {
 				return err
 			}
@@ -96,19 +131,13 @@ func (a *app) featureCreateCmd() *cobra.Command {
 			if err != nil {
 				return fail(ExitInvalid, "%v", err)
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
-			defer cancel()
-			c, err := a.connect(ctx)
-			if err != nil {
-				return err
-			}
 			w, err := watch(ctx, c)
 			if err != nil {
 				return err
 			}
 			defer w.Close()
 			res, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{
-				WorkspacePath: abs, Config: config, Name: name, Apps: apps, Branch: branch,
+				WorkspacePath: abs, Config: config, Name: name, Apps: apps, Branch: branch, Project: projectOf(abs, ws),
 			}))
 			if err != nil {
 				return rpcError(err)
@@ -126,6 +155,7 @@ func (a *app) featureCreateCmd() *cobra.Command {
 	}
 	cmd.Flags().StringSliceVarP(&apps, "apps", "a", nil, "applications to fork, comma-separated")
 	cmd.Flags().StringVar(&branch, "branch", "", "branch of the forked applications (default: features.branch_prefix + name)")
+	cmd.Flags().StringVar(&project, "project", "", "project (default: workspace.yaml here, or the workspace's only project)")
 	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "return without waiting for the feature")
 	cmd.Flags().DurationVar(&timeout, "timeout", 15*time.Minute, "how long to wait")
 	return cmd
@@ -178,19 +208,20 @@ func (a *app) printIsolation(ws *spec.Project, iso *stack.Isolation, name, branc
 func (a *app) featureAddCmd() *cobra.Command {
 	var detach bool
 	var timeout time.Duration
+	var project string
 	cmd := &cobra.Command{
 		Use:   "add <feature> <app>...",
 		Short: "Fork more applications in a feature",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ws, abs, config, err := a.loadValid("devopus feature add")
-			if err != nil {
-				return err
-			}
 			apps := splitList(args[1:])
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 			c, err := a.connect(ctx)
+			if err != nil {
+				return err
+			}
+			ws, abs, config, err := a.featureProject(ctx, c, project, "devopus feature add")
 			if err != nil {
 				return err
 			}
@@ -200,7 +231,7 @@ func (a *app) featureAddCmd() *cobra.Command {
 			}
 			defer w.Close()
 			res, err := c.AddFeatureApps(ctx, connect.NewRequest(&agentv2.AddFeatureAppsRequest{
-				WorkspacePath: abs, Config: config, Feature: args[0], Apps: apps,
+				WorkspacePath: abs, Config: config, Feature: args[0], Apps: apps, Project: projectOf(abs, ws),
 			}))
 			if err != nil {
 				return rpcError(err)
@@ -212,6 +243,7 @@ func (a *app) featureAddCmd() *cobra.Command {
 			return a.awaitRunning(ctx, c, w, res.Msg.EnvironmentId, res.Msg.Revision, "Feature "+args[0])
 		},
 	}
+	cmd.Flags().StringVar(&project, "project", "", "project (default: workspace.yaml here, or the workspace's only project)")
 	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "return without waiting for the feature")
 	cmd.Flags().DurationVar(&timeout, "timeout", 15*time.Minute, "how long to wait")
 	return cmd
@@ -521,4 +553,12 @@ func (a *app) featureSleepCmd(asleep bool) *cobra.Command {
 	cmd.Flags().StringVar(&project, "project", "", "project name (default: from workspace.yaml)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Minute, "how long to wait")
 	return cmd
+}
+
+// projectOf names the project for the agent when no workspace.yaml goes with a request.
+func projectOf(path string, ws *spec.Project) string {
+	if path != "" {
+		return ""
+	}
+	return ws.Name
 }

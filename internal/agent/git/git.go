@@ -36,6 +36,22 @@ func Clone(ctx context.Context, url, branch, dir string, log io.Writer) error {
 	return os.Rename(tmp, dir)
 }
 
+// NoAccess reports whether a clone failed because the git host refused the user:
+// no key, no permission, or a private repository that looks missing.
+func NoAccess(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	for _, s := range []string{"permission denied", "could not read from remote repository", "repository not found",
+		"authentication failed", "could not read username", "returned error: 403", "access denied"} {
+		if strings.Contains(msg, s) {
+			return true
+		}
+	}
+	return false
+}
+
 // IsRepo reports whether dir is the top of a git checkout.
 func IsRepo(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, ".git"))

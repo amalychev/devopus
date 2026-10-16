@@ -157,6 +157,15 @@ devopus project config history demo
 devopus project config rollback demo 1    # назад, тоже новой версией
 ```
 
+Агент берёт проекты **текущего воркспейса** устройства (`devopus workspace use`) с его сервера и поднимает их сам; `devopus status` показывает связь (`Link`). У демо приложения из папок (`path`) — агенту нужна папка с ними на этой машине:
+
+```bash
+devopus up demo --dir examples/demo   # один раз: папка запоминается
+devopus down demo                     # остановить здесь; сервер его не перезапустит до 'devopus up'
+```
+
+Проект с сервера и проект папки (`workspace.yaml`) с одним именем не уживаются: агент оставляет проект папки и пишет об этом в лог. Освободить имя — `devopus down --volumes --project <имя>` в папке.
+
 Токены сервер проверяет по ключам Auth (`--auth-url`, по умолчанию `DEVOPUS_AUTH_URL`). CLI ходит на `DEVOPUS_SERVER_URL` (по умолчанию `http://127.0.0.1:7481`); текущий воркспейс — `~/.devopus/workspace.json`, сменить — `devopus workspace use <имя>`. Несколько участников на одной машине — разные `DEVOPUS_HOME`.
 
 ## 4. Разработка

@@ -18,6 +18,9 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	syncv1 "github.com/amalychev/devopus/gen/devopus/sync/v1"
+	"github.com/amalychev/devopus/gen/devopus/sync/v1/syncv1connect"
+
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
 	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
 	"github.com/amalychev/devopus/internal/auth/mail"
@@ -109,12 +112,21 @@ func service() protoreflect.ServiceDescriptor {
 	return workspacev1.File_devopus_workspace_v1_workspace_proto.Services().ByName("WorkspaceService")
 }
 
+// methods are the calls of every service the server serves.
+func methods() []protoreflect.MethodDescriptor {
+	var out []protoreflect.MethodDescriptor
+	for _, sd := range []protoreflect.ServiceDescriptor{service(), syncv1.File_devopus_sync_v1_sync_proto.Services().ByName("SyncService")} {
+		for i := range sd.Methods().Len() {
+			out = append(out, sd.Methods().Get(i))
+		}
+	}
+	return out
+}
+
 // TestEveryCallDeclaresAccess: a call without a declared permission would be refused
 // by the interceptor, and must not reach production either.
 func TestEveryCallDeclaresAccess(t *testing.T) {
-	ms := service().Methods()
-	for i := range ms.Len() {
-		m := ms.Get(i)
+	for _, m := range methods() {
 		a := AccessOf(m)
 		if a == nil {
 			t.Errorf("%s declares no access", m.Name())
@@ -186,7 +198,7 @@ func (e *env) call(t *testing.T, method protoreflect.MethodDescriptor, bearer, w
 		body["project"] = "shop"
 	}
 	b, _ := json.Marshal(body)
-	req, _ := http.NewRequest(http.MethodPost, e.url+"/"+string(service().FullName())+"/"+string(method.Name()), bytes.NewReader(b))
+	req, _ := http.NewRequest(http.MethodPost, e.url+"/"+string(method.Parent().FullName())+"/"+string(method.Name()), bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	if bearer != "" {
 		req.Header.Set("Authorization", "Bearer "+bearer)
@@ -208,9 +220,10 @@ func (e *env) call(t *testing.T, method protoreflect.MethodDescriptor, bearer, w
 // without the declared permission are refused, the others get past the check.
 func TestRoleMatrix(t *testing.T) {
 	e := newEnv(t)
-	ms := service().Methods()
-	for i := range ms.Len() {
-		m := ms.Get(i)
+	for _, m := range methods() {
+		if m.IsStreamingServer() {
+			continue // TestWatch checks the stream's access
+		}
 		a := AccessOf(m)
 		for _, role := range []string{"admin", "teamlead", "developer", "outsider", "anonymous"} {
 			// A fresh workspace for every call: the admin's DeleteWorkspace must not
@@ -467,4 +480,98 @@ func TestProjectConfig(t *testing.T) {
 	_, err = e.client.DeleteProject(ctx, as(e, f.dev, &workspacev1.DeleteProjectRequest{WorkspaceId: f.ws, Project: "shop", ConfirmName: "shop"}))
 	wantCode(t, err, connect.CodePermissionDenied)
 	must[workspacev1.DeleteProjectResponse](t)(e.client.DeleteProject(ctx, as(e, f.lead, &workspacev1.DeleteProjectRequest{WorkspaceId: f.ws, Project: "blog", ConfirmName: "blog"})))
+}
+
+func TestWatch(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	f := e.fixture(t)
+	sc := syncv1connect.NewSyncServiceClient(http.DefaultClient, e.url)
+	device := &syncv1.Device{Id: "dev-laptop", Name: "laptop", AgentVersion: "test"}
+	must[workspacev1.PutAppResponse](t)(e.client.PutApp(ctx, as(e, f.lead, &workspacev1.PutAppRequest{WorkspaceId: f.ws, Project: "shop", Name: "api", AppYaml: "repo: git@github.com:acme/api.git\n", Create: true})))
+
+	type got struct {
+		msg *syncv1.WatchResponse
+		err error
+	}
+	watch := func(email string) chan got {
+		out := make(chan got, 10)
+		go func() {
+			st, err := sc.Watch(ctx, as(e, email, &syncv1.WatchRequest{WorkspaceId: f.ws, Device: device}))
+			if err != nil {
+				out <- got{err: err}
+				return
+			}
+			for st.Receive() {
+				out <- got{msg: st.Msg()}
+			}
+			out <- got{err: st.Err()}
+			close(out)
+		}()
+		return out
+	}
+	next := func(ch chan got) got {
+		t.Helper()
+		select {
+		case g := <-ch:
+			return g
+		case <-time.After(5 * time.Second):
+			t.Fatal("no message from the stream")
+		}
+		return got{}
+	}
+
+	dev := watch(f.dev)
+	first := next(dev)
+	if first.err != nil || len(first.msg.Projects) != 1 || first.msg.Projects[0].Version != 2 || first.msg.AdminEmail != f.admin {
+		t.Fatalf("first state: %+v %v", first.msg, first.err)
+	}
+	// The teamlead's change reaches the developer's agent at once.
+	start := time.Now()
+	must[workspacev1.PutServiceResponse](t)(e.client.PutService(ctx, as(e, f.lead, &workspacev1.PutServiceRequest{WorkspaceId: f.ws, Project: "shop", Name: "php", ServiceYaml: "type: php\nversion: \"8.4\"\napps: [api]\n", Create: true})))
+	second := next(dev)
+	if second.err != nil || second.msg.Projects[0].Version != 3 || !strings.Contains(second.msg.Projects[0].ConfigYaml, "8.4") {
+		t.Fatalf("after the change: %+v %v", second.msg, second.err)
+	}
+	if d := time.Since(start); d > 2*time.Second {
+		t.Errorf("the change took %v", d)
+	}
+
+	// An outsider gets nothing.
+	if g := next(watch(f.outsider)); connect.CodeOf(g.err) != connect.CodePermissionDenied {
+		t.Errorf("outsider: %+v", g)
+	}
+
+	// The device reports; the teamlead sees what it runs, the outsider's view is empty.
+	must[syncv1.ReportStatusResponse](t)(sc.ReportStatus(ctx, as(e, f.dev, &syncv1.ReportStatusRequest{WorkspaceId: f.ws, Device: device, Environments: []*syncv1.EnvironmentReport{
+		{Project: "shop", Id: "e1", Kind: "base", Phase: "running", Url: "https://shop.localhost", ConfigVersion: 3},
+		{Project: "shop", Id: "e2", Kind: "feature", Name: "PAY-1", Branch: "feature/PAY-1", Phase: "running", ConfigVersion: 3},
+	}})))
+	devices := must[syncv1.ListDevicesResponse](t)(sc.ListDevices(ctx, as(e, f.lead, &syncv1.ListDevicesRequest{WorkspaceId: f.ws, Project: "shop"}))).Devices
+	if len(devices) != 1 || devices[0].UserEmail != f.dev || !devices[0].Online || len(devices[0].Environments) != 2 || devices[0].Environments[1].Name != "PAY-1" {
+		t.Fatalf("devices: %v", devices)
+	}
+
+	// Removing the developer cuts the stream off.
+	must[workspacev1.RemoveMemberResponse](t)(e.client.RemoveMember(ctx, as(e, f.admin, &workspacev1.RemoveMemberRequest{WorkspaceId: f.ws, Email: f.dev})))
+	if g := next(dev); connect.CodeOf(g.err) != connect.CodePermissionDenied {
+		t.Fatalf("removed member's stream: %+v", g)
+	}
+
+	// The stream ends with the access token.
+	short, _ := token.Sign(e.key, token.Claims{Issuer: issuer, Subject: "usr_" + strings.Split(f.lead, "@")[0], Session: "s", Email: f.lead,
+		Audience: token.DefaultAudience, Expiry: time.Now().Add(2 * time.Second).Unix()})
+	r := connect.NewRequest(&syncv1.WatchRequest{WorkspaceId: f.ws, Device: device})
+	r.Header().Set("Authorization", "Bearer "+short)
+	st, err := sc.Watch(ctx, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for st.Receive() {
+		n++
+	}
+	if n != 1 || st.Err() != nil {
+		t.Errorf("short token: %d messages, %v", n, st.Err())
+	}
 }

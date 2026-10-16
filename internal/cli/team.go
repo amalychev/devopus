@@ -2,12 +2,8 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -21,7 +17,6 @@ import (
 	authv1 "github.com/amalychev/devopus/gen/devopus/auth/v1"
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
 	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
-	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/authz"
 	"github.com/amalychev/devopus/internal/credentials"
 	"github.com/amalychev/devopus/internal/importer"
@@ -36,41 +31,13 @@ const DefaultServerURL = "http://" + DefaultServerListen
 // serverURL is the workspace server for new workspaces: $DEVOPUS_SERVER_URL or the default.
 func serverURL() string { return strings.TrimRight(envOr("DEVOPUS_SERVER_URL", DefaultServerURL), "/") }
 
-// current is the workspace commands work in, kept per data directory.
-type current struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	ServerURL string `json:"serverUrl"`
-}
+// current is the workspace commands work in, kept per data directory; the agent
+// follows it too.
+type current = credentials.Workspace
 
-func currentFile() string { return filepath.Join(paths.Home(), "workspace.json") }
+func loadCurrent() (*current, error) { return credentials.CurrentWorkspace() }
 
-func loadCurrent() (*current, error) {
-	b, err := os.ReadFile(currentFile())
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	var c current
-	return &c, json.Unmarshal(b, &c)
-}
-
-func saveCurrent(c *current) error {
-	if c == nil {
-		err := os.Remove(currentFile())
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return err
-	}
-	if err := paths.Ensure(); err != nil {
-		return err
-	}
-	b, _ := json.MarshalIndent(c, "", "  ")
-	return os.WriteFile(currentFile(), append(b, '\n'), 0o600)
-}
+func saveCurrent(c *current) error { return credentials.SetCurrentWorkspace(c) }
 
 // session is a signed-in call context: an access token for Auth and workspace servers.
 type session struct {
