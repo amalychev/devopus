@@ -1,0 +1,239 @@
+// Auth: accounts, sign-in and tokens (ADR-0014, docs/architecture/auth.md). The CLI,
+// the agent and workspace servers talk to it. Roles and permissions are not here: the
+// workspace server checks them.
+//
+// Calls marked "signed in" take the access token in the Authorization header
+// ("Bearer <token>"); the others take no token.
+syntax = "proto3";
+
+package devopus.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service AuthService {
+  // StartEmailSignIn sends a one-time code to an email. The answer is the same whether
+  // an account with that email exists or not.
+  rpc StartEmailSignIn(StartEmailSignInRequest) returns (StartEmailSignInResponse);
+  // CompleteEmailSignIn checks the code and opens a session. Registration creates the
+  // account with the chosen plan; signing in to an email without an account fails
+  // with NOT_FOUND once the code proves the email is the caller's.
+  rpc CompleteEmailSignIn(CompleteEmailSignInRequest) returns (CompleteEmailSignInResponse);
+  // ListPlans lists the plans an account can choose at registration.
+  rpc ListPlans(ListPlansRequest) returns (ListPlansResponse);
+  // ExchangeAuthorizationCode finishes the browser sign-in (OAuth 2.0 authorization
+  // code with PKCE): the code came to the CLI's callback on 127.0.0.1.
+  rpc ExchangeAuthorizationCode(ExchangeAuthorizationCodeRequest) returns (ExchangeAuthorizationCodeResponse);
+  // StartDeviceSignIn begins the device flow (RFC 8628) for a machine without a
+  // browser: the person confirms the user code on another device.
+  rpc StartDeviceSignIn(StartDeviceSignInRequest) returns (StartDeviceSignInResponse);
+  // PollDeviceSignIn opens the session once the user code is confirmed.
+  rpc PollDeviceSignIn(PollDeviceSignInRequest) returns (PollDeviceSignInResponse);
+  // Refresh trades a refresh token for new tokens. Every refresh token works once: a
+  // token used again revokes its whole session.
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+  // SignOut revokes the session of a refresh token.
+  rpc SignOut(SignOutRequest) returns (SignOutResponse);
+  // GetMe is the signed-in user and the current session. Signed in.
+  rpc GetMe(GetMeRequest) returns (GetMeResponse);
+  // ListSessions lists the user's live sessions. Signed in.
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  // RevokeSession ends one of the user's sessions. Signed in.
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
+  // ListWorkspaces is the user's workspace registry: which workspaces they have and
+  // where their servers are. Signed in.
+  rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
+  // RegisterWorkspace adds a workspace with its server to the user's registry. Signed in.
+  rpc RegisterWorkspace(RegisterWorkspaceRequest) returns (RegisterWorkspaceResponse);
+}
+
+enum Purpose {
+  PURPOSE_UNSPECIFIED = 0;
+  PURPOSE_REGISTER = 1;
+  PURPOSE_SIGN_IN = 2;
+}
+
+enum Plan {
+  PLAN_UNSPECIFIED = 0;
+  PLAN_FREE = 1;
+  PLAN_SELF_HOSTED = 2;
+  PLAN_TEAM = 3;
+}
+
+message User {
+  string id = 1;
+  string email = 2;
+  Plan plan = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message Session {
+  string id = 1;
+  // The device the session was opened on: its host name.
+  string device_name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp last_used_at = 4;
+  // The session ends at idle_expires_at unless used before (each refresh moves it), and
+  // at expires_at in any case.
+  google.protobuf.Timestamp idle_expires_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  // The session the request came with.
+  bool current = 7;
+}
+
+message Tokens {
+  // A signed JWT (EdDSA): sub is the user, sid the session.
+  string access_token = 1;
+  google.protobuf.Timestamp access_expires_at = 2;
+  // Opaque; works once.
+  string refresh_token = 3;
+  Session session = 4;
+}
+
+message StartEmailSignInRequest {
+  string email = 1;
+  Purpose purpose = 2;
+  // A random id the client keeps per device: requests from one device are limited.
+  string device_id = 3;
+}
+
+message StartEmailSignInResponse {
+  string challenge_id = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message CompleteEmailSignInRequest {
+  string challenge_id = 1;
+  string code = 2;
+  // Registration only: the account's plan.
+  Plan plan = 3;
+  string device_name = 4;
+}
+
+message CompleteEmailSignInResponse {
+  User user = 1;
+  Tokens tokens = 2;
+  // The account was created by this call.
+  bool created = 3;
+}
+
+message ListPlansRequest {}
+
+message PlanInfo {
+  Plan plan = 1;
+  string name = 2;
+  string description = 3;
+  // Whether an account can choose it now.
+  bool available = 4;
+}
+
+message ListPlansResponse {
+  repeated PlanInfo plans = 1;
+}
+
+message ExchangeAuthorizationCodeRequest {
+  string code = 1;
+  string code_verifier = 2;
+  // Must be the redirect_uri of the authorization request.
+  string redirect_uri = 3;
+  string device_name = 4;
+}
+
+message ExchangeAuthorizationCodeResponse {
+  User user = 1;
+  Tokens tokens = 2;
+}
+
+message StartDeviceSignInRequest {
+  string device_name = 1;
+  string device_id = 2;
+}
+
+message StartDeviceSignInResponse {
+  string device_code = 1;
+  // What the person types on the page: XXXX-XXXX.
+  string user_code = 2;
+  string verification_uri = 3;
+  // The page with the user code filled in.
+  string verification_uri_complete = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  int32 interval_seconds = 6;
+}
+
+message PollDeviceSignInRequest {
+  string device_code = 1;
+}
+
+enum DeviceSignInStatus {
+  DEVICE_SIGN_IN_STATUS_UNSPECIFIED = 0;
+  // Not confirmed yet: poll again after the interval.
+  DEVICE_SIGN_IN_STATUS_PENDING = 1;
+  // Polled too often: wait 5 seconds longer between polls.
+  DEVICE_SIGN_IN_STATUS_SLOW_DOWN = 2;
+  // Confirmed: user and tokens are set.
+  DEVICE_SIGN_IN_STATUS_DONE = 3;
+}
+
+message PollDeviceSignInResponse {
+  DeviceSignInStatus status = 1;
+  User user = 2;
+  Tokens tokens = 3;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+  // The access token's audience: a workspace id, or empty for Devopus itself.
+  string audience = 2;
+}
+
+message RefreshResponse {
+  User user = 1;
+  Tokens tokens = 2;
+}
+
+message SignOutRequest {
+  string refresh_token = 1;
+}
+
+message SignOutResponse {}
+
+message GetMeRequest {}
+
+message GetMeResponse {
+  User user = 1;
+  Session session = 2;
+}
+
+message ListSessionsRequest {}
+
+message ListSessionsResponse {
+  repeated Session sessions = 1;
+}
+
+message RevokeSessionRequest {
+  string session_id = 1;
+}
+
+message RevokeSessionResponse {}
+
+message Workspace {
+  string id = 1;
+  string name = 2;
+  // Where the workspace server is.
+  string server_url = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message ListWorkspacesRequest {}
+
+message ListWorkspacesResponse {
+  repeated Workspace workspaces = 1;
+}
+
+message RegisterWorkspaceRequest {
+  string name = 1;
+  string server_url = 2;
+}
+
+message RegisterWorkspaceResponse {
+  Workspace workspace = 1;
+}
