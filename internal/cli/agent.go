@@ -20,8 +20,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
-	"github.com/amalychev/devopus/gen/devopus/agent/v1/agentv1connect"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
 	"github.com/amalychev/devopus/internal/agent"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
@@ -217,7 +217,7 @@ func tailFile(ctx context.Context, w io.Writer, file string, n int, follow bool)
 }
 
 // connect returns a client to the agent, starting it if needed.
-func (a *app) connect(ctx context.Context) (agentv1connect.AgentServiceClient, error) {
+func (a *app) connect(ctx context.Context) (agentv2connect.AgentServiceClient, error) {
 	c, started, err := client.Ensure(ctx, Version)
 	if err != nil {
 		return nil, fail(ExitError, "%v", err)
@@ -236,7 +236,7 @@ func (a *app) statusCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := context.Background()
 			c := client.New(paths.Socket())
-			res, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+			res, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 			if err != nil {
 				if connect.CodeOf(err) == connect.CodeUnavailable {
 					if a.json {
@@ -256,7 +256,7 @@ func (a *app) statusCmd() *cobra.Command {
 	}
 }
 
-func (a *app) printStatus(s *agentv1.StatusResponse) {
+func (a *app) printStatus(s *agentv2.StatusResponse) {
 	fmt.Fprintf(a.stdout, "Agent    %s · desired revision %d\n", s.AgentVersion, s.DesiredRevision)
 	rt := s.Runtime
 	if rt.Reachable {
@@ -278,7 +278,7 @@ func (a *app) printStatus(s *agentv1.StatusResponse) {
 	fmt.Fprintln(a.stdout)
 	w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "PROJECT\tENV\tKIND\tPHASE\tURL\tNETWORK")
-	byProject := map[string][]*agentv1.EnvironmentStatus{}
+	byProject := map[string][]*agentv2.EnvironmentStatus{}
 	for _, e := range s.Environments {
 		byProject[e.Project] = append(byProject[e.Project], e)
 	}
@@ -309,8 +309,8 @@ func (a *app) printStatus(s *agentv1.StatusResponse) {
 	}
 }
 
-// printUnits lists the services, modules and workers of an environment.
-func (a *app) printUnits(e *agentv1.EnvironmentStatus) {
+// printUnits lists the services, applications and workers of an environment.
+func (a *app) printUnits(e *agentv2.EnvironmentStatus) {
 	if len(e.Units) == 0 {
 		return
 	}
@@ -332,7 +332,7 @@ func (a *app) printUnits(e *agentv1.EnvironmentStatus) {
 }
 
 // printCA shows where the local CA is and whether this machine trusts it.
-func (a *app) printCA(ca *agentv1.CAInfo) {
+func (a *app) printCA(ca *agentv2.CAInfo) {
 	if ca.GetRootPath() == "" {
 		return
 	}
@@ -398,7 +398,7 @@ func (a *app) upCmd() *cobra.Command {
 				return err
 			}
 			defer w.Close()
-			up, err := c.Up(ctx, connect.NewRequest(&agentv1.UpRequest{WorkspacePath: abs, Config: config}))
+			up, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: abs, Config: config}))
 			if err != nil {
 				return rpcError(err)
 			}
@@ -415,9 +415,9 @@ func (a *app) upCmd() *cobra.Command {
 }
 
 // awaitRunning follows an environment until it runs, then prints its URL and routes.
-func (a *app) awaitRunning(ctx context.Context, c agentv1connect.AgentServiceClient, w *connect.ServerStreamForClient[agentv1.WatchResponse], envID string, rev uint64, what string) error {
-	final, err := a.follow(w, []string{envID}, rev, true, func(s *agentv1.EnvironmentStatus) bool {
-		return s.Phase == agentv1.Phase_PHASE_RUNNING
+func (a *app) awaitRunning(ctx context.Context, c agentv2connect.AgentServiceClient, w *connect.ServerStreamForClient[agentv2.WatchResponse], envID string, rev uint64, what string) error {
+	final, err := a.follow(w, []string{envID}, rev, true, func(s *agentv2.EnvironmentStatus) bool {
+		return s.Phase == agentv2.Phase_PHASE_RUNNING
 	})
 	if err != nil {
 		return err
@@ -426,7 +426,7 @@ func (a *app) awaitRunning(ctx context.Context, c agentv1connect.AgentServiceCli
 		return a.writeProto(final[envID])
 	}
 	fmt.Fprintf(a.stdout, "%s is up: %s (environment %s)\n", what, final[envID].Url, envID)
-	if routes, err := c.Routes(ctx, connect.NewRequest(&agentv1.RoutesRequest{EnvironmentId: envID})); err == nil {
+	if routes, err := c.Routes(ctx, connect.NewRequest(&agentv2.RoutesRequest{EnvironmentId: envID})); err == nil {
 		w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
 		for _, r := range routes.Msg.Routes {
 			fmt.Fprintf(w, "  %s\t%s\n", r.Url, r.Target)
@@ -465,7 +465,7 @@ func (a *app) downCmd() *cobra.Command {
 			if err := client.Ping(ctx, c); err != nil {
 				return fail(ExitError, "%v", err)
 			}
-			st, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+			st, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 			if err != nil {
 				return rpcError(err)
 			}
@@ -480,15 +480,15 @@ func (a *app) downCmd() *cobra.Command {
 				return err
 			}
 			defer w.Close()
-			res, err := c.Down(ctx, connect.NewRequest(&agentv1.DownRequest{Project: project, Purge: volumes}))
+			res, err := c.Down(ctx, connect.NewRequest(&agentv2.DownRequest{Project: project, Purge: volumes}))
 			if err != nil {
 				return rpcError(err)
 			}
-			if _, err := a.follow(w, envs, res.Msg.Revision, false, func(s *agentv1.EnvironmentStatus) bool {
+			if _, err := a.follow(w, envs, res.Msg.Revision, false, func(s *agentv2.EnvironmentStatus) bool {
 				if volumes {
 					return s.Removed
 				}
-				return s.Phase == agentv1.Phase_PHASE_STOPPED
+				return s.Phase == agentv2.Phase_PHASE_STOPPED
 			}); err != nil {
 				return err
 			}
@@ -506,8 +506,8 @@ func (a *app) downCmd() *cobra.Command {
 }
 
 // watch opens a status stream and returns once the agent delivers every change.
-func watch(ctx context.Context, c agentv1connect.AgentServiceClient) (*connect.ServerStreamForClient[agentv1.WatchResponse], error) {
-	w, err := c.Watch(ctx, connect.NewRequest(&agentv1.WatchRequest{}))
+func watch(ctx context.Context, c agentv2connect.AgentServiceClient) (*connect.ServerStreamForClient[agentv2.WatchResponse], error) {
+	w, err := c.Watch(ctx, connect.NewRequest(&agentv2.WatchRequest{}))
 	if err != nil {
 		return nil, rpcError(err)
 	}
@@ -525,8 +525,8 @@ func watch(ctx context.Context, c agentv1connect.AgentServiceClient) (*connect.S
 
 // follow waits until done holds for every environment in ids at the given revision, or
 // one of them fails, printing the steps if asked. It returns the final statuses by ID.
-func (a *app) follow(w *connect.ServerStreamForClient[agentv1.WatchResponse], ids []string, rev uint64, steps bool, done func(*agentv1.EnvironmentStatus) bool) (map[string]*agentv1.EnvironmentStatus, error) {
-	final := map[string]*agentv1.EnvironmentStatus{}
+func (a *app) follow(w *connect.ServerStreamForClient[agentv2.WatchResponse], ids []string, rev uint64, steps bool, done func(*agentv2.EnvironmentStatus) bool) (map[string]*agentv2.EnvironmentStatus, error) {
+	final := map[string]*agentv2.EnvironmentStatus{}
 	pending := map[string]bool{}
 	printed := map[string]map[string]string{}
 	for _, id := range ids {
@@ -549,7 +549,7 @@ func (a *app) follow(w *connect.ServerStreamForClient[agentv1.WatchResponse], id
 			delete(pending, s.Id)
 			continue
 		}
-		if s.Phase == agentv1.Phase_PHASE_ERROR {
+		if s.Phase == agentv2.Phase_PHASE_ERROR {
 			return final, fail(ExitError, "environment %s failed: %s", s.Id, s.Error)
 		}
 	}
@@ -566,7 +566,7 @@ func (a *app) follow(w *connect.ServerStreamForClient[agentv1.WatchResponse], id
 }
 
 // printSteps prints each change of a step: its state, and what a running step is doing.
-func (a *app) printSteps(s *agentv1.EnvironmentStatus, printed map[string]string) {
+func (a *app) printSteps(s *agentv2.EnvironmentStatus, printed map[string]string) {
 	for _, st := range s.Steps {
 		key := st.State.String() + "\x00" + st.Message
 		if printed[st.Name] == key {
@@ -574,11 +574,11 @@ func (a *app) printSteps(s *agentv1.EnvironmentStatus, printed map[string]string
 		}
 		printed[st.Name] = key
 		switch st.State {
-		case agentv1.StepState_STEP_STATE_RUNNING:
+		case agentv2.StepState_STEP_STATE_RUNNING:
 			fmt.Fprintln(a.stdout, "  "+strings.TrimSpace("… "+st.Name+"  "+st.Message))
-		case agentv1.StepState_STEP_STATE_DONE:
+		case agentv2.StepState_STEP_STATE_DONE:
 			fmt.Fprintf(a.stdout, "  ✓ %s  %s\n", st.Name, st.Message)
-		case agentv1.StepState_STEP_STATE_FAILED:
+		case agentv2.StepState_STEP_STATE_FAILED:
 			fmt.Fprintf(a.stdout, "  ✗ %s  %s\n", st.Name, st.Message)
 		}
 	}
@@ -618,10 +618,10 @@ func rpcError(err error) error {
 	return fail(ExitError, "%s", msg)
 }
 
-func phaseName(p agentv1.Phase) string {
+func phaseName(p agentv2.Phase) string {
 	return strings.ToLower(strings.TrimPrefix(p.String(), "PHASE_"))
 }
 
-func kindName(k agentv1.EnvironmentKind) string {
+func kindName(k agentv2.EnvironmentKind) string {
 	return strings.ToLower(strings.TrimPrefix(k.String(), "ENVIRONMENT_KIND_"))
 }

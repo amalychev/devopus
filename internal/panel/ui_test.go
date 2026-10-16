@@ -25,7 +25,7 @@ func do(s *Server, method, url string, mod func(*http.Request)) *httptest.Respon
 	return w
 }
 
-const apiPath = "/devopus.agent.v1.AgentService/Status"
+const apiPath = "/devopus.agent.v2.AgentService/Status"
 
 func TestAPINeedsToken(t *testing.T) {
 	s := newServer()

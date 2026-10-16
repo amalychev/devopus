@@ -22,8 +22,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
-	"github.com/amalychev/devopus/gen/devopus/agent/v1/agentv1connect"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
 	"github.com/amalychev/devopus/internal/agent/api"
 	"github.com/amalychev/devopus/internal/agent/lifecycle"
 	"github.com/amalychev/devopus/internal/agent/paths"
@@ -41,7 +41,7 @@ import (
 const (
 	resyncInterval = 30 * time.Second
 	retryInterval  = 5 * time.Second
-	// waitInterval: modules are still starting; look again soon.
+	// waitInterval: applications are still starting; look again soon.
 	waitInterval = 2 * time.Second
 	// passTimeout bounds one pass: clones, builds and installs can take minutes.
 	passTimeout = 30 * time.Minute
@@ -69,7 +69,7 @@ type Agent struct {
 	kick chan struct{}
 
 	mu      sync.Mutex
-	rtInfo  *agentv1.RuntimeInfo
+	rtInfo  *agentv2.RuntimeInfo
 	lastErr error
 }
 
@@ -105,26 +105,26 @@ func (a *Agent) kickLoop() {
 func (a *Agent) Containers() api.Containers             { return a.rt }
 func (a *Agent) EnvsDir() string                        { return paths.Envs() }
 func (a *Agent) Store() *store.Store                    { return a.store }
-func (a *Agent) Statuses() []*agentv1.EnvironmentStatus { return a.rec.Statuses() }
+func (a *Agent) Statuses() []*agentv2.EnvironmentStatus { return a.rec.Statuses() }
 func (a *Agent) Version() string                        { return a.opt.Version }
 func (a *Agent) Force(envID string)                     { a.rec.Force(envID) }
 
-func (a *Agent) Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *spec.Project) (map[string]string, error) {
+func (a *Agent) Unsaved(ctx context.Context, env *agentv2.EnvironmentSpec, ws *spec.Project) (map[string]string, error) {
 	return a.rec.Unsaved(ctx, env, ws)
 }
-func (a *Agent) Proxy() *agentv1.ProxyStatus { return a.rec.Proxy() }
-func (a *Agent) Routes() []*agentv1.Route    { return a.rec.Routes() }
+func (a *Agent) Proxy() *agentv2.ProxyStatus { return a.rec.Proxy() }
+func (a *Agent) Routes() []*agentv2.Route    { return a.rec.Routes() }
 
-func (a *Agent) CA() *agentv1.CAInfo {
-	return &agentv1.CAInfo{RootPath: a.ca.RootPath(), Fingerprint: a.ca.Fingerprint(), NotAfter: timestamppb.New(a.ca.Root.NotAfter)}
+func (a *Agent) CA() *agentv2.CAInfo {
+	return &agentv2.CAInfo{RootPath: a.ca.RootPath(), Fingerprint: a.ca.Fingerprint(), NotAfter: timestamppb.New(a.ca.Root.NotAfter)}
 }
 
-func (a *Agent) Runtime() *agentv1.RuntimeInfo {
+func (a *Agent) Runtime() *agentv2.RuntimeInfo {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.rtInfo == nil {
 		ep := a.rt.Endpoint()
-		return &agentv1.RuntimeInfo{Name: ep.Name, Endpoint: ep.Host}
+		return &agentv2.RuntimeInfo{Name: ep.Name, Endpoint: ep.Host}
 	}
 	return a.rtInfo
 }
@@ -203,7 +203,7 @@ func Run(ctx context.Context, opt Options) error {
 		Answers: func(ctx context.Context, host, path string) error {
 			return direct(ctx, host, path, proxyPorts())
 		},
-		Publish: func(envID string, fn func(*agentv1.EnvironmentStatus)) { a.rec.UpdateStatus(envID, fn) },
+		Publish: func(envID string, fn func(*agentv2.EnvironmentStatus)) { a.rec.UpdateStatus(envID, fn) },
 		Kick:    a.kickLoop,
 		Log:     log,
 	})
@@ -225,7 +225,7 @@ func Run(ctx context.Context, opt Options) error {
 		Log:         log,
 		Lifecycle:   a.life,
 		WakerPort:   wakerLn.Addr().(*net.TCPAddr).Port,
-	}, func(s *agentv1.EnvironmentStatus) {
+	}, func(s *agentv2.EnvironmentStatus) {
 		log.Info("environment", "id", s.Id, "project", s.Project, "phase", s.Phase.String(), "error", s.Error, "removed", s.Removed)
 		a.hub.Publish(s)
 	})
@@ -243,7 +243,7 @@ func Run(ctx context.Context, opt Options) error {
 		return err
 	}
 	mux := http.NewServeMux()
-	mux.Handle(agentv1connect.NewAgentServiceHandler(api.New(a, a.hub)))
+	mux.Handle(agentv2connect.NewAgentServiceHandler(api.New(a, a.hub)))
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
@@ -331,11 +331,11 @@ func (a *Agent) loop(ctx context.Context) {
 }
 
 // pass refreshes what the agent knows about the runtime and reconciles once.
-func (a *Agent) pass(ctx context.Context, desired *agentv1.DesiredState) error {
+func (a *Agent) pass(ctx context.Context, desired *agentv2.DesiredState) error {
 	ctx, cancel := context.WithTimeout(ctx, passTimeout)
 	defer cancel()
 	ep := a.rt.Endpoint()
-	ri := &agentv1.RuntimeInfo{Name: ep.Name, Endpoint: ep.Host}
+	ri := &agentv2.RuntimeInfo{Name: ep.Name, Endpoint: ep.Host}
 	info, err := a.rt.Info(ctx)
 	if err == nil {
 		ri.Name, ri.ServerVersion, ri.Os, ri.Reachable = info.Name, info.ServerVersion, info.OS, true
@@ -361,13 +361,13 @@ func (a *Agent) pass(ctx context.Context, desired *agentv1.DesiredState) error {
 }
 
 // sameState compares desired states without their revisions.
-func sameState(a, b *agentv1.DesiredState) bool {
-	a, b = proto.Clone(a).(*agentv1.DesiredState), proto.Clone(b).(*agentv1.DesiredState)
+func sameState(a, b *agentv2.DesiredState) bool {
+	a, b = proto.Clone(a).(*agentv2.DesiredState), proto.Clone(b).(*agentv2.DesiredState)
 	a.Revision, b.Revision = 0, 0
 	return proto.Equal(a, b)
 }
 
-// bundle is the public roots of the Mozilla store plus the local CA: modules point
+// bundle is the public roots of the Mozilla store plus the local CA: applications point
 // SSL_CERT_FILE and friends at it and trust both public sites and their environment.
 func bundle(ca *pki.CA) []byte {
 	var b []byte

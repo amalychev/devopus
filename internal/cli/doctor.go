@@ -14,7 +14,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/pki"
@@ -104,9 +104,9 @@ func (a *app) preflight(ctx context.Context) []check {
 			Fix: "start Docker Desktop, OrbStack ('orb start') or Colima ('colima start')"})
 	}
 
-	var status *agentv1.StatusResponse
+	var status *agentv2.StatusResponse
 	c := client.New(paths.Socket())
-	if res, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{})); err == nil {
+	if res, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{})); err == nil {
 		status = res.Msg
 		out = append(out, check{Name: "agent", Status: "ok", Detail: fmt.Sprintf("running, version %s", status.AgentVersion)})
 	} else {
@@ -122,7 +122,7 @@ func (a *app) preflight(ctx context.Context) []check {
 }
 
 // portChecks looks at the proxy if it runs, otherwise at who holds 80/443.
-func portChecks(ctx context.Context, status *agentv1.StatusResponse, rtName string) []check {
+func portChecks(ctx context.Context, status *agentv2.StatusResponse, rtName string) []check {
 	var out []check
 	p := status.GetProxy()
 	if p.GetState() == "running" {

@@ -12,16 +12,16 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 )
 
 // agentStatus asks the running agent for its status; it does not start one.
-func (a *app) agentStatus() (*agentv1.StatusResponse, error) {
+func (a *app) agentStatus() (*agentv2.StatusResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	res, err := client.New(paths.Socket()).Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+	res, err := client.New(paths.Socket()).Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 	if err != nil {
 		return nil, rpcError(err)
 	}
@@ -30,7 +30,7 @@ func (a *app) agentStatus() (*agentv1.StatusResponse, error) {
 
 // findEnv resolves an environment by ID, or a feature by slug or name; empty means the
 // base environment of the project in the current folder.
-func (a *app) findEnv(st *agentv1.StatusResponse, arg string) (*agentv1.EnvironmentStatus, error) {
+func (a *app) findEnv(st *agentv2.StatusResponse, arg string) (*agentv2.EnvironmentStatus, error) {
 	if arg != "" {
 		for _, e := range st.Environments {
 			if e.Id == arg {
@@ -42,7 +42,7 @@ func (a *app) findEnv(st *agentv1.StatusResponse, arg string) (*agentv1.Environm
 		if res, _, err := a.load(); err == nil && res.Workspace != nil {
 			project = res.Workspace.Project
 		}
-		var match *agentv1.EnvironmentStatus
+		var match *agentv2.EnvironmentStatus
 		for _, e := range st.Environments {
 			if e.Slug != "" && (e.Slug == arg || strings.EqualFold(e.Name, arg)) && (match == nil || e.Project == project) {
 				match = e
@@ -61,7 +61,7 @@ func (a *app) findEnv(st *agentv1.StatusResponse, arg string) (*agentv1.Environm
 		return nil, fail(ExitInvalid, "cannot read the project name from workspace.yaml")
 	}
 	for _, e := range st.Environments {
-		if e.Project == res.Workspace.Project && e.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE {
+		if e.Project == res.Workspace.Project && e.Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE {
 			return e, nil
 		}
 	}
@@ -70,7 +70,7 @@ func (a *app) findEnv(st *agentv1.StatusResponse, arg string) (*agentv1.Environm
 
 // findUnit resolves [env] <unit> arguments: one argument is a unit of the base
 // environment of the current project, two are an environment and its unit.
-func (a *app) findUnit(args []string) (*agentv1.StatusResponse, *agentv1.UnitStatus, error) {
+func (a *app) findUnit(args []string) (*agentv2.StatusResponse, *agentv2.UnitStatus, error) {
 	st, err := a.agentStatus()
 	if err != nil {
 		return nil, nil, err
@@ -91,13 +91,13 @@ func (a *app) findUnit(args []string) (*agentv1.StatusResponse, *agentv1.UnitSta
 		names = append(names, u.Name)
 	}
 	if len(names) == 0 {
-		return nil, nil, fail(ExitError, "environment %s has no modules or services running yet", env.Id)
+		return nil, nil, fail(ExitError, "environment %s has no applications or services running yet", env.Id)
 	}
 	return nil, nil, fail(ExitInvalid, "%s has no %q; it has %s", env.Id, unitArg, strings.Join(names, ", "))
 }
 
 // docker runs the docker CLI against the agent's runtime with the terminal attached.
-func (a *app) docker(st *agentv1.StatusResponse, args ...string) error {
+func (a *app) docker(st *agentv2.StatusResponse, args ...string) error {
 	cmd := exec.Command("docker", args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, a.stdout, a.stderr
 	env := os.Environ()[:0:0]
@@ -125,9 +125,9 @@ func (a *app) logsCmd() *cobra.Command {
 	var follow bool
 	var tail int
 	cmd := &cobra.Command{
-		Use:   "logs [env] <module|service>",
-		Short: "Show the output of a module, worker or service",
-		Long: "Shows the output of a module, worker or service. With one argument it is a unit of\n" +
+		Use:   "logs [env] <application|service>",
+		Short: "Show the output of an application, worker or service",
+		Long: "Shows the output of an application, worker or service. With one argument it is a unit of\n" +
 			"the base environment of the project in this folder.\n" +
 			"Hooks and builds log to ~/.devopus/envs/<env>/logs.",
 		Args: cobra.RangeArgs(1, 2),
@@ -154,9 +154,9 @@ func (a *app) logsCmd() *cobra.Command {
 
 func (a *app) execCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "exec [env] <module|service> [-- command…]",
-		Short: "Run a command in a module or service container (default: a shell)",
-		Long: "Runs a command in the container of a module, worker or service. With one argument\n" +
+		Use:   "exec [env] <application|service> [-- command…]",
+		Short: "Run a command in an application or service container (default: a shell)",
+		Long: "Runs a command in the container of an application, worker or service. With one argument\n" +
 			"before -- it is a unit of the base environment of the project in this folder.\n\n" +
 			"  devopus exec api -- php artisan tinker",
 		Args: cobra.MinimumNArgs(1),
@@ -169,7 +169,7 @@ func (a *app) execCmd() *cobra.Command {
 				}
 			}
 			if len(target) < 1 || len(target) > 2 {
-				return fail(ExitInvalid, "usage: devopus exec [env] <module|service> [-- command…]")
+				return fail(ExitInvalid, "usage: devopus exec [env] <application|service> [-- command…]")
 			}
 			st, u, err := a.findUnit(target)
 			if err != nil {

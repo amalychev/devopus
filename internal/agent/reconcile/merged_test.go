@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/importer"
 )
 
@@ -36,7 +36,7 @@ func TestCheckMerged(t *testing.T) {
 	r := New(nil, Options{EnvsDir: t.TempDir()}, nil)
 	clock := time.Now()
 	r.now = func() time.Time { return clock }
-	env := &agentv1.EnvironmentSpec{Id: "f1", Kind: agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE, Branch: "feature/x", ForkedModules: []string{"api"}}
+	env := &agentv2.EnvironmentSpec{Id: "f1", Kind: agentv2.EnvironmentKind_ENVIRONMENT_KIND_FEATURE, Branch: "feature/x", ForkedApps: []string{"api"}}
 	p := &prepared{env: env, ws: proj}
 	check := func() bool {
 		clock = clock.Add(mergeCheck)

@@ -11,7 +11,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 )
@@ -40,12 +40,12 @@ func (a *app) resetData(project, env string, services []string, timeout time.Dur
 		return err
 	}
 	defer w.Close()
-	res, err := c.ResetData(ctx, connect.NewRequest(&agentv1.ResetDataRequest{Project: project, Environment: env, Services: services}))
+	res, err := c.ResetData(ctx, connect.NewRequest(&agentv2.ResetDataRequest{Project: project, Environment: env, Services: services}))
 	if err != nil {
 		return rpcError(err)
 	}
 	id := res.Msg.EnvironmentId
-	final, err := a.follow(w, []string{id}, res.Msg.Revision, true, func(s *agentv1.EnvironmentStatus) bool { return s.Phase == agentv1.Phase_PHASE_RUNNING })
+	final, err := a.follow(w, []string{id}, res.Msg.Revision, true, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (a *app) dbLagCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var envs []*agentv1.EnvironmentStatus
+			var envs []*agentv2.EnvironmentStatus
 			for _, e := range st.Environments {
 				if e.Project == project && len(e.Data) > 0 {
 					envs = append(envs, e)
@@ -129,7 +129,7 @@ func (a *app) dbLagCmd() *cobra.Command {
 			// main first: the features' copies come from it.
 			sort.SliceStable(envs, func(i, j int) bool { return envs[i].Kind < envs[j].Kind })
 			if a.json {
-				return a.writeProto(&agentv1.StatusResponse{Environments: envs})
+				return a.writeProto(&agentv2.StatusResponse{Environments: envs})
 			}
 			if len(envs) == 0 {
 				fmt.Fprintf(a.stdout, "%s has no copied databases.\n", project)
@@ -140,7 +140,7 @@ func (a *app) dbLagCmd() *cobra.Command {
 			behind := 0
 			for _, e := range envs {
 				name := "main (golden)"
-				if e.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE {
+				if e.Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_FEATURE {
 					name = e.Name
 				}
 				for _, d := range e.Data {

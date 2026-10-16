@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/git"
 	"github.com/amalychev/devopus/internal/agent/pki"
 	"github.com/amalychev/devopus/internal/agent/proxy"
@@ -83,14 +83,14 @@ type Options struct {
 	ProbeTimeout time.Duration
 	// Relays covers [::1] where the runtime publishes 127.0.0.1 only; nil skips it.
 	Relays *proxy.Relays
-	// Answers checks once that a module answers through the proxy; nil skips the wait.
+	// Answers checks once that an application answers through the proxy; nil skips the wait.
 	Answers func(ctx context.Context, host, path string, ports proxy.Ports) error
-	// ReadyTimeout bounds how long one pass waits for modules to answer.
+	// ReadyTimeout bounds how long one pass waits for applications to answer.
 	ReadyTimeout time.Duration
-	// SourcesDir keeps clones of module repositories; EnvsDir hook marks and logs.
+	// SourcesDir keeps clones of application repositories; EnvsDir hook marks and logs.
 	SourcesDir string
 	EnvsDir    string
-	// Bundle is the public roots plus the local CA, for modules' TLS clients.
+	// Bundle is the public roots plus the local CA, for applications' TLS clients.
 	Bundle []byte
 	// Lifecycle puts features to sleep; WakerPort is where the proxy finds its waker.
 	// Without them features never sleep.
@@ -103,11 +103,11 @@ type Reconciler struct {
 	rt      Runtime
 	opt     Options
 	pool    netip.Prefix
-	publish func(*agentv1.EnvironmentStatus)
+	publish func(*agentv2.EnvironmentStatus)
 	now     func() time.Time
 
 	mu     sync.Mutex
-	status map[string]*agentv1.EnvironmentStatus
+	status map[string]*agentv2.EnvironmentStatus
 	// forced: environments whose worktrees go even with work in them.
 	forced map[string]bool
 	// merged and mergeAt: whether a feature's branch is merged, and when that was checked.
@@ -120,14 +120,14 @@ type Reconciler struct {
 	// the one the proxy has.
 	setMu   sync.Mutex
 	lastCfg proxy.Config
-	proxy   *agentv1.ProxyStatus
-	routes  []*agentv1.Route
+	proxy   *agentv2.ProxyStatus
+	routes  []*agentv2.Route
 }
 
 // New makes a reconciler; publish receives a copy of every status that changed.
-func New(rt Runtime, opt Options, publish func(*agentv1.EnvironmentStatus)) *Reconciler {
+func New(rt Runtime, opt Options, publish func(*agentv2.EnvironmentStatus)) *Reconciler {
 	if publish == nil {
-		publish = func(*agentv1.EnvironmentStatus) {}
+		publish = func(*agentv2.EnvironmentStatus) {}
 	}
 	if opt.ProbeTimeout == 0 {
 		opt.ProbeTimeout = 30 * time.Second
@@ -146,16 +146,16 @@ func New(rt Runtime, opt Options, publish func(*agentv1.EnvironmentStatus)) *Rec
 		opt.ReadyTimeout = 90 * time.Second
 	}
 	return &Reconciler{rt: rt, opt: opt, pool: Pool, publish: publish, now: time.Now,
-		status: map[string]*agentv1.EnvironmentStatus{}, forced: map[string]bool{}, merged: map[string]bool{}, mergeAt: map[string]time.Time{}, proxy: &agentv1.ProxyStatus{State: "absent"}}
+		status: map[string]*agentv2.EnvironmentStatus{}, forced: map[string]bool{}, merged: map[string]bool{}, mergeAt: map[string]time.Time{}, proxy: &agentv2.ProxyStatus{State: "absent"}}
 }
 
 // Statuses returns copies of the current statuses, ordered by project and ID.
-func (r *Reconciler) Statuses() []*agentv1.EnvironmentStatus {
+func (r *Reconciler) Statuses() []*agentv2.EnvironmentStatus {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := make([]*agentv1.EnvironmentStatus, 0, len(r.status))
+	out := make([]*agentv2.EnvironmentStatus, 0, len(r.status))
 	for _, s := range r.status {
-		out = append(out, proto.Clone(s).(*agentv1.EnvironmentStatus))
+		out = append(out, proto.Clone(s).(*agentv2.EnvironmentStatus))
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Project != out[j].Project {
@@ -167,9 +167,9 @@ func (r *Reconciler) Statuses() []*agentv1.EnvironmentStatus {
 }
 
 // Proxy returns the proxy's status, with the xDS link as it is right now.
-func (r *Reconciler) Proxy() *agentv1.ProxyStatus {
+func (r *Reconciler) Proxy() *agentv2.ProxyStatus {
 	r.mu.Lock()
-	p := proto.Clone(r.proxy).(*agentv1.ProxyStatus)
+	p := proto.Clone(r.proxy).(*agentv2.ProxyStatus)
 	r.mu.Unlock()
 	if r.opt.XDS != nil {
 		st := r.opt.XDS.State()
@@ -179,12 +179,12 @@ func (r *Reconciler) Proxy() *agentv1.ProxyStatus {
 }
 
 // Routes returns the routing table the proxy was last given.
-func (r *Reconciler) Routes() []*agentv1.Route {
+func (r *Reconciler) Routes() []*agentv2.Route {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := make([]*agentv1.Route, len(r.routes))
+	out := make([]*agentv2.Route, len(r.routes))
 	for i, rt := range r.routes {
-		out[i] = proto.Clone(rt).(*agentv1.Route)
+		out[i] = proto.Clone(rt).(*agentv2.Route)
 	}
 	return out
 }
@@ -246,7 +246,7 @@ func (r *Reconciler) ours(labels map[string]string) bool {
 	return labels[runtime.LabelManaged] == "true" && labels[runtime.LabelInstance] == r.opt.Instance
 }
 
-func (r *Reconciler) labels(env *agentv1.EnvironmentSpec) map[string]string {
+func (r *Reconciler) labels(env *agentv2.EnvironmentSpec) map[string]string {
 	l := map[string]string{runtime.LabelManaged: "true", runtime.LabelInstance: r.opt.Instance}
 	if env != nil {
 		l[runtime.LabelProject] = env.Project
@@ -258,17 +258,17 @@ func (r *Reconciler) labels(env *agentv1.EnvironmentSpec) map[string]string {
 
 // Reconcile runs one pass. Errors of single environments end up in their status; the
 // returned error means the pass could not observe the runtime or left work undone.
-func (r *Reconciler) Reconcile(ctx context.Context, desired *agentv1.DesiredState) error {
+func (r *Reconciler) Reconcile(ctx context.Context, desired *agentv2.DesiredState) error {
 	o, err := r.observe(ctx)
 	if err != nil {
 		return err
 	}
 	var errs []error
-	envs := append([]*agentv1.EnvironmentSpec{}, desired.Environments...)
-	// Base environments first: their features reach their modules and services.
+	envs := append([]*agentv2.EnvironmentSpec{}, desired.Environments...)
+	// Base environments first: their features reach their applications and services.
 	sort.Slice(envs, func(i, j int) bool {
 		if envs[i].Kind != envs[j].Kind {
-			return envs[i].Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE
+			return envs[i].Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE
 		}
 		return envs[i].Id < envs[j].Id
 	})
@@ -287,10 +287,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, desired *agentv1.DesiredStat
 	r.needGolden = map[string]map[string]bool{}
 	for _, env := range envs {
 		ws := workspaces[env.Project]
-		if !isFeature(env) || env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED || ws == nil || ws.ws == nil {
+		if !isFeature(env) || env.Phase == agentv2.DesiredPhase_DESIRED_PHASE_STOPPED || ws == nil || ws.ws == nil {
 			continue
 		}
-		if iso, err := stack.Feature(ws.ws, env.ForkedModules); err == nil {
+		if iso, err := stack.Feature(ws.ws, env.ForkedApps); err == nil {
 			if r.needGolden[env.Project] == nil {
 				r.needGolden[env.Project] = map[string]bool{}
 			}
@@ -306,7 +306,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, desired *agentv1.DesiredStat
 	for _, env := range envs {
 		wanted[env.Id] = true
 		p := r.prepareEnv(ctx, desired.Revision, env, workspaces[env.Project], o, px, proxyErr, bases[env.Project])
-		if env.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE {
+		if env.Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE {
 			bases[env.Project] = p
 		}
 		if p.err != nil {
@@ -348,7 +348,7 @@ type step struct {
 // prepared is an environment brought up to its routes, or stopped by err on the way.
 // With a certificate the proxy keeps serving its site even if a later step failed.
 type prepared struct {
-	env   *agentv1.EnvironmentSpec
+	env   *agentv2.EnvironmentSpec
 	hosts []string
 	leaf  *pki.Leaf
 	ws    *spec.Project
@@ -357,11 +357,11 @@ type prepared struct {
 	err   error
 	// failed is the step that stopped the environment.
 	failed string
-	// waiting: modules are starting; the environment is not running yet.
+	// waiting: applications are starting; the environment is not running yet.
 	waiting bool
 	// started: this pass started or restarted a container of the environment.
 	started bool
-	// sources: where the code of each module is.
+	// sources: where the code of each application is.
 	sources map[string]string
 	// Features: the base environment, what the feature runs itself and how it reaches
 	// the rest.
@@ -372,16 +372,16 @@ type prepared struct {
 	notes []string
 }
 
-func isFeature(env *agentv1.EnvironmentSpec) bool {
-	return env.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE
+func isFeature(env *agentv2.EnvironmentSpec) bool {
+	return env.Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_FEATURE
 }
 
-func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.EnvironmentSpec, ws *parsed, o *observed, px *proxyState, proxyErr error, base *prepared) *prepared {
-	r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
+func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv2.EnvironmentSpec, ws *parsed, o *observed, px *proxyState, proxyErr error, base *prepared) *prepared {
+	r.update(env.Id, func(s *agentv2.EnvironmentStatus) {
 		s.Project, s.Kind, s.Slug = env.Project, env.Kind, env.Slug
-		s.Name, s.Branch, s.ForkedModules = env.Name, env.Branch, env.ForkedModules
-		if s.Phase == agentv1.Phase_PHASE_UNSPECIFIED {
-			s.Phase = agentv1.Phase_PHASE_CREATING
+		s.Name, s.Branch, s.ForkedApps = env.Name, env.Branch, env.ForkedApps
+		if s.Phase == agentv2.Phase_PHASE_UNSPECIFIED {
+			s.Phase = agentv2.Phase_PHASE_CREATING
 		}
 	})
 	p := &prepared{env: env, base: base}
@@ -413,7 +413,7 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.En
 			return r.attachProxy(ctx, px, nw)
 		}},
 	}
-	if env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
+	if env.Phase == agentv2.DesiredPhase_DESIRED_PHASE_STOPPED {
 		// A stopped environment keeps its network and data; its DNS server has no clients.
 		err := r.stopUnits(ctx, o.byEnv[env.Id])
 		if err == nil {
@@ -422,8 +422,8 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.En
 		defer r.setUnits(ctx, env.Id, nil, nil)
 		if err != nil {
 			p.err = err
-			r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
-				s.Phase, s.Error, s.AppliedRevision = agentv1.Phase_PHASE_ERROR, "dns: "+err.Error(), rev
+			r.update(env.Id, func(s *agentv2.EnvironmentStatus) {
+				s.Phase, s.Error, s.AppliedRevision = agentv2.Phase_PHASE_ERROR, "dns: "+err.Error(), rev
 			})
 			return p
 		}
@@ -436,7 +436,7 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.En
 		steps = append(steps, step{"dns", func(ctx context.Context) (string, error) {
 			var names []string
 			if p.shared != nil {
-				for _, t := range append(append([]proxy.SharedTarget{}, p.shared.Modules...), p.shared.Services...) {
+				for _, t := range append(append([]proxy.SharedTarget{}, p.shared.Apps...), p.shared.Services...) {
 					names = append(names, t.Name)
 				}
 			}
@@ -456,8 +456,8 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv1.En
 				// Interrupted by a newer desired state, not failed: the next pass goes on.
 				return p
 			}
-			r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
-				s.Phase = agentv1.Phase_PHASE_ERROR
+			r.update(env.Id, func(s *agentv2.EnvironmentStatus) {
+				s.Phase = agentv2.Phase_PHASE_ERROR
 				s.Error = st.name + ": " + err.Error()
 				s.AppliedRevision = rev
 			})
@@ -478,16 +478,16 @@ func (r *Reconciler) setUnits(ctx context.Context, envID string, plan *stack.Pla
 		}
 	}
 	units := r.unitStatuses(context.WithoutCancel(ctx), envID, plan, exposed)
-	r.update(envID, func(s *agentv1.EnvironmentStatus) { s.Units = units })
+	r.update(envID, func(s *agentv2.EnvironmentStatus) { s.Units = units })
 }
 
 // runStep records progress only on transitions, so a converged environment does not
 // produce events on every pass.
 func (r *Reconciler) runStep(ctx context.Context, envID string, st step) error {
-	r.update(envID, func(s *agentv1.EnvironmentStatus) {
+	r.update(envID, func(s *agentv2.EnvironmentStatus) {
 		p := findStep(s, st.name)
-		if p.State != agentv1.StepState_STEP_STATE_DONE && p.State != agentv1.StepState_STEP_STATE_RUNNING {
-			p.State, p.Message = agentv1.StepState_STEP_STATE_RUNNING, ""
+		if p.State != agentv2.StepState_STEP_STATE_DONE && p.State != agentv2.StepState_STEP_STATE_RUNNING {
+			p.State, p.Message = agentv2.StepState_STEP_STATE_RUNNING, ""
 			if p.StartedAt == nil {
 				p.StartedAt = timestamppb.New(r.now())
 			}
@@ -497,17 +497,17 @@ func (r *Reconciler) runStep(ctx context.Context, envID string, st step) error {
 	if err != nil && ctx.Err() != nil {
 		return err
 	}
-	r.update(envID, func(s *agentv1.EnvironmentStatus) {
+	r.update(envID, func(s *agentv2.EnvironmentStatus) {
 		p := findStep(s, st.name)
 		switch {
 		case errors.Is(err, errWaiting):
 			p.Message = msg
 		case err != nil:
-			if p.State != agentv1.StepState_STEP_STATE_FAILED || p.Message != err.Error() {
-				p.State, p.Message, p.FinishedAt = agentv1.StepState_STEP_STATE_FAILED, err.Error(), timestamppb.New(r.now())
+			if p.State != agentv2.StepState_STEP_STATE_FAILED || p.Message != err.Error() {
+				p.State, p.Message, p.FinishedAt = agentv2.StepState_STEP_STATE_FAILED, err.Error(), timestamppb.New(r.now())
 			}
-		case p.State != agentv1.StepState_STEP_STATE_DONE || p.Message != msg:
-			p.State, p.Message, p.FinishedAt = agentv1.StepState_STEP_STATE_DONE, msg, timestamppb.New(r.now())
+		case p.State != agentv2.StepState_STEP_STATE_DONE || p.Message != msg:
+			p.State, p.Message, p.FinishedAt = agentv2.StepState_STEP_STATE_DONE, msg, timestamppb.New(r.now())
 		}
 	})
 	return err
@@ -520,25 +520,25 @@ func (r *Reconciler) stepDone(envID, name string) bool {
 	if s, ok := r.status[envID]; ok {
 		for _, p := range s.Steps {
 			if p.Name == name {
-				return p.State == agentv1.StepState_STEP_STATE_DONE
+				return p.State == agentv2.StepState_STEP_STATE_DONE
 			}
 		}
 	}
 	return false
 }
 
-func findStep(s *agentv1.EnvironmentStatus, name string) *agentv1.StepProgress {
+func findStep(s *agentv2.EnvironmentStatus, name string) *agentv2.StepProgress {
 	for _, p := range s.Steps {
 		if p.Name == name {
 			return p
 		}
 	}
-	p := &agentv1.StepProgress{Name: name, State: agentv1.StepState_STEP_STATE_PENDING}
+	p := &agentv2.StepProgress{Name: name, State: agentv2.StepState_STEP_STATE_PENDING}
 	s.Steps = append(s.Steps, p)
 	return p
 }
 
-func (r *Reconciler) ensureNetwork(ctx context.Context, env *agentv1.EnvironmentSpec, o *observed) (runtime.Network, error) {
+func (r *Reconciler) ensureNetwork(ctx context.Context, env *agentv2.EnvironmentSpec, o *observed) (runtime.Network, error) {
 	name := NetworkName(env.Project, env.Id)
 	if n, ok := o.managed[env.Id]; ok {
 		r.setNetwork(env.Id, n.Name, n.Subnets)
@@ -572,8 +572,8 @@ func (r *Reconciler) ensureNetwork(ctx context.Context, env *agentv1.Environment
 }
 
 func (r *Reconciler) setNetwork(envID, name string, subnets []netip.Prefix) {
-	r.update(envID, func(s *agentv1.EnvironmentStatus) {
-		s.Network = &agentv1.NetworkStatus{Name: name, Subnet: describe(subnets)}
+	r.update(envID, func(s *agentv2.EnvironmentStatus) {
+		s.Network = &agentv2.NetworkStatus{Name: name, Subnet: describe(subnets)}
 	})
 }
 
@@ -596,7 +596,7 @@ func (r *Reconciler) ensureCertificate(envID string, hosts []string) (*pki.Leaf,
 	return leaf, fmt.Sprintf("%s (until %s)", joinHosts(leaf.Hosts), leaf.NotAfter.Format("2006-01-02")), nil
 }
 
-func (r *Reconciler) ensureDNS(ctx context.Context, env *agentv1.EnvironmentSpec, nw runtime.Network, ctrs []runtime.Container, shared []string) (string, error) {
+func (r *Reconciler) ensureDNS(ctx context.Context, env *agentv2.EnvironmentSpec, nw runtime.Network, ctrs []runtime.Container, shared []string) (string, error) {
 	if len(nw.Subnets) == 0 {
 		return "", errors.New("the network has no subnet")
 	}
@@ -696,11 +696,11 @@ func (r *Reconciler) collect(ctx context.Context, rev uint64, wanted map[string]
 	})
 	for _, id := range ids {
 		project := gone[id]
-		r.update(id, func(s *agentv1.EnvironmentStatus) {
+		r.update(id, func(s *agentv2.EnvironmentStatus) {
 			if s.Project == "" {
 				s.Project = project
 			}
-			s.Phase = agentv1.Phase_PHASE_DELETING
+			s.Phase = agentv2.Phase_PHASE_DELETING
 		})
 		err := r.removeAll(ctx, o.byEnv[id], "")
 		for _, v := range o.volumes[id] {
@@ -729,7 +729,7 @@ func (r *Reconciler) collect(ctx context.Context, rev uint64, wanted map[string]
 			err = r.removeFiles(ctx, project, id)
 		}
 		if err != nil {
-			r.update(id, func(s *agentv1.EnvironmentStatus) { s.Error = "remove: " + err.Error() })
+			r.update(id, func(s *agentv2.EnvironmentStatus) { s.Error = "remove: " + err.Error() })
 			errs = append(errs, fmt.Errorf("gc %s: %w", id, err))
 			continue
 		}
@@ -755,7 +755,7 @@ func (r *Reconciler) collect(ctx context.Context, rev uint64, wanted map[string]
 // collectImages removes images the agent built for projects that are gone, and older
 // builds of a project whose every environment has its plan in this pass. An image
 // still in use stays until a later pass.
-func (r *Reconciler) collectImages(ctx context.Context, desired *agentv1.DesiredState, preps []*prepared) {
+func (r *Reconciler) collectImages(ctx context.Context, desired *agentv2.DesiredState, preps []*prepared) {
 	images, err := r.rt.Images(ctx, r.opt.Instance)
 	if err != nil || len(images) == 0 {
 		return
@@ -797,7 +797,7 @@ func (r *Reconciler) collectImages(ctx context.Context, desired *agentv1.Desired
 }
 
 // removeFiles removes the hook marks and logs of an environment and its clones of
-// module repositories. A clone with work that exists nowhere else stays where it is.
+// application repositories. A clone with work that exists nowhere else stays where it is.
 func (r *Reconciler) removeFiles(ctx context.Context, project, envID string) error {
 	if err := os.RemoveAll(filepath.Join(r.opt.EnvsDir, envID)); err != nil {
 		return err
@@ -866,8 +866,8 @@ func describe(subnets []netip.Prefix) string {
 	return subnets[0].String()
 }
 
-func kindLabel(k agentv1.EnvironmentKind) string {
-	if k == agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE {
+func kindLabel(k agentv2.EnvironmentKind) string {
+	if k == agentv2.EnvironmentKind_ENVIRONMENT_KIND_FEATURE {
 		return "feature"
 	}
 	return "base"
@@ -896,28 +896,28 @@ func FreeSubnet(pool netip.Prefix, used []netip.Prefix) (netip.Prefix, bool) {
 }
 
 // update changes one status and publishes it if anything but the timestamp changed.
-func (r *Reconciler) update(envID string, fn func(*agentv1.EnvironmentStatus)) {
+func (r *Reconciler) update(envID string, fn func(*agentv2.EnvironmentStatus)) {
 	r.mu.Lock()
 	s, ok := r.status[envID]
 	if !ok {
-		s = &agentv1.EnvironmentStatus{Id: envID}
+		s = &agentv2.EnvironmentStatus{Id: envID}
 		r.status[envID] = s
 	}
-	before := proto.Clone(s).(*agentv1.EnvironmentStatus)
+	before := proto.Clone(s).(*agentv2.EnvironmentStatus)
 	fn(s)
 	if proto.Equal(before, s) {
 		r.mu.Unlock()
 		return
 	}
 	s.UpdatedAt = timestamppb.New(r.now())
-	out := proto.Clone(s).(*agentv1.EnvironmentStatus)
+	out := proto.Clone(s).(*agentv2.EnvironmentStatus)
 	r.mu.Unlock()
 	r.publish(out)
 }
 
 // UpdateStatus changes an environment's status from outside a pass: the lifecycle
 // manager reports sleep and wake with it.
-func (r *Reconciler) UpdateStatus(envID string, fn func(*agentv1.EnvironmentStatus)) {
+func (r *Reconciler) UpdateStatus(envID string, fn func(*agentv2.EnvironmentStatus)) {
 	r.mu.Lock()
 	_, ok := r.status[envID]
 	r.mu.Unlock()
@@ -935,18 +935,18 @@ func (r *Reconciler) forget(envID string, rev uint64) {
 		return
 	}
 	delete(r.status, envID)
-	s.Removed, s.Phase, s.AppliedRevision, s.UpdatedAt = true, agentv1.Phase_PHASE_UNSPECIFIED, rev, timestamppb.New(r.now())
+	s.Removed, s.Phase, s.AppliedRevision, s.UpdatedAt = true, agentv2.Phase_PHASE_UNSPECIFIED, rev, timestamppb.New(r.now())
 	r.mu.Unlock()
 	r.publish(s)
 }
 
 // Fail marks every desired environment as failed for a reason outside any single
 // environment, such as an unreachable runtime, so waiting clients learn about it.
-func (r *Reconciler) Fail(desired *agentv1.DesiredState, err error) {
+func (r *Reconciler) Fail(desired *agentv2.DesiredState, err error) {
 	for _, env := range desired.Environments {
-		r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
+		r.update(env.Id, func(s *agentv2.EnvironmentStatus) {
 			s.Project, s.Kind, s.Slug = env.Project, env.Kind, env.Slug
-			s.Phase = agentv1.Phase_PHASE_ERROR
+			s.Phase = agentv2.Phase_PHASE_ERROR
 			s.Error = err.Error()
 			s.AppliedRevision = desired.Revision
 		})

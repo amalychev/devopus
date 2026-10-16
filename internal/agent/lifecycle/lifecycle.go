@@ -20,7 +20,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 )
 
@@ -43,7 +43,7 @@ type Env struct {
 type Unit struct {
 	Name, Container, Role string
 	Healthcheck           bool
-	// Path is a route of a module: the waker waits until it answers.
+	// Path is a route of an application: the waker waits until it answers.
 	Path string
 }
 
@@ -64,11 +64,11 @@ type Options struct {
 	// Answers checks once, past the waker, that a unit answers on path.
 	Answers func(ctx context.Context, host, path string) error
 	// Publish changes an environment's status.
-	Publish func(envID string, fn func(*agentv1.EnvironmentStatus))
+	Publish func(envID string, fn func(*agentv2.EnvironmentStatus))
 	// Kick asks the reconciler for a pass.
 	Kick func()
 	Log  *slog.Logger
-	// WakeTimeout bounds a wake: starting containers and waiting for the modules.
+	// WakeTimeout bounds a wake: starting containers and waiting for the applications.
 	WakeTimeout time.Duration
 }
 
@@ -363,7 +363,7 @@ func (m *Manager) Sleep(ctx context.Context, envID, reason string) error {
 	if err != nil {
 		return err
 	}
-	// Modules and workers first, then what they use.
+	// Applications and workers first, then what they use.
 	var errs []error
 	for i := len(e.Units) - 1; i >= 0; i-- {
 		if c := ctrs[e.Units[i].Container]; c != nil && c.Running {
@@ -371,8 +371,8 @@ func (m *Manager) Sleep(ctx context.Context, envID, reason string) error {
 		}
 	}
 	since := m.now()
-	m.opt.Publish(envID, func(st *agentv1.EnvironmentStatus) {
-		st.Phase, st.SleepReason, st.SleepingSince = agentv1.Phase_PHASE_SLEEPING, reason, timestamppb.New(since)
+	m.opt.Publish(envID, func(st *agentv2.EnvironmentStatus) {
+		st.Phase, st.SleepReason, st.SleepingSince = agentv2.Phase_PHASE_SLEEPING, reason, timestamppb.New(since)
 	})
 	m.opt.Kick()
 	return errors.Join(errs...)
@@ -415,7 +415,7 @@ func (m *Manager) wake(e Env, s *state, w *wake, sleeping chan struct{}) {
 		}
 	}
 	start := m.now()
-	m.opt.Publish(e.ID, func(st *agentv1.EnvironmentStatus) { st.Phase = agentv1.Phase_PHASE_CREATING })
+	m.opt.Publish(e.ID, func(st *agentv2.EnvironmentStatus) { st.Phase = agentv2.Phase_PHASE_CREATING })
 	err := m.start(ctx, e)
 	if err == nil {
 		// Awake before the switch: a pass that builds the proxy's configuration meanwhile
@@ -438,13 +438,13 @@ func (m *Manager) wake(e Env, s *state, w *wake, sleeping chan struct{}) {
 	close(w.done)
 	if err != nil {
 		m.opt.Log.Warn("wake", "env", e.ID, "error", err)
-		m.opt.Publish(e.ID, func(st *agentv1.EnvironmentStatus) {
-			st.Phase, st.Error = agentv1.Phase_PHASE_SLEEPING, "wake: "+err.Error()
+		m.opt.Publish(e.ID, func(st *agentv2.EnvironmentStatus) {
+			st.Phase, st.Error = agentv2.Phase_PHASE_SLEEPING, "wake: "+err.Error()
 		})
 	} else {
 		m.opt.Log.Info("feature woke up", "env", e.ID, "name", e.Name, "took", m.now().Sub(start).Round(time.Millisecond))
-		m.opt.Publish(e.ID, func(st *agentv1.EnvironmentStatus) {
-			st.Phase, st.Error, st.SleepReason, st.SleepingSince = agentv1.Phase_PHASE_RUNNING, "", "", nil
+		m.opt.Publish(e.ID, func(st *agentv2.EnvironmentStatus) {
+			st.Phase, st.Error, st.SleepReason, st.SleepingSince = agentv2.Phase_PHASE_RUNNING, "", "", nil
 		})
 		m.enforceBudget(context.Background(), e.ID)
 	}
@@ -452,7 +452,7 @@ func (m *Manager) wake(e Env, s *state, w *wake, sleeping chan struct{}) {
 }
 
 // start starts the feature's containers in order, services first, and waits until its
-// routed modules answer past the waker.
+// routed applications answer past the waker.
 func (m *Manager) start(ctx context.Context, e Env) error {
 	ctrs, err := m.containers(ctx, e)
 	if err != nil {

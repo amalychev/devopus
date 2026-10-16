@@ -34,7 +34,7 @@ func Corefile(proxyIP netip.Addr, shared []string) string {
 	if len(shared) > 0 {
 		names := append([]string{}, shared...)
 		sort.Strings(names)
-		hosts = fmt.Sprintf(`    # Modules and services of the base environment: the proxy forwards to them.
+		hosts = fmt.Sprintf(`    # Applications and services of the base environment: the proxy forwards to them.
     hosts {
         %s %s
         ttl 60

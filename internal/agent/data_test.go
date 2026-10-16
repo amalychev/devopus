@@ -13,7 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/proxy"
@@ -21,7 +21,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/store"
 )
 
-// Each module's migration records which environment ran it, once: the base writes
+// Each application's migration records which environment ran it, once: the base writes
 // "main", a feature its slug on top of the data it copied from main.
 const dataConfig = `version: 1
 project: %s
@@ -141,12 +141,12 @@ func TestFeatureData(t *testing.T) {
 	}
 	t.Cleanup(func() { purge(t, rt, c, project) })
 
-	up, err := c.Up(ctx, connect.NewRequest(&agentv1.UpRequest{WorkspacePath: wsPath, Config: config}))
+	up, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: wsPath, Config: config}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	baseID := up.Msg.EnvironmentId
-	waitFor(t, ctx, c, baseID, func(s *agentv1.EnvironmentStatus) bool { return s.Phase == agentv1.Phase_PHASE_RUNNING })
+	waitFor(t, ctx, c, baseID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
 	pgRuns := func(env string) string {
 		t.Helper()
 		out, err := exec.CommandContext(ctx, "docker", "exec", project+"-env-"+env+"-pg", "psql", "-U", "app", "-d", "app", "-Atc", "SELECT string_agg(env, ',' ORDER BY env) FROM runs").CombinedOutput()
@@ -180,12 +180,12 @@ func TestFeatureData(t *testing.T) {
 	}
 
 	start := time.Now()
-	f, err := c.CreateFeature(ctx, connect.NewRequest(&agentv1.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "f1", Modules: []string{"pgapp", "myapp"}}))
+	f, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "f1", Apps: []string{"pgapp", "myapp"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	fID := f.Msg.EnvironmentId
-	st := waitFor(t, ctx, c, fID, func(s *agentv1.EnvironmentStatus) bool { return s.Phase == agentv1.Phase_PHASE_RUNNING })
+	st := waitFor(t, ctx, c, fID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
 	t.Logf("feature with two database copies is up in %s", time.Since(start).Round(100*time.Millisecond))
 	for _, s := range st.Steps {
 		if s.Name == "data" {
@@ -210,12 +210,12 @@ func TestFeatureData(t *testing.T) {
 
 	// The feature writes to its copy; a reset throws that away.
 	exec.CommandContext(ctx, "docker", "exec", project+"-env-"+fID+"-pg", "psql", "-U", "app", "-d", "app", "-c", "INSERT INTO runs VALUES ('scratch')").Run()
-	reset, err := c.ResetData(ctx, connect.NewRequest(&agentv1.ResetDataRequest{Project: project, Environment: "f1", Services: []string{"pg"}}))
+	reset, err := c.ResetData(ctx, connect.NewRequest(&agentv2.ResetDataRequest{Project: project, Environment: "f1", Services: []string{"pg"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, ctx, c, fID, func(s *agentv1.EnvironmentStatus) bool {
-		return s.Phase == agentv1.Phase_PHASE_RUNNING && s.AppliedRevision >= reset.Msg.Revision
+	waitFor(t, ctx, c, fID, func(s *agentv2.EnvironmentStatus) bool {
+		return s.Phase == agentv2.Phase_PHASE_RUNNING && s.AppliedRevision >= reset.Msg.Revision
 	})
 	if got := pgRuns(fID); got != "by-hand,f1,main" {
 		t.Errorf("feature pg after reset = %q", got)
@@ -223,22 +223,22 @@ func TestFeatureData(t *testing.T) {
 
 	// A golden refresh takes main's data as it is now; the feature's copy is behind.
 	exec.CommandContext(ctx, "docker", "exec", project+"-env-"+baseID+"-pg", "psql", "-U", "app", "-d", "app", "-c", "INSERT INTO runs VALUES ('later')").Run()
-	refresh, err := c.ResetData(ctx, connect.NewRequest(&agentv1.ResetDataRequest{Project: project, Services: []string{"pg"}}))
+	refresh, err := c.ResetData(ctx, connect.NewRequest(&agentv2.ResetDataRequest{Project: project, Services: []string{"pg"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, ctx, c, baseID, func(s *agentv1.EnvironmentStatus) bool {
-		return s.Phase == agentv1.Phase_PHASE_RUNNING && s.AppliedRevision >= refresh.Msg.Revision
+	waitFor(t, ctx, c, baseID, func(s *agentv2.EnvironmentStatus) bool {
+		return s.Phase == agentv2.Phase_PHASE_RUNNING && s.AppliedRevision >= refresh.Msg.Revision
 	})
-	if _, err := c.ResetData(ctx, connect.NewRequest(&agentv1.ResetDataRequest{Project: project, Environment: "f1", Services: []string{"nope"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := c.ResetData(ctx, connect.NewRequest(&agentv2.ResetDataRequest{Project: project, Environment: "f1", Services: []string{"nope"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("reset of an unknown database: %v", err)
 	}
-	reset, err = c.ResetData(ctx, connect.NewRequest(&agentv1.ResetDataRequest{Project: project, Environment: "f1"}))
+	reset, err = c.ResetData(ctx, connect.NewRequest(&agentv2.ResetDataRequest{Project: project, Environment: "f1"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, ctx, c, fID, func(s *agentv1.EnvironmentStatus) bool {
-		return s.Phase == agentv1.Phase_PHASE_RUNNING && s.AppliedRevision >= reset.Msg.Revision
+	waitFor(t, ctx, c, fID, func(s *agentv2.EnvironmentStatus) bool {
+		return s.Phase == agentv2.Phase_PHASE_RUNNING && s.AppliedRevision >= reset.Msg.Revision
 	})
 	if got := pgRuns(fID); got != "by-hand,f1,later,main" {
 		t.Errorf("feature pg after a golden refresh and a reset = %q", got)

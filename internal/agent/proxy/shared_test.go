@@ -19,22 +19,22 @@ func target(name string, port uint32, ip string) SharedTarget {
 
 func TestSharedCheck(t *testing.T) {
 	ok := &Shared{IP: netip.MustParseAddr("10.213.5.254"),
-		Modules:  []SharedTarget{target("api", 8080, "10.213.4.130"), target("auth", 8080, "10.213.4.131"), target("legacy", 80, "10.213.4.132")},
+		Apps:     []SharedTarget{target("api", 8080, "10.213.4.130"), target("auth", 8080, "10.213.4.131"), target("legacy", 80, "10.213.4.132")},
 		Services: []SharedTarget{target("db", 5432, "10.213.4.140"), target("admin", 8443, "10.213.4.141")},
 	}
 	if err := ok.Check(18080, 18443); err != nil {
-		t.Errorf("modules sharing a port, a module on 80 and a service on the inner HTTPS port: %v", err)
+		t.Errorf("applications sharing a port, an application on 80 and a service on the inner HTTPS port: %v", err)
 	}
 	var nilShared *Shared
 	if err := nilShared.Check(80, 443); err != nil {
 		t.Error(err)
 	}
 	for name, sh := range map[string]*Shared{
-		"module on 443":          {Modules: []SharedTarget{target("api", 443, "10.0.0.1")}},
-		"module on public HTTPS": {Modules: []SharedTarget{target("api", 18443, "10.0.0.1")}},
-		"service on 80":          {Services: []SharedTarget{target("db", 80, "10.0.0.1")}},
-		"two services":           {Services: []SharedTarget{target("db", 5432, "10.0.0.1"), target("db2", 5432, "10.0.0.2")}},
-		"module and service":     {Modules: []SharedTarget{target("api", 9000, "10.0.0.1")}, Services: []SharedTarget{target("s3", 9000, "10.0.0.2")}},
+		"application on 443":          {Apps: []SharedTarget{target("api", 443, "10.0.0.1")}},
+		"application on public HTTPS": {Apps: []SharedTarget{target("api", 18443, "10.0.0.1")}},
+		"service on 80":               {Services: []SharedTarget{target("db", 80, "10.0.0.1")}},
+		"two services":                {Services: []SharedTarget{target("db", 5432, "10.0.0.1"), target("db2", 5432, "10.0.0.2")}},
+		"application and service":     {Apps: []SharedTarget{target("api", 9000, "10.0.0.1")}, Services: []SharedTarget{target("s3", 9000, "10.0.0.2")}},
 	} {
 		if err := sh.Check(18080, 18443); err == nil {
 			t.Errorf("%s: want an error", name)
@@ -52,7 +52,7 @@ func TestSharedResources(t *testing.T) {
 	other, _ := ca.Issue([]string{"pay-2.shop.localhost"})
 	shared := func(ip string) *Shared {
 		return &Shared{IP: netip.MustParseAddr(ip),
-			Modules:  []SharedTarget{target("api", 8080, "10.213.4.130"), target("auth", 3000, "10.213.4.131"), target("legacy", 80, "10.213.4.132")},
+			Apps:     []SharedTarget{target("api", 8080, "10.213.4.130"), target("auth", 3000, "10.213.4.131"), target("legacy", 80, "10.213.4.132")},
 			Services: []SharedTarget{target("db", 5432, "10.213.4.140")},
 		}
 	}

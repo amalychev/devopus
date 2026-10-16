@@ -12,7 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/pki"
@@ -246,17 +246,17 @@ func (a *app) stopEnvironments(ctx context.Context, purge bool) (int, error) {
 	defer w.Close()
 	var rev uint64
 	for _, p := range st.Projects {
-		res, err := c.Down(ctx, connect.NewRequest(&agentv1.DownRequest{Project: p.Name, Purge: purge}))
+		res, err := c.Down(ctx, connect.NewRequest(&agentv2.DownRequest{Project: p.Name, Purge: purge}))
 		if err != nil {
 			return 0, rpcError(err)
 		}
 		rev = res.Msg.Revision
 	}
-	if _, err := a.follow(w, ids, rev, false, func(s *agentv1.EnvironmentStatus) bool {
+	if _, err := a.follow(w, ids, rev, false, func(s *agentv2.EnvironmentStatus) bool {
 		if purge {
 			return s.Removed
 		}
-		return s.Phase == agentv1.Phase_PHASE_STOPPED || s.Phase == agentv1.Phase_PHASE_ERROR
+		return s.Phase == agentv2.Phase_PHASE_STOPPED || s.Phase == agentv2.Phase_PHASE_ERROR
 	}); err != nil {
 		return 0, err
 	}

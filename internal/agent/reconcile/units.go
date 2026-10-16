@@ -15,7 +15,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/git"
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/runtime"
@@ -30,15 +30,15 @@ const SecretsFile = ".env.secrets"
 // the agent looks again soon.
 var errWaiting = errors.New("waiting")
 
-// ErrNotReady is returned by a pass that left environments waiting for their modules.
+// ErrNotReady is returned by a pass that left environments waiting for their applications.
 var ErrNotReady = errors.New("environments are still starting")
 
 // unitSteps are the steps that bring up what workspace.yaml describes. They run after
 // the network, certificate, proxy and DNS steps of a running environment.
-func (r *Reconciler) unitSteps(env *agentv1.EnvironmentSpec, root string, p *prepared, nw *runtime.Network, o *observed) []step {
+func (r *Reconciler) unitSteps(env *agentv2.EnvironmentSpec, root string, p *prepared, nw *runtime.Network, o *observed) []step {
 	var sources map[string]string
 	var heads map[string]string
-	ran := map[string]bool{} // modules whose hooks ran in this pass
+	ran := map[string]bool{} // applications whose hooks ran in this pass
 	steps := []step{
 		{"source", func(ctx context.Context) (string, error) {
 			var msg string
@@ -71,7 +71,7 @@ func (r *Reconciler) unitSteps(env *agentv1.EnvironmentSpec, root string, p *pre
 			}
 			p.plan = plan
 			notes := append(append([]string{}, p.notes...), plan.Notes...)
-			r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.Notes = notes })
+			r.update(env.Id, func(s *agentv2.EnvironmentStatus) { s.Notes = notes })
 			return msg, nil
 		}},
 	}
@@ -109,8 +109,8 @@ func (r *Reconciler) unitSteps(env *agentv1.EnvironmentSpec, root string, p *pre
 			return r.ensureGolden(ctx, env, p)
 		}})
 	}
-	return append(steps, step{"modules", func(ctx context.Context) (string, error) {
-		return r.ensureUnits(ctx, env, p, o, stack.RoleModule, ran)
+	return append(steps, step{"apps", func(ctx context.Context) (string, error) {
+		return r.ensureUnits(ctx, env, p, o, stack.RoleApp, ran)
 	}})
 }
 
@@ -122,7 +122,7 @@ func baseID(p *prepared) string {
 	return ""
 }
 
-func slugOf(env *agentv1.EnvironmentSpec) string {
+func slugOf(env *agentv2.EnvironmentSpec) string {
 	if env.Slug != "" {
 		return env.Slug
 	}
@@ -136,22 +136,22 @@ func (r *Reconciler) caPEM() []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: r.opt.CA.Root.Raw})
 }
 
-// SourceDir is where a module from another repository is checked out for an environment.
-func (r *Reconciler) SourceDir(project, envID, module string) string {
-	return filepath.Join(r.opt.SourcesDir, project, envID, module)
+// SourceDir is where an application from another repository is checked out for an environment.
+func (r *Reconciler) SourceDir(project, envID, application string) string {
+	return filepath.Join(r.opt.SourcesDir, project, envID, application)
 }
 
-// ensureSources finds the code of every active module: a folder of the repository, or
-// a clone of the module's repository at its base branch, made once.
-func (r *Reconciler) ensureSources(ctx context.Context, env *agentv1.EnvironmentSpec, root string, ws *spec.Project) (map[string]string, map[string]string, string, error) {
-	modules, _ := stack.Active(ws)
+// ensureSources finds the code of every active application: a folder of the repository, or
+// a clone of the application's repository at its base branch, made once.
+func (r *Reconciler) ensureSources(ctx context.Context, env *agentv2.EnvironmentSpec, root string, ws *spec.Project) (map[string]string, map[string]string, string, error) {
+	applications, _ := stack.Active(ws)
 	sources, heads := map[string]string{}, map[string]string{}
 	var cloned []string
 	rootHead := ""
 	if h, err := git.Head(ctx, root); err == nil {
 		rootHead = h
 	}
-	for _, name := range modules {
+	for _, name := range applications {
 		m := ws.Apps[name]
 		if m.Path != "" {
 			dir := filepath.Join(root, filepath.FromSlash(m.Path))
@@ -187,7 +187,7 @@ func (r *Reconciler) ensureSources(ctx context.Context, env *agentv1.Environment
 		}
 	}
 	r.setSources(ctx, env.Id, sources, checkouts)
-	msg := plural(len(modules), "module")
+	msg := plural(len(applications), "application")
 	if len(cloned) > 0 {
 		msg += ", cloned " + strings.Join(cloned, ", ")
 	}
@@ -205,8 +205,8 @@ func readSecrets(path string) (map[string]string, error) {
 	return vals, nil
 }
 
-// ensureImages builds the modules' images that do not exist yet and pulls the rest.
-func (r *Reconciler) ensureImages(ctx context.Context, env *agentv1.EnvironmentSpec, plan *stack.Plan) (string, error) {
+// ensureImages builds the applications' images that do not exist yet and pulls the rest.
+func (r *Reconciler) ensureImages(ctx context.Context, env *agentv2.EnvironmentSpec, plan *stack.Plan) (string, error) {
 	var built []string
 	for _, b := range plan.Builds {
 		ok, err := r.rt.ImageExists(ctx, b.Tag)
@@ -254,7 +254,7 @@ func (r *Reconciler) ensureImages(ctx context.Context, env *agentv1.EnvironmentS
 	return msg, nil
 }
 
-func (r *Reconciler) ensureVolumes(ctx context.Context, env *agentv1.EnvironmentSpec, plan *stack.Plan, have []runtime.Volume) error {
+func (r *Reconciler) ensureVolumes(ctx context.Context, env *agentv2.EnvironmentSpec, plan *stack.Plan, have []runtime.Volume) error {
 	exists := map[string]bool{}
 	for _, v := range have {
 		exists[v.Name] = true
@@ -279,7 +279,7 @@ func (r *Reconciler) removeStale(ctx context.Context, plan *stack.Plan, ctrs []r
 	var errs []error
 	for _, c := range ctrs {
 		switch c.Labels[runtime.LabelRole] {
-		case stack.RoleService, stack.RoleModule, stack.RoleWorker:
+		case stack.RoleService, stack.RoleApp, stack.RoleWorker:
 			if !want[c.Name] {
 				errs = append(errs, r.rt.RemoveContainer(ctx, c.ID))
 			}
@@ -293,17 +293,17 @@ func (r *Reconciler) removeStale(ctx context.Context, plan *stack.Plan, ctrs []r
 // unitReadyTimeout bounds the wait for a healthcheck to pass.
 const unitReadyTimeout = 3 * time.Minute
 
-// ensureUnits starts the units of one kind in order: services, or modules with their
+// ensureUnits starts the units of one kind in order: services, or applications with their
 // workers. A unit with a healthcheck must be healthy before the next one starts.
-// Modules whose hooks just ran are restarted to pick up new dependencies.
-func (r *Reconciler) ensureUnits(ctx context.Context, env *agentv1.EnvironmentSpec, p *prepared, o *observed, role string, restart map[string]bool) (string, error) {
+// Applications whose hooks just ran are restarted to pick up new dependencies.
+func (r *Reconciler) ensureUnits(ctx context.Context, env *agentv2.EnvironmentSpec, p *prepared, o *observed, role string, restart map[string]bool) (string, error) {
 	byName := map[string]*runtime.Container{}
 	for i, c := range o.byEnv[env.Id] {
 		byName[c.Name] = &o.byEnv[env.Id][i]
 	}
 	n := 0
 	for _, u := range p.plan.Units {
-		if u.Role != role && !(role == stack.RoleModule && u.Role == stack.RoleWorker) {
+		if u.Role != role && !(role == stack.RoleApp && u.Role == stack.RoleWorker) {
 			continue
 		}
 		n++
@@ -334,7 +334,7 @@ func stepOf(role string) string {
 	if role == stack.RoleService {
 		return "services"
 	}
-	return "modules"
+	return "apps"
 }
 
 func (r *Reconciler) waitHealthy(ctx context.Context, envID string, u stack.Unit) error {
@@ -410,19 +410,19 @@ func (r *Reconciler) saveMarks(envID string, m hookMarks) error {
 }
 
 // runHooks runs the hooks of one name whose inputs changed since they last succeeded.
-func (r *Reconciler) runHooks(ctx context.Context, env *agentv1.EnvironmentSpec, p *prepared, o *observed, name string, ran map[string]bool) (string, error) {
+func (r *Reconciler) runHooks(ctx context.Context, env *agentv2.EnvironmentSpec, p *prepared, o *observed, name string, ran map[string]bool) (string, error) {
 	marks := r.loadMarks(env.Id)
 	var done, skipped []string
 	for _, h := range p.plan.Hooks {
 		if h.Name != name {
 			continue
 		}
-		id := h.Module + "." + h.Name
+		id := h.App + "." + h.Name
 		if marks[id] == h.Key {
-			skipped = append(skipped, h.Module)
+			skipped = append(skipped, h.App)
 			continue
 		}
-		r.stepMessage(env.Id, name, h.Module+": "+h.Command)
+		r.stepMessage(env.Id, name, h.App+": "+h.Command)
 		if err := r.runHook(ctx, env.Id, h); err != nil {
 			return "", err
 		}
@@ -430,8 +430,8 @@ func (r *Reconciler) runHooks(ctx context.Context, env *agentv1.EnvironmentSpec,
 		if err := r.saveMarks(env.Id, marks); err != nil {
 			return "", err
 		}
-		ran[h.Module] = true
-		done = append(done, h.Module)
+		ran[h.App] = true
+		done = append(done, h.App)
 	}
 	switch {
 	case len(done) > 0:
@@ -454,24 +454,24 @@ func (r *Reconciler) runHook(ctx context.Context, envID string, h stack.Hook) er
 	}
 	id, err := r.rt.CreateContainer(ctx, h.Spec)
 	if err != nil {
-		return fmt.Errorf("%s: %w", h.Module, err)
+		return fmt.Errorf("%s: %w", h.App, err)
 	}
 	defer func() { _ = r.rt.RemoveContainer(context.WithoutCancel(ctx), id) }()
 	if err := r.rt.StartContainer(ctx, id); err != nil {
-		return fmt.Errorf("%s: %w", h.Module, r.explain(ctx, id, err))
+		return fmt.Errorf("%s: %w", h.App, r.explain(ctx, id, err))
 	}
 	code, err := r.rt.WaitContainer(ctx, id)
 	logPath := ""
-	if f, ferr := r.logFile(envID, h.Module+"-"+h.Name); ferr == nil {
+	if f, ferr := r.logFile(envID, h.App+"-"+h.Name); ferr == nil {
 		_ = r.rt.CopyLogs(context.WithoutCancel(ctx), id, f)
 		logPath = f.Name()
 		f.Close()
 	}
 	if err != nil {
-		return fmt.Errorf("%s: %w", h.Module, err)
+		return fmt.Errorf("%s: %w", h.App, err)
 	}
 	if code != 0 {
-		err := fmt.Errorf("%s: %q exited with %d", h.Module, h.Command, code)
+		err := fmt.Errorf("%s: %q exited with %d", h.App, h.Command, code)
 		if logPath != "" {
 			err = fmt.Errorf("%w (log: %s)", err, logPath)
 		}
@@ -491,9 +491,9 @@ func (r *Reconciler) logFile(envID, name string) (*os.File, error) {
 
 // stepMessage tells watchers what a long step is doing right now.
 func (r *Reconciler) stepMessage(envID, name, msg string) {
-	r.update(envID, func(s *agentv1.EnvironmentStatus) {
+	r.update(envID, func(s *agentv2.EnvironmentStatus) {
 		p := findStep(s, name)
-		if p.State == agentv1.StepState_STEP_STATE_RUNNING {
+		if p.State == agentv2.StepState_STEP_STATE_RUNNING {
 			p.Message = msg
 		}
 	})
@@ -504,7 +504,7 @@ func (r *Reconciler) stopUnits(ctx context.Context, ctrs []runtime.Container) er
 	var errs []error
 	for _, c := range ctrs {
 		switch c.Labels[runtime.LabelRole] {
-		case stack.RoleService, stack.RoleModule, stack.RoleWorker:
+		case stack.RoleService, stack.RoleApp, stack.RoleWorker:
 			if c.Running {
 				errs = append(errs, r.rt.StopContainer(ctx, c.ID))
 			}
@@ -516,7 +516,7 @@ func (r *Reconciler) stopUnits(ctx context.Context, ctrs []runtime.Container) er
 }
 
 // unitStatuses describes the units of an environment as the runtime has them now.
-func (r *Reconciler) unitStatuses(ctx context.Context, envID string, plan *stack.Plan, hosts map[string]string) []*agentv1.UnitStatus {
+func (r *Reconciler) unitStatuses(ctx context.Context, envID string, plan *stack.Plan, hosts map[string]string) []*agentv2.UnitStatus {
 	ctrs, err := r.rt.Containers(ctx, r.opt.Instance)
 	if err != nil {
 		return nil
@@ -527,9 +527,9 @@ func (r *Reconciler) unitStatuses(ctx context.Context, envID string, plan *stack
 			byName[c.Name] = c
 		}
 	}
-	var out []*agentv1.UnitStatus
+	var out []*agentv2.UnitStatus
 	add := func(name, role, container string, addr string, routes []string) {
-		st := &agentv1.UnitStatus{Name: name, Role: role, Container: container, Address: addr, Routes: routes, State: "missing"}
+		st := &agentv2.UnitStatus{Name: name, Role: role, Container: container, Address: addr, Routes: routes, State: "missing"}
 		if c, ok := byName[container]; ok {
 			switch {
 			case c.Running && (c.Health == "starting" || c.Health == "unhealthy"):
@@ -569,7 +569,7 @@ func (r *Reconciler) unitStatuses(ctx context.Context, envID string, plan *stack
 	var names []string
 	for name, c := range byName {
 		switch c.Labels[runtime.LabelRole] {
-		case stack.RoleService, stack.RoleModule, stack.RoleWorker:
+		case stack.RoleService, stack.RoleApp, stack.RoleWorker:
 			names = append(names, name)
 		}
 	}

@@ -24,7 +24,7 @@ import { Spinner } from "@/components/ui/spinner"
 import type {
   DescribeProjectResponse,
   FeaturePlan,
-} from "@/gen/devopus/agent/v1/agent_pb"
+} from "@/gen/devopus/agent/v2/agent_pb"
 import { agent, errorText } from "@/lib/api"
 
 // slug is the agent's store.Slug; the agent adds a suffix if it is taken.
@@ -37,7 +37,7 @@ function slug(name: string): string {
     .replace(/-+$/, "")
 }
 
-// NewFeature is `devopus feature create` in the panel: a name, the modules to fork,
+// NewFeature is `devopus feature create` in the panel: a name, the applications to fork,
 // and what the feature will run itself and take from main.
 export function NewFeature({
   project,
@@ -111,7 +111,7 @@ function NewFeatureForm({
       const res = await agent.createFeature({
         project,
         name: name.trim(),
-        modules: forks,
+        apps: forks,
       })
       onCreated(res.environmentId)
     } catch (err) {
@@ -127,7 +127,7 @@ function NewFeatureForm({
       <DialogHeader>
         <DialogTitle>New feature of {project}</DialogTitle>
         <DialogDescription>
-          The modules you fork get their own branch and worktree. Everything
+          The applications you fork get their own branch and worktree. Everything
           else comes from main.
         </DialogDescription>
       </DialogHeader>
@@ -170,9 +170,9 @@ function NewFeatureForm({
             </FieldDescription>
           </Field>
           <FieldSet>
-            <FieldLegend variant="label">Modules to fork</FieldLegend>
+            <FieldLegend variant="label">Applications to fork</FieldLegend>
             <div className="grid gap-2 sm:grid-cols-2">
-              {info.modules.map((m) => (
+              {info.apps.map((m) => (
                 <Field key={m.name} orientation="horizontal">
                   <Checkbox
                     id={`fork-${m.name}`}
@@ -225,7 +225,7 @@ function PlanSummary({ plan }: { plan: FeaturePlan }) {
     [
       "Also runs",
       plan.dependents,
-      "they use forked modules; on the base branch",
+      "they use forked applications; on the base branch",
     ],
     [
       "Copies of main's data",

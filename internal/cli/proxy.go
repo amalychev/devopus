@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 )
@@ -23,7 +23,7 @@ func (a *app) routesCmd() *cobra.Command {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			c := client.New(paths.Socket())
-			req := &agentv1.RoutesRequest{}
+			req := &agentv2.RoutesRequest{}
 			if len(args) == 1 {
 				st, err := a.agentStatus()
 				if err != nil {
@@ -102,7 +102,7 @@ func (a *app) proxyCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.setProxy(&agentv1.SetProxyRequest{CoexistHttpPort: st.CoexistHttpPort, CoexistHttpsPort: st.CoexistHttpsPort, Restart: true})
+			return a.setProxy(&agentv2.SetProxyRequest{CoexistHttpPort: st.CoexistHttpPort, CoexistHttpsPort: st.CoexistHttpsPort, Restart: true})
 		},
 	})
 	var httpPort, httpsPort uint32
@@ -119,7 +119,7 @@ func (a *app) proxyCmd() *cobra.Command {
 			if off == (httpPort != 0) {
 				return fail(ExitInvalid, "pass either --http (and optionally --https) or --off")
 			}
-			return a.setProxy(&agentv1.SetProxyRequest{CoexistHttpPort: httpPort, CoexistHttpsPort: httpsPort})
+			return a.setProxy(&agentv2.SetProxyRequest{CoexistHttpPort: httpPort, CoexistHttpsPort: httpsPort})
 		},
 	}
 	coexist.Flags().Uint32Var(&httpPort, "http", 0, "host port the dev server now serves HTTP on")
@@ -129,10 +129,10 @@ func (a *app) proxyCmd() *cobra.Command {
 	return cmd
 }
 
-func (a *app) currentProxy() (*agentv1.ProxyStatus, error) {
+func (a *app) currentProxy() (*agentv2.ProxyStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	res, err := client.New(paths.Socket()).Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+	res, err := client.New(paths.Socket()).Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 	if err != nil {
 		return nil, rpcError(err)
 	}
@@ -140,11 +140,11 @@ func (a *app) currentProxy() (*agentv1.ProxyStatus, error) {
 }
 
 // setProxy changes the settings and waits for the agent to apply them.
-func (a *app) setProxy(req *agentv1.SetProxyRequest) error {
+func (a *app) setProxy(req *agentv2.SetProxyRequest) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	c := client.New(paths.Socket())
-	st, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+	st, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 	if err != nil {
 		return rpcError(err)
 	}
@@ -162,8 +162,8 @@ func (a *app) setProxy(req *agentv1.SetProxyRequest) error {
 		return rpcError(err)
 	}
 	if len(ids) > 0 {
-		if _, err := a.follow(w, ids, res.Msg.Revision, false, func(s *agentv1.EnvironmentStatus) bool {
-			return s.Phase == agentv1.Phase_PHASE_RUNNING || s.Phase == agentv1.Phase_PHASE_STOPPED
+		if _, err := a.follow(w, ids, res.Msg.Revision, false, func(s *agentv2.EnvironmentStatus) bool {
+			return s.Phase == agentv2.Phase_PHASE_RUNNING || s.Phase == agentv2.Phase_PHASE_STOPPED
 		}); err != nil {
 			return err
 		}
@@ -184,7 +184,7 @@ func (a *app) setProxy(req *agentv1.SetProxyRequest) error {
 }
 
 // printProxy is the one-line proxy summary of status and routes.
-func (a *app) printProxy(p *agentv1.ProxyStatus) {
+func (a *app) printProxy(p *agentv2.ProxyStatus) {
 	switch p.GetState() {
 	case "", "absent":
 		fmt.Fprintln(a.stdout, "Proxy    not running (no environments)")

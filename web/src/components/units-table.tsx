@@ -13,7 +13,7 @@ import {
   Phase,
   type EnvironmentStatus,
   type UnitResources,
-} from "@/gen/devopus/agent/v1/agent_pb"
+} from "@/gen/devopus/agent/v2/agent_pb"
 import { agent } from "@/lib/api"
 import { bytes } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -67,7 +67,7 @@ export function UnitsTable({
   if (env.units.length === 0) {
     return (
       <p className="py-6 text-sm text-muted-foreground">
-        Nothing runs here yet. Modules and services appear once the agent starts
+        Nothing runs here yet. Applications and services appear once the agent starts
         them.
       </p>
     )

@@ -13,7 +13,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/stack"
@@ -37,7 +37,7 @@ type proxyState struct {
 // life: switching between 80/443 and the fallback changes every URL, so it happens only
 // when the container is recreated (a new generation, or the ports were taken while it
 // was down).
-func (r *Reconciler) ensureProxy(ctx context.Context, existing *runtime.Container, dev *agentv1.DeviceSettings) (*proxyState, error) {
+func (r *Reconciler) ensureProxy(ctx context.Context, existing *runtime.Container, dev *agentv2.DeviceSettings) (*proxyState, error) {
 	if r.opt.XDS == nil || r.opt.Control == nil {
 		return nil, errors.New("the proxy is not configured")
 	}
@@ -115,7 +115,7 @@ func (r *Reconciler) ensureProxy(ctx context.Context, existing *runtime.Containe
 		}
 	}
 
-	r.setProxy(func(p *agentv1.ProxyStatus) { p.State, p.Error = "starting", "" })
+	r.setProxy(func(p *agentv2.ProxyStatus) { p.State, p.Error = "starting", "" })
 	if err := r.rt.EnsureImage(ctx, spec.Image); err != nil {
 		return nil, r.proxyFailed(err, nil)
 	}
@@ -136,14 +136,14 @@ func (r *Reconciler) ensureProxy(ctx context.Context, existing *runtime.Containe
 	return px, nil
 }
 
-func coexistOf(dev *agentv1.DeviceSettings) *proxy.Coexist {
+func coexistOf(dev *agentv2.DeviceSettings) *proxy.Coexist {
 	if dev.GetCoexistHttpPort() == 0 && dev.GetCoexistHttpsPort() == 0 {
 		return nil
 	}
 	return &proxy.Coexist{HTTPPort: dev.GetCoexistHttpPort(), HTTPSPort: dev.GetCoexistHttpsPort()}
 }
 
-func (r *Reconciler) setProxy(fn func(*agentv1.ProxyStatus)) {
+func (r *Reconciler) setProxy(fn func(*agentv2.ProxyStatus)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	fn(r.proxy)
@@ -154,7 +154,7 @@ func (r *Reconciler) proxyRunning(px *proxyState, conflicts []proxy.Conflict) {
 	if r.opt.Relays != nil {
 		relays = r.opt.Relays.Ensure(px.ports)
 	}
-	r.setProxy(func(p *agentv1.ProxyStatus) {
+	r.setProxy(func(p *agentv2.ProxyStatus) {
 		p.Relays = relays
 		p.State, p.Error = "running", ""
 		p.Mode = px.ports.Mode(px.coexist != nil)
@@ -169,7 +169,7 @@ func (r *Reconciler) proxyRunning(px *proxyState, conflicts []proxy.Conflict) {
 }
 
 func (r *Reconciler) proxyFailed(err error, conflicts []proxy.Conflict) error {
-	r.setProxy(func(p *agentv1.ProxyStatus) {
+	r.setProxy(func(p *agentv2.ProxyStatus) {
 		p.State, p.Error = "error", err.Error()
 		p.Conflicts = conflictStatus(conflicts)
 		p.Container = r.opt.ProxyName
@@ -177,10 +177,10 @@ func (r *Reconciler) proxyFailed(err error, conflicts []proxy.Conflict) error {
 	return err
 }
 
-func conflictStatus(cs []proxy.Conflict) []*agentv1.PortConflict {
-	var out []*agentv1.PortConflict
+func conflictStatus(cs []proxy.Conflict) []*agentv2.PortConflict {
+	var out []*agentv2.PortConflict
 	for _, c := range cs {
-		out = append(out, &agentv1.PortConflict{Address: c.Addr.String(), Owner: c.Owner, Pid: int32(c.PID), Kind: c.Kind, Hint: c.Hint()})
+		out = append(out, &agentv2.PortConflict{Address: c.Addr.String(), Owner: c.Owner, Pid: int32(c.PID), Kind: c.Kind, Hint: c.Hint()})
 	}
 	return out
 }
@@ -201,7 +201,7 @@ func (r *Reconciler) removeProxy(ctx context.Context, existing *runtime.Containe
 		}
 	}
 	r.mu.Lock()
-	r.proxy = &agentv1.ProxyStatus{State: "absent"}
+	r.proxy = &agentv2.ProxyStatus{State: "absent"}
 	r.routes = nil
 	r.mu.Unlock()
 	return nil
@@ -232,15 +232,15 @@ func (r *Reconciler) attachProxy(ctx context.Context, px *proxyState, nw runtime
 
 // applyRoutes gives the proxy every site, waits until the new sites are served and
 // finishes the environments.
-func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredState, preps []*prepared, px *proxyState) error {
+func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv2.DesiredState, preps []*prepared, px *proxyState) error {
 	cfg := proxy.Config{HTTPPort: uint32(px.ports.HTTP), HTTPSPort: uint32(px.ports.HTTPS), Coexist: px.coexist, WakerPort: uint32(r.opt.WakerPort)}
-	var routes []*agentv1.Route
+	var routes []*agentv2.Route
 	for _, p := range preps {
 		if p.leaf == nil {
 			continue
 		}
 		site, siteRoutes := site(p, px.ports)
-		if isFeature(p.env) && r.opt.Lifecycle != nil && p.plan != nil && p.env.Phase != agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
+		if isFeature(p.env) && r.opt.Lifecycle != nil && p.plan != nil && p.env.Phase != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED {
 			site.Sleep = &proxy.Sleep{Awake: !r.asleep(p.env)}
 		}
 		cfg.Sites = append(cfg.Sites, site)
@@ -293,16 +293,16 @@ func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredSt
 		}
 		url := proxy.URL(p.hosts[0], px.ports)
 		if stepErr := r.runStep(ctx, env.Id, step{"routes", func(context.Context) (string, error) { return url, err }}); stepErr != nil {
-			r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
-				s.Phase, s.Error, s.AppliedRevision = agentv1.Phase_PHASE_ERROR, "routes: "+stepErr.Error(), desired.Revision
+			r.update(env.Id, func(s *agentv2.EnvironmentStatus) {
+				s.Phase, s.Error, s.AppliedRevision = agentv2.Phase_PHASE_ERROR, "routes: "+stepErr.Error(), desired.Revision
 			})
 			errs = append(errs, fmt.Errorf("environment %s: routes: %w", env.Id, stepErr))
 			continue
 		}
-		// Modules are asked only after something started: a converged environment does not
+		// Applications are asked only after something started: a converged environment does not
 		// get a request from the agent on every pass.
 		sleeping := r.asleep(env)
-		if env.Phase != agentv1.DesiredPhase_DESIRED_PHASE_STOPPED && !sleeping && p.plan != nil && (p.started || !r.stepDone(env.Id, "ready")) {
+		if env.Phase != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED && !sleeping && p.plan != nil && (p.started || !r.stepDone(env.Id, "ready")) {
 			if stepErr := r.runStep(ctx, env.Id, step{"ready", func(ctx context.Context) (string, error) { return r.waitAnswers(ctx, p, px.ports) }}); stepErr != nil {
 				if errors.Is(stepErr, errWaiting) {
 					p.waiting = true
@@ -311,24 +311,24 @@ func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredSt
 				if ctx.Err() != nil {
 					continue
 				}
-				r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
-					s.Phase, s.Error, s.AppliedRevision = agentv1.Phase_PHASE_ERROR, "ready: "+stepErr.Error(), desired.Revision
+				r.update(env.Id, func(s *agentv2.EnvironmentStatus) {
+					s.Phase, s.Error, s.AppliedRevision = agentv2.Phase_PHASE_ERROR, "ready: "+stepErr.Error(), desired.Revision
 				})
 				errs = append(errs, fmt.Errorf("environment %s: ready: %w", env.Id, stepErr))
 				continue
 			}
 		}
-		r.update(env.Id, func(s *agentv1.EnvironmentStatus) {
+		r.update(env.Id, func(s *agentv2.EnvironmentStatus) {
 			s.Error, s.Url, s.AppliedRevision = "", url, desired.Revision
 			switch {
-			case env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED:
-				s.Phase = agentv1.Phase_PHASE_STOPPED
+			case env.Phase == agentv2.DesiredPhase_DESIRED_PHASE_STOPPED:
+				s.Phase = agentv2.Phase_PHASE_STOPPED
 			case sleeping && !r.opt.Lifecycle.Settled(env.Id):
 				// Going to sleep or waking up: the lifecycle manager says when it is done.
 			case sleeping:
-				s.Phase = agentv1.Phase_PHASE_SLEEPING
+				s.Phase = agentv2.Phase_PHASE_SLEEPING
 			default:
-				s.Phase = agentv1.Phase_PHASE_RUNNING
+				s.Phase = agentv2.Phase_PHASE_RUNNING
 				s.SleepReason, s.SleepingSince = "", nil
 			}
 			if isFeature(env) && r.opt.Lifecycle != nil {
@@ -341,21 +341,21 @@ func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv1.DesiredSt
 	return errors.Join(errs...)
 }
 
-// site is what the proxy serves for an environment: modules on their paths of the
+// site is what the proxy serves for an environment: applications on their paths of the
 // environment host, exposed web UIs on their own hosts, or a page of the proxy.
-func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
+func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv2.Route) {
 	env := p.env
 	s := proxy.Site{Name: env.Id, Project: env.Project, Hosts: p.leaf.Hosts, CertPEM: p.leaf.CertPEM, KeyPEM: p.leaf.KeyPEM}
-	route := func(host, path, target string) *agentv1.Route {
+	route := func(host, path, target string) *agentv2.Route {
 		url := proxy.URL(host, ports)
 		if path != "/" {
 			url += path
 		}
-		return &agentv1.Route{Host: host, EnvironmentId: env.Id, Project: env.Project, Path: path, Target: target, Url: url}
+		return &agentv2.Route{Host: host, EnvironmentId: env.Id, Project: env.Project, Path: path, Target: target, Url: url}
 	}
-	page := func(pg proxy.Page, target string) (proxy.Site, []*agentv1.Route) {
+	page := func(pg proxy.Page, target string) (proxy.Site, []*agentv2.Route) {
 		s.Page = pg
-		var routes []*agentv1.Route
+		var routes []*agentv2.Route
 		for _, h := range p.leaf.Hosts {
 			routes = append(routes, route(h, "/", target))
 		}
@@ -363,7 +363,7 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 	}
 	project := html.EscapeString(env.Project)
 	switch {
-	case env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED:
+	case env.Phase == agentv2.DesiredPhase_DESIRED_PHASE_STOPPED:
 		return page(proxy.Page{Status: 503, Title: env.Project + " is stopped", Text: "Run <code>devopus up</code> in the project to start it."}, "proxy page: stopped")
 	case p.plan == nil && p.err != nil:
 		return page(proxy.Page{Status: 502, Title: env.Project + " did not start",
@@ -372,8 +372,8 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 		return page(proxy.Page{Status: 503, Title: env.Project + " is starting", Text: "Devopus is preparing environment <code>" + env.Id + "</code> of <code>" + project + "</code>."}, "proxy page: starting")
 	}
 
-	var routes []*agentv1.Route
-	// A feature serves the paths of the modules it does not run from the base environment.
+	var routes []*agentv2.Route
+	// A feature serves the paths of the applications it does not run from the base environment.
 	units := p.plan.Units
 	from := map[string]string{}
 	if p.iso != nil && p.base != nil && p.base.plan != nil {
@@ -382,7 +382,7 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 			own[u.Name] = true
 		}
 		for _, u := range p.base.plan.Units {
-			if !own[u.Name] && (u.Role == stack.RoleModule && len(u.Routes) > 0 || u.Expose != "") {
+			if !own[u.Name] && (u.Role == stack.RoleApp && len(u.Routes) > 0 || u.Expose != "") {
 				units = append(units, u)
 				from[u.Name] = " from " + p.base.env.Id
 			}
@@ -397,20 +397,20 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 		return proxy.Upstream{Name: name, Addr: netip.AddrPortFrom(u.IP, uint16(u.Port))}
 	}
 	main := proxy.VHost{Hosts: []string{p.hosts[0]},
-		NotFound: proxy.Page{Status: 404, Title: "No module serves this path", Text: "Modules of <code>" + project + "</code> serve " + html.EscapeString(strings.Join(modulePaths(units), ", ")) + "."}}
+		NotFound: proxy.Page{Status: 404, Title: "No application serves this path", Text: "Applications of <code>" + project + "</code> serve " + html.EscapeString(strings.Join(modulePaths(units), ", ")) + "."}}
 	for _, u := range units {
-		if u.Role != stack.RoleModule || len(u.Routes) == 0 {
+		if u.Role != stack.RoleApp || len(u.Routes) == 0 {
 			continue
 		}
 		up := upstream(u)
 		up.Sleeps = from[u.Name] == ""
 		for _, prefix := range u.Routes {
 			main.Routes = append(main.Routes, proxy.PathRoute{Prefix: prefix, Upstream: up})
-			routes = append(routes, route(p.hosts[0], prefix, fmt.Sprintf("module %s (%s)%s", u.Name, up.Addr, from[u.Name])))
+			routes = append(routes, route(p.hosts[0], prefix, fmt.Sprintf("application %s (%s)%s", u.Name, up.Addr, from[u.Name])))
 		}
 	}
 	if len(main.Routes) == 0 {
-		main.NotFound = proxy.Page{Status: 404, Title: env.Project + " has no routes", Text: "No module of <code>" + project + "</code> has <code>routes</code> in workspace.yaml."}
+		main.NotFound = proxy.Page{Status: 404, Title: env.Project + " has no routes", Text: "No application of <code>" + project + "</code> has <code>routes</code> in workspace.yaml."}
 		routes = append(routes, route(p.hosts[0], "/", "proxy page: no routes"))
 	}
 	s.VHosts = append(s.VHosts, main)
@@ -425,13 +425,13 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 		routes = append(routes, route(host, "/", fmt.Sprintf("service %s (%s)%s", u.Name, up.Addr, from[u.Name])))
 	}
 	if sh := s.Shared; sh != nil {
-		// Inside the feature: logical names of the base environment's modules and services.
-		for _, t := range append(append([]proxy.SharedTarget{}, sh.Modules...), sh.Services...) {
+		// Inside the feature: logical names of the base environment's applications and services.
+		for _, t := range append(append([]proxy.SharedTarget{}, sh.Apps...), sh.Services...) {
 			scheme := "tcp"
 			if contains(p.iso.SharedApps, t.Name) {
 				scheme = "http"
 			}
-			routes = append(routes, &agentv1.Route{Host: t.Name, EnvironmentId: env.Id, Project: env.Project,
+			routes = append(routes, &agentv2.Route{Host: t.Name, EnvironmentId: env.Id, Project: env.Project,
 				Url: fmt.Sprintf("%s://%s:%d", scheme, t.Name, t.Port), Target: fmt.Sprintf("%s (%s) from %s, inside the feature", t.Name, t.Addr, p.base.env.Id)})
 		}
 	}
@@ -442,7 +442,7 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 func modulePaths(units []stack.Unit) []string {
 	var out []string
 	for _, u := range units {
-		if u.Role == stack.RoleModule {
+		if u.Role == stack.RoleApp {
 			out = append(out, u.Routes...)
 		}
 	}
@@ -450,17 +450,17 @@ func modulePaths(units []stack.Unit) []string {
 	return out
 }
 
-// waitAnswers waits until every module with routes answers through the proxy. A module
+// waitAnswers waits until every application with routes answers through the proxy. An application
 // that exits fails the environment; one still starting when the time is up leaves it
 // waiting, and the next pass looks again.
 func (r *Reconciler) waitAnswers(ctx context.Context, p *prepared, ports proxy.Ports) (string, error) {
-	const done = "every module answers"
+	const done = "every application answers"
 	if r.opt.Answers == nil {
 		return done, nil
 	}
 	var pending []stack.Unit
 	for _, u := range p.plan.Units {
-		if u.Role == stack.RoleModule && len(u.Routes) > 0 {
+		if u.Role == stack.RoleApp && len(u.Routes) > 0 {
 			pending = append(pending, u)
 		}
 	}
@@ -524,7 +524,7 @@ type parsed struct {
 	err  error
 }
 
-func parseProjects(projects []*agentv1.ProjectSpec) map[string]*parsed {
+func parseProjects(projects []*agentv2.ProjectSpec) map[string]*parsed {
 	out := map[string]*parsed{}
 	for _, p := range projects {
 		proj, _, err := importer.Parse(p.Config)
@@ -542,9 +542,9 @@ func parseProjects(projects []*agentv1.ProjectSpec) map[string]*parsed {
 
 // Hosts are the names an environment answers on: its own host first, then a host per
 // exposed service web UI (specs/workspace-yaml.md).
-func Hosts(ws *spec.Project, env *agentv1.EnvironmentSpec) []string {
+func Hosts(ws *spec.Project, env *agentv2.EnvironmentSpec) []string {
 	host := ws.Domain
-	if env.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE && env.Slug != "" {
+	if env.Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_FEATURE && env.Slug != "" {
 		host = env.Slug + "." + ws.Domain
 	}
 	out := []string{host}

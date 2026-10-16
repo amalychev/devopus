@@ -65,8 +65,8 @@ func ProxyName() string {
 	return "devopus-proxy-" + Instance()
 }
 
-// Sources keeps the checkouts of modules from other repositories:
-// src/<project>/<environment>/<module>.
+// Sources keeps the checkouts of applications from other repositories:
+// src/<project>/<environment>/<application>.
 func Sources() string { return filepath.Join(Home(), "src") }
 
 // Envs keeps per-environment files: hook markers and logs of hooks and builds.

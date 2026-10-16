@@ -17,7 +17,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/stack"
 	"github.com/amalychev/devopus/internal/agent/store"
@@ -66,18 +66,18 @@ func (s *Server) workspaceOf(project, path string, config []byte) (*spec.Project
 	return ws, path, config, nil
 }
 
-func (s *Server) DescribeProject(_ context.Context, req *connect.Request[agentv1.DescribeProjectRequest]) (*connect.Response[agentv1.DescribeProjectResponse], error) {
+func (s *Server) DescribeProject(_ context.Context, req *connect.Request[agentv2.DescribeProjectRequest]) (*connect.Response[agentv2.DescribeProjectResponse], error) {
 	ws, path, _, err := s.workspaceOf(req.Msg.Project, "", nil)
 	if err != nil {
 		return nil, err
 	}
-	res := &agentv1.DescribeProjectResponse{
+	res := &agentv2.DescribeProjectResponse{
 		Project: ws.Name, WorkspacePath: path, Domain: ws.Domain,
 		Services: containerServices(ws), BranchPrefix: ws.Policy().BranchPrefix,
 	}
 	for _, n := range ws.AppNames() {
 		a := ws.Apps[n]
-		res.Modules = append(res.Modules, &agentv1.ModuleInfo{Name: n, Routes: a.Routes, Optional: a.Optional, Uses: ws.Needs(n)})
+		res.Apps = append(res.Apps, &agentv2.AppInfo{Name: n, Routes: a.Routes, Optional: a.Optional, Uses: ws.Needs(n)})
 	}
 	if len(req.Msg.Forks) > 0 {
 		iso, err := stack.Feature(ws, req.Msg.Forks)
@@ -90,8 +90,8 @@ func (s *Server) DescribeProject(_ context.Context, req *connect.Request[agentv1
 }
 
 // plan is what `devopus feature create` prints before it creates a feature.
-func plan(ws *spec.Project, iso *stack.Isolation) *agentv1.FeaturePlan {
-	p := &agentv1.FeaturePlan{Forked: iso.Forked, Dependents: iso.Dependents()}
+func plan(ws *spec.Project, iso *stack.Isolation) *agentv2.FeaturePlan {
+	p := &agentv2.FeaturePlan{Forked: iso.Forked, Dependents: iso.Dependents()}
 	for _, svc := range iso.Services {
 		if stack.Engine(ws.Services[svc].ImageRef()) != "" {
 			p.Copies = append(p.Copies, svc)
@@ -118,7 +118,7 @@ func plan(ws *spec.Project, iso *stack.Isolation) *agentv1.FeaturePlan {
 	return p
 }
 
-func (s *Server) env(id string) (*agentv1.EnvironmentStatus, error) {
+func (s *Server) env(id string) (*agentv2.EnvironmentStatus, error) {
 	for _, e := range s.b.Statuses() {
 		if e.Id == id {
 			return e, nil
@@ -129,25 +129,25 @@ func (s *Server) env(id string) (*agentv1.EnvironmentStatus, error) {
 
 func (s *Server) logDir(envID string) string { return filepath.Join(s.b.EnvsDir(), envID, "logs") }
 
-func (s *Server) LogSources(_ context.Context, req *connect.Request[agentv1.LogSourcesRequest]) (*connect.Response[agentv1.LogSourcesResponse], error) {
+func (s *Server) LogSources(_ context.Context, req *connect.Request[agentv2.LogSourcesRequest]) (*connect.Response[agentv2.LogSourcesResponse], error) {
 	e, err := s.env(req.Msg.EnvironmentId)
 	if err != nil {
 		return nil, err
 	}
-	res := &agentv1.LogSourcesResponse{}
+	res := &agentv2.LogSourcesResponse{}
 	for _, u := range e.Units {
 		if u.Container != "" && u.State != "missing" {
-			res.Sources = append(res.Sources, &agentv1.LogSource{Unit: u.Name})
+			res.Sources = append(res.Sources, &agentv2.LogSource{Unit: u.Name})
 		}
 	}
 	entries, _ := os.ReadDir(s.logDir(e.Id))
-	var files []*agentv1.LogSource
+	var files []*agentv2.LogSource
 	for _, de := range entries {
 		name, ok := strings.CutSuffix(de.Name(), ".log")
 		if !ok || de.IsDir() {
 			continue
 		}
-		src := &agentv1.LogSource{File: name}
+		src := &agentv2.LogSource{File: name}
 		if fi, err := de.Info(); err == nil {
 			src.UpdatedAt = timestamppb.New(fi.ModTime())
 		}
@@ -165,7 +165,7 @@ const (
 	maxFileLines = 10000
 )
 
-func (s *Server) Logs(ctx context.Context, req *connect.Request[agentv1.LogsRequest], stream *connect.ServerStream[agentv1.LogsResponse]) error {
+func (s *Server) Logs(ctx context.Context, req *connect.Request[agentv2.LogsRequest], stream *connect.ServerStream[agentv2.LogsResponse]) error {
 	m := req.Msg
 	e, err := s.env(m.EnvironmentId)
 	if err != nil {
@@ -188,7 +188,7 @@ func (s *Server) Logs(ctx context.Context, req *connect.Request[agentv1.LogsRequ
 			return connect.NewError(connect.CodeNotFound, fmt.Errorf("%s has no container for %q", e.Id, src.Unit))
 		}
 		err = s.b.Containers().Logs(ctx, container, int(m.Tail), m.Follow, func(l runtime.LogLine) error {
-			line := &agentv1.LogLine{Text: l.Text, Stderr: l.Stderr}
+			line := &agentv2.LogLine{Text: l.Text, Stderr: l.Stderr}
 			if !l.Time.IsZero() {
 				line.Time = timestamppb.New(l.Time)
 			}
@@ -219,15 +219,15 @@ func (s *Server) Logs(ctx context.Context, req *connect.Request[agentv1.LogsRequ
 // logBatcher sends lines in batches: a log of thousands of lines as thousands of
 // messages would keep the browser busy rendering.
 type logBatcher struct {
-	stream *connect.ServerStream[agentv1.LogsResponse]
+	stream *connect.ServerStream[agentv2.LogsResponse]
 	mu     sync.Mutex
-	buf    []*agentv1.LogLine
+	buf    []*agentv2.LogLine
 	err    error
 	stop   chan struct{}
 	done   chan struct{}
 }
 
-func newLogBatcher(stream *connect.ServerStream[agentv1.LogsResponse]) *logBatcher {
+func newLogBatcher(stream *connect.ServerStream[agentv2.LogsResponse]) *logBatcher {
 	b := &logBatcher{stream: stream, stop: make(chan struct{}), done: make(chan struct{})}
 	go func() {
 		defer close(b.done)
@@ -251,11 +251,11 @@ func (b *logBatcher) flushLocked() {
 	if len(b.buf) == 0 || b.err != nil {
 		return
 	}
-	b.err = b.stream.Send(&agentv1.LogsResponse{Lines: b.buf})
+	b.err = b.stream.Send(&agentv2.LogsResponse{Lines: b.buf})
 	b.buf = nil
 }
 
-func (b *logBatcher) add(l *agentv1.LogLine) error {
+func (b *logBatcher) add(l *agentv2.LogLine) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.buf = append(b.buf, l)
@@ -282,7 +282,7 @@ func (b *logBatcher) close() error {
 // tailFile sends the last lines of a hook or build log and, with follow, what is
 // appended to it. The agent recreates the file when the hook runs again: then it starts
 // over from the top.
-func tailFile(ctx context.Context, path string, tail int, follow bool, fn func(*agentv1.LogLine) error) error {
+func tailFile(ctx context.Context, path string, tail int, follow bool, fn func(*agentv2.LogLine) error) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -313,7 +313,7 @@ func tailFile(ctx context.Context, path string, tail int, follow bool, fn func(*
 		lines = lines[len(lines)-limit:]
 	}
 	for _, l := range lines {
-		if err := fn(&agentv1.LogLine{Text: l}); err != nil {
+		if err := fn(&agentv2.LogLine{Text: l}); err != nil {
 			return err
 		}
 	}
@@ -340,7 +340,7 @@ func tailFile(ctx context.Context, path string, tail int, follow bool, fn func(*
 			}
 			f.Close()
 			f, offset, head = nf, 0, nil
-			if err := fn(&agentv1.LogLine{Text: "--- the log started over ---"}); err != nil {
+			if err := fn(&agentv2.LogLine{Text: "--- the log started over ---"}); err != nil {
 				return err
 			}
 		}
@@ -360,21 +360,21 @@ func tailFile(ctx context.Context, path string, tail int, follow bool, fn func(*
 			if len(head) < headSize {
 				head = headOf(append(head, line...))
 			}
-			if err := fn(&agentv1.LogLine{Text: strings.TrimSuffix(line, "\n")}); err != nil {
+			if err := fn(&agentv2.LogLine{Text: strings.TrimSuffix(line, "\n")}); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func (s *Server) Resources(ctx context.Context, req *connect.Request[agentv1.ResourcesRequest]) (*connect.Response[agentv1.ResourcesResponse], error) {
+func (s *Server) Resources(ctx context.Context, req *connect.Request[agentv2.ResourcesRequest]) (*connect.Response[agentv2.ResourcesResponse], error) {
 	e, err := s.env(req.Msg.EnvironmentId)
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	res := &agentv1.ResourcesResponse{}
+	res := &agentv2.ResourcesResponse{}
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, u := range e.Units {
@@ -389,7 +389,7 @@ func (s *Server) Resources(ctx context.Context, req *connect.Request[agentv1.Res
 				return // stopped in between
 			}
 			mu.Lock()
-			res.Units = append(res.Units, &agentv1.UnitResources{Name: u.Name, CpuPercent: use.CPUPercent, MemoryBytes: use.MemoryBytes, MemoryLimit: use.MemoryLimit})
+			res.Units = append(res.Units, &agentv2.UnitResources{Name: u.Name, CpuPercent: use.CPUPercent, MemoryBytes: use.MemoryBytes, MemoryLimit: use.MemoryLimit})
 			mu.Unlock()
 		}()
 	}

@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// Shared is how a feature reaches modules and services of its base environment by
+// Shared is how a feature reaches applications and services of its base environment by
 // their logical names (Simple Isolation, P-2): the feature's DNS answers those names
 // with the proxy's address in the feature network, and the proxy tells the feature
 // and the port apart by the destination of the connection. The base environment's
@@ -24,13 +24,13 @@ import (
 type Shared struct {
 	// IP is the proxy's address in the feature network.
 	IP netip.Addr
-	// Modules are reached over HTTP, told apart by Host: several may share a port.
-	Modules []SharedTarget
+	// Applications are reached over HTTP, told apart by Host: several may share a port.
+	Apps []SharedTarget
 	// Services are reached over TCP: one per port.
 	Services []SharedTarget
 }
 
-// SharedTarget is a module or service of the base environment.
+// SharedTarget is an application or service of the base environment.
 type SharedTarget struct {
 	Name string
 	// Port is what the feature connects to: the same as in the base environment, so
@@ -48,21 +48,21 @@ func (s *Shared) Check(httpPort, httpsPort uint32) error {
 	}
 	reserved := map[uint32]string{443: "HTTPS", httpsPort: "HTTPS"}
 	byPort := map[uint32][]string{}
-	for _, m := range s.Modules {
+	for _, m := range s.Apps {
 		if what, ok := reserved[m.Port]; ok {
-			return fmt.Errorf("module %s listens on port %d, which the proxy needs for %s in the feature; fork %s too", m.Name, m.Port, what, m.Name)
+			return fmt.Errorf("application %s listens on port %d, which the proxy needs for %s in the feature; fork %s too", m.Name, m.Port, what, m.Name)
 		}
 	}
 	reserved[80], reserved[httpPort] = "HTTP", "HTTP"
 	for _, sv := range s.Services {
 		if what, ok := reserved[sv.Port]; ok {
-			return fmt.Errorf("service %s listens on port %d, which the proxy needs for %s in the feature; fork a module that uses it", sv.Name, sv.Port, what)
+			return fmt.Errorf("service %s listens on port %d, which the proxy needs for %s in the feature; fork an application that uses it", sv.Name, sv.Port, what)
 		}
 		byPort[sv.Port] = append(byPort[sv.Port], sv.Name)
 	}
-	for _, m := range s.Modules {
+	for _, m := range s.Apps {
 		if names, ok := byPort[m.Port]; ok {
-			return fmt.Errorf("module %s and service %s of the base environment both listen on port %d; fork %s to run it in the feature", m.Name, names[0], m.Port, m.Name)
+			return fmt.Errorf("application %s and service %s of the base environment both listen on port %d; fork %s to run it in the feature", m.Name, names[0], m.Port, m.Name)
 		}
 	}
 	for port, names := range byPort {
@@ -74,7 +74,7 @@ func (s *Shared) Check(httpPort, httpsPort uint32) error {
 	return nil
 }
 
-// sharedChains are the filter chains of the shared modules and services of every
+// sharedChains are the filter chains of the shared applications and services of every
 // site, by port, with the route tables and clusters they need. HTTP chains on the
 // ports where the environments' URLs are (httpPorts) also serve those hosts.
 func sharedChains(sites []Site, httpVHosts []*routev3.VirtualHost, httpPorts map[uint32]bool) (map[uint32][]*listenerv3.FilterChain, []types.Resource, []types.Resource, error) {
@@ -100,12 +100,12 @@ func sharedChains(sites []Site, httpVHosts []*routev3.VirtualHost, httpPorts map
 				PrefixRanges:    []*corev3.CidrRange{{AddressPrefix: sh.IP.String(), PrefixLen: wrapperspb.UInt32(32)}},
 			}
 		}
-		modules := map[uint32][]SharedTarget{}
-		for _, m := range sh.Modules {
-			modules[m.Port] = append(modules[m.Port], m)
+		applications := map[uint32][]SharedTarget{}
+		for _, m := range sh.Apps {
+			applications[m.Port] = append(applications[m.Port], m)
 		}
-		ports := make([]uint32, 0, len(modules))
-		for p := range modules {
+		ports := make([]uint32, 0, len(applications))
+		for p := range applications {
 			ports = append(ports, p)
 		}
 		sort.Slice(ports, func(i, j int) bool { return ports[i] < ports[j] })
@@ -113,7 +113,7 @@ func sharedChains(sites []Site, httpVHosts []*routev3.VirtualHost, httpPorts map
 			name := fmt.Sprintf("shared-%s-%d", s.Name, port)
 			var vhosts []*routev3.VirtualHost
 			var names []string
-			for _, m := range modules[port] {
+			for _, m := range applications[port] {
 				names = append(names, m.Name)
 				vhosts = append(vhosts, &routev3.VirtualHost{
 					Name:    m.Name,
@@ -128,7 +128,7 @@ func sharedChains(sites []Site, httpVHosts []*routev3.VirtualHost, httpPorts map
 				vhosts = append(vhosts, httpVHosts...)
 			} else {
 				vhosts = append(vhosts, &routev3.VirtualHost{Name: "default", Domains: []string{"*"}, Routes: []*routev3.Route{pageRoute("/", Page{
-					Status: 404, Title: "No such module",
+					Status: 404, Title: "No such application",
 					Text: fmt.Sprintf("On port %d the base environment shares %s.", port, strings.Join(names, ", ")),
 				})}})
 			}

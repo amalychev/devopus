@@ -1,7 +1,7 @@
 import { CheckIcon, XIcon } from "lucide-react"
 
 import { Spinner } from "@/components/ui/spinner"
-import { StepState, type StepProgress } from "@/gen/devopus/agent/v1/agent_pb"
+import { StepState, type StepProgress } from "@/gen/devopus/agent/v2/agent_pb"
 import { date, duration } from "@/lib/format"
 import { cn } from "@/lib/utils"
 

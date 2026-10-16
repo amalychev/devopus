@@ -37,7 +37,7 @@ cd examples/demo
 Что есть в демо — [examples/demo/README.md](../examples/demo/README.md). Попробовать фичу:
 
 ```bash
-devopus feature create PAY-1 -m api   # https://pay-1.demo.localhost, свой worktree и копия базы
+devopus feature create PAY-1 --apps api   # https://pay-1.demo.localhost, свой worktree и копия базы
 devopus feature list
 devopus feature rm PAY-1
 devopus down --volumes                # убрать демо вместе с данными

@@ -88,12 +88,12 @@ func TestFeatureRunsForksAndTheirDependents(t *testing.T) {
 	}
 	// api uses payments and web uses api: both must reach the fork by its name.
 	if want := []string{"api", "payments", "web"}; !slices.Equal(iso.Apps, want) {
-		t.Errorf("modules = %v, want %v", iso.Apps, want)
+		t.Errorf("applications = %v, want %v", iso.Apps, want)
 	}
 	if want := []string{"api", "web"}; !slices.Equal(iso.Dependents(), want) {
 		t.Errorf("dependents = %v, want %v", iso.Dependents(), want)
 	}
-	// database: clone — the feature has its own copy of what its modules use, with the
+	// database: clone — the feature has its own copy of what its applications use, with the
 	// services those depend on.
 	if want := []string{"cache", "db", "queue"}; !slices.Equal(iso.Services, want) {
 		t.Errorf("services = %v, want %v", iso.Services, want)
@@ -110,10 +110,10 @@ func TestFeatureSharesWhatItDoesNotRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !slices.Equal(iso.Apps, []string{"web"}) || len(iso.Services) != 0 {
-		t.Errorf("modules = %v, services = %v", iso.Apps, iso.Services)
+		t.Errorf("applications = %v, services = %v", iso.Apps, iso.Services)
 	}
 	if !slices.Equal(iso.SharedApps, []string{"api"}) {
-		t.Errorf("shared modules = %v", iso.SharedApps)
+		t.Errorf("shared applications = %v", iso.SharedApps)
 	}
 }
 
@@ -144,23 +144,23 @@ func TestFeatureBringsWhatTheBaseDoesNotRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !slices.Equal(iso.Apps, []string{"admin"}) {
-		t.Errorf("modules = %v", iso.Apps)
+		t.Errorf("applications = %v", iso.Apps)
 	}
 	w.Modules["admin"].Uses = []string{"invoices", "cache"}
 	if iso, err = Feature(project(t, w), []string{"admin"}); err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(iso.SharedApps, []string{"invoices"}) {
-		t.Errorf("shared modules = %v: invoices runs in the base", iso.SharedApps)
+		t.Errorf("shared applications = %v: invoices runs in the base", iso.SharedApps)
 	}
 
-	// Forking a module the base does not run brings what it needs, even with shared data.
+	// Forking an application the base does not run brings what it needs, even with shared data.
 	w.Modules["admin"].Uses = []string{"cache"}
 	if iso, err = Feature(project(t, w), []string{"invoices"}); err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(iso.Apps, []string{"invoices"}) || !slices.Equal(iso.Services, []string{"pdf"}) {
-		t.Errorf("modules = %v, services = %v", iso.Apps, iso.Services)
+		t.Errorf("applications = %v, services = %v", iso.Apps, iso.Services)
 	}
 }
 
@@ -196,7 +196,7 @@ func TestBuildFeature(t *testing.T) {
 	}
 	for _, h := range p.Hooks {
 		if h.Name == "migrate" {
-			t.Errorf("migrate of %s runs on the shared database", h.Module)
+			t.Errorf("migrate of %s runs on the shared database", h.App)
 		}
 	}
 }

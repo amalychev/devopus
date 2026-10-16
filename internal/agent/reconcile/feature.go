@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/git"
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/runtime"
@@ -21,13 +21,13 @@ import (
 )
 
 // RepoCheckout is the folder of a feature's worktree of the project's own repository,
-// where modules with path come from. Module names cannot start with an underscore.
+// where applications with path come from. Application names cannot start with an underscore.
 const RepoCheckout = "_repo"
 
 // isolate works out what a feature runs itself and how it reaches the rest of the
 // base environment (Simple Isolation).
-func (r *Reconciler) isolate(env *agentv1.EnvironmentSpec, p *prepared, nw runtime.Network, px *proxyState) (string, error) {
-	iso, err := stack.Feature(p.ws, env.ForkedModules)
+func (r *Reconciler) isolate(env *agentv2.EnvironmentSpec, p *prepared, nw runtime.Network, px *proxyState) (string, error) {
+	iso, err := stack.Feature(p.ws, env.ForkedApps)
 	if err != nil {
 		return "", err
 	}
@@ -51,7 +51,7 @@ func (r *Reconciler) isolate(env *agentv1.EnvironmentSpec, p *prepared, nw runti
 		if !ok {
 			return "", fmt.Errorf("the base environment does not run %s", name)
 		}
-		sh.Modules = append(sh.Modules, proxy.SharedTarget{Name: name, Port: uint32(u.Port), Addr: netip.AddrPortFrom(u.IP, uint16(u.Port))})
+		sh.Apps = append(sh.Apps, proxy.SharedTarget{Name: name, Port: uint32(u.Port), Addr: netip.AddrPortFrom(u.IP, uint16(u.Port))})
 	}
 	for _, name := range iso.SharedServices {
 		u, ok := units[name]
@@ -79,7 +79,7 @@ func (r *Reconciler) isolate(env *agentv1.EnvironmentSpec, p *prepared, nw runti
 	}
 	p.iso, p.shared, p.notes = iso, sh, notes
 	shared := append(append([]string{}, iso.SharedApps...), iso.SharedServices...)
-	r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.Shared, s.Notes = shared, notes })
+	r.update(env.Id, func(s *agentv2.EnvironmentStatus) { s.Shared, s.Notes = shared, notes })
 
 	msg := "forks " + strings.Join(iso.Forked, ", ")
 	if d := iso.Dependents(); len(d) > 0 {
@@ -94,18 +94,18 @@ func (r *Reconciler) isolate(env *agentv1.EnvironmentSpec, p *prepared, nw runti
 	return msg, nil
 }
 
-// ensureFeatureSources gives every module of a feature its own checkout: the forked
-// ones on the feature branch, the others detached at their base branch. Modules with
-// path share one worktree of the project's repository; modules with repo get a
+// ensureFeatureSources gives every application of a feature its own checkout: the forked
+// ones on the feature branch, the others detached at their base branch. Applications with
+// path share one worktree of the project's repository; applications with repo get a
 // worktree of the base environment's clone.
-func (r *Reconciler) ensureFeatureSources(ctx context.Context, env *agentv1.EnvironmentSpec, root string, p *prepared) (sources, heads map[string]string, codeRoot, msg string, err error) {
+func (r *Reconciler) ensureFeatureSources(ctx context.Context, env *agentv2.EnvironmentSpec, root string, p *prepared) (sources, heads map[string]string, codeRoot, msg string, err error) {
 	ws, iso := p.ws, p.iso
 	forked := map[string]bool{}
-	for _, f := range env.ForkedModules {
+	for _, f := range env.ForkedApps {
 		forked[f] = true
 	}
 	sources, heads = map[string]string{}, map[string]string{}
-	checkouts := map[string]string{} // module → its worktree
+	checkouts := map[string]string{} // application → its worktree
 	var made []string
 
 	codeRoot = root
@@ -124,7 +124,7 @@ func (r *Reconciler) ensureFeatureSources(ctx context.Context, env *agentv1.Envi
 	if needRepo {
 		top, prefix, err := git.TopLevel(ctx, root)
 		if err != nil {
-			return nil, nil, "", "", fmt.Errorf("modules with path need %s to be in a git repository to fork them: %w", root, err)
+			return nil, nil, "", "", fmt.Errorf("applications with path need %s to be in a git repository to fork them: %w", root, err)
 		}
 		if !git.HasRef(ctx, top, repoBase) {
 			repoBase = "HEAD"
@@ -154,7 +154,7 @@ func (r *Reconciler) ensureFeatureSources(ctx context.Context, env *agentv1.Envi
 			checkouts[name] = r.SourceDir(env.Project, env.Id, RepoCheckout)
 			continue
 		}
-		// The base environment's clone holds the objects; a module the base does not run
+		// The base environment's clone holds the objects; an application the base does not run
 		// is cloned there first.
 		clone := r.SourceDir(env.Project, p.base.env.Id, name)
 		if !git.IsRepo(clone) {
@@ -189,9 +189,9 @@ func (r *Reconciler) ensureFeatureSources(ctx context.Context, env *agentv1.Envi
 	r.setSources(ctx, env.Id, sources, checkouts)
 	r.checkMerged(ctx, env, p, checkouts)
 	if needRepo {
-		r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.CodeRoot = codeRoot })
+		r.update(env.Id, func(s *agentv2.EnvironmentStatus) { s.CodeRoot = codeRoot })
 	}
-	msg = fmt.Sprintf("%s on %s", plural(len(iso.Apps), "module"), env.Branch)
+	msg = fmt.Sprintf("%s on %s", plural(len(iso.Apps), "application"), env.Branch)
 	if len(made) > 0 {
 		msg += ", new worktrees: " + strings.Join(made, ", ")
 	}
@@ -199,7 +199,7 @@ func (r *Reconciler) ensureFeatureSources(ctx context.Context, env *agentv1.Envi
 }
 
 // ensureWorktree makes a worktree, or moves an existing detached one onto the branch
-// when its module was forked later. A worktree on another branch is left alone: the
+// when its application was forked later. A worktree on another branch is left alone: the
 // developer switched it.
 func (r *Reconciler) ensureWorktree(ctx context.Context, envID, repo, dir, branch, base string) (bool, error) {
 	if git.IsRepo(dir) {
@@ -223,28 +223,28 @@ func (r *Reconciler) ensureWorktree(ctx context.Context, envID, repo, dir, branc
 	return true, git.AddWorktree(ctx, repo, dir, branch, base, log)
 }
 
-// setSources publishes where the code of each module is.
+// setSources publishes where the code of each application is.
 func (r *Reconciler) setSources(ctx context.Context, envID string, sources, checkouts map[string]string) {
 	names := make([]string, 0, len(sources))
 	for n := range sources {
 		names = append(names, n)
 	}
 	sort.Strings(names)
-	var out []*agentv1.ModuleSource
+	var out []*agentv2.AppSource
 	for _, n := range names {
-		src := &agentv1.ModuleSource{Module: n, Path: sources[n], Checkout: checkouts[n]}
+		src := &agentv2.AppSource{App: n, Path: sources[n], Checkout: checkouts[n]}
 		if src.Checkout != "" {
 			src.Branch, _ = git.Branch(ctx, src.Checkout)
 		}
 		out = append(out, src)
 	}
-	r.update(envID, func(s *agentv1.EnvironmentStatus) { s.Sources = out })
+	r.update(envID, func(s *agentv2.EnvironmentStatus) { s.Sources = out })
 }
 
 // Unsaved describes, per worktree of a feature, work that exists nowhere else:
 // uncommitted changes and commits on no remote and not in the base branch. Removing a
 // feature without force refuses while there is any.
-func (r *Reconciler) Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *spec.Project) (map[string]string, error) {
+func (r *Reconciler) Unsaved(ctx context.Context, env *agentv2.EnvironmentSpec, ws *spec.Project) (map[string]string, error) {
 	dir := filepath.Join(r.opt.SourcesDir, env.Project, env.Id)
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, os.ErrNotExist) {
@@ -279,7 +279,7 @@ func (r *Reconciler) Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, 
 }
 
 // repoBaseBranch is the base branch of the project's own repository: that of its
-// modules with path.
+// applications with path.
 func repoBaseBranch(ws *spec.Project) string {
 	for _, n := range ws.AppNames() {
 		if m := ws.Apps[n]; m.Path != "" {
@@ -326,7 +326,7 @@ func (r *Reconciler) forksFile(envID string) string {
 // checkMerged marks a feature whose branch is merged into its base branch, so people
 // can remove it (features.cleanup: on_merge). Squash merges keep no ancestry and are
 // not recognised.
-func (r *Reconciler) checkMerged(ctx context.Context, env *agentv1.EnvironmentSpec, p *prepared, checkouts map[string]string) {
+func (r *Reconciler) checkMerged(ctx context.Context, env *agentv2.EnvironmentSpec, p *prepared, checkouts map[string]string) {
 	if p.ws.Policy().Cleanup != "on_merge" || env.Branch == "" {
 		return
 	}
@@ -344,7 +344,7 @@ func (r *Reconciler) checkMerged(ctx context.Context, env *agentv1.EnvironmentSp
 	changed := false
 	merged = false
 	seen := map[string]bool{}
-	for _, m := range env.ForkedModules {
+	for _, m := range env.ForkedApps {
 		dir := checkouts[m]
 		if dir == "" || seen[dir] {
 			continue
@@ -386,6 +386,6 @@ func (r *Reconciler) checkMerged(ctx context.Context, env *agentv1.EnvironmentSp
 	r.setMerged(env, merged)
 }
 
-func (r *Reconciler) setMerged(env *agentv1.EnvironmentSpec, merged bool) {
-	r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.Merged = merged })
+func (r *Reconciler) setMerged(env *agentv2.EnvironmentSpec, merged bool) {
+	r.update(env.Id, func(s *agentv2.EnvironmentStatus) { s.Merged = merged })
 }

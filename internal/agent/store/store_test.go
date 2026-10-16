@@ -2,10 +2,11 @@ package store
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 )
 
 func TestUpDownPersist(t *testing.T) {
@@ -48,7 +49,7 @@ func TestUpDownPersist(t *testing.T) {
 	if st.Revision != 3 || len(st.Projects) != 1 || string(st.Projects[0].Config) != "version: 1\n# v2" {
 		t.Fatalf("reloaded: %v", st)
 	}
-	if e := st.Environments[0]; e.Id != id || e.Phase != agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
+	if e := st.Environments[0]; e.Id != id || e.Phase != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED {
 		t.Errorf("env: %v", e)
 	}
 
@@ -65,14 +66,14 @@ func TestFeatures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, base, _, err := s.CreateFeature("shop", "/src/shop", []byte("version: 1"), NewFeature{Name: "PAY-123", Branch: "feature/PAY-123", Modules: []string{"web", "api", "web"}, Reserved: []string{"mail"}})
+	f, base, _, err := s.CreateFeature("shop", "/src/shop", []byte("version: 1"), NewFeature{Name: "PAY-123", Branch: "feature/PAY-123", Apps: []string{"web", "api", "web"}, Reserved: []string{"mail"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.Slug != "pay-123" || f.Kind != agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE || len(f.ForkedModules) != 2 {
+	if f.Slug != "pay-123" || f.Kind != agentv2.EnvironmentKind_ENVIRONMENT_KIND_FEATURE || len(f.ForkedApps) != 2 {
 		t.Errorf("feature = %v", f)
 	}
-	if base.Kind != agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE || base.Phase != agentv1.DesiredPhase_DESIRED_PHASE_RUNNING {
+	if base.Kind != agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE || base.Phase != agentv2.DesiredPhase_DESIRED_PHASE_RUNNING {
 		t.Errorf("base = %v", base)
 	}
 	if _, _, _, err := s.CreateFeature("shop", "/src/shop", nil, NewFeature{Name: "pay-123"}); !errors.Is(err, ErrFeatureExists) {
@@ -91,11 +92,11 @@ func TestFeatures(t *testing.T) {
 		t.Error("a name without letters must fail")
 	}
 
-	e, _, err := s.AddFeatureModules("shop", "/src/shop", nil, "pay-123", []string{"payments", "api"})
-	if err != nil || len(e.ForkedModules) != 3 {
+	e, _, err := s.AddFeatureApps("shop", "/src/shop", nil, "pay-123", []string{"payments", "api"})
+	if err != nil || len(e.ForkedApps) != 3 {
 		t.Errorf("add: %v %v", e, err)
 	}
-	if _, _, err := s.AddFeatureModules("shop", "/src/shop", nil, "nope", nil); !errors.Is(err, ErrUnknownFeature) {
+	if _, _, err := s.AddFeatureApps("shop", "/src/shop", nil, "nope", nil); !errors.Is(err, ErrUnknownFeature) {
 		t.Errorf("add to unknown: %v", err)
 	}
 
@@ -107,13 +108,13 @@ func TestFeatures(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, e := range s.Snapshot().Environments {
-		if e.Phase != agentv1.DesiredPhase_DESIRED_PHASE_RUNNING {
+		if e.Phase != agentv2.DesiredPhase_DESIRED_PHASE_RUNNING {
 			t.Errorf("%s is %v after up", e.Id, e.Phase)
 		}
 	}
 
 	refuse := errors.New("unsaved")
-	if _, _, err := s.RemoveFeature("shop", f.Id, func(*agentv1.EnvironmentSpec) error { return refuse }); !errors.Is(err, refuse) {
+	if _, _, err := s.RemoveFeature("shop", f.Id, func(*agentv2.EnvironmentSpec) error { return refuse }); !errors.Is(err, refuse) {
 		t.Errorf("check: %v", err)
 	}
 	if s.Feature("shop", "PAY-123") == nil {
@@ -124,5 +125,21 @@ func TestFeatures(t *testing.T) {
 	}
 	if s.Feature("shop", "pay-123") != nil || len(s.Snapshot().Environments) != 3 {
 		t.Errorf("after remove: %v", s.Snapshot().Environments)
+	}
+}
+
+// A state file of agent/v1 keeps its features.
+func TestOpenMigratesV1(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.json")
+	v1 := `{"revision":"3","environments":[{"id":"f1","project":"p","kind":"ENVIRONMENT_KIND_FEATURE","forkedModules":["api","web"]}]}`
+	if err := os.WriteFile(path, []byte(v1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Snapshot().Environments[0].ForkedApps; len(got) != 2 || got[0] != "api" {
+		t.Fatalf("forked apps %v", got)
 	}
 }

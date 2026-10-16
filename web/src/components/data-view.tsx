@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "@/components/ui/toast"
-import type { EnvironmentStatus } from "@/gen/devopus/agent/v1/agent_pb"
+import type { EnvironmentStatus } from "@/gen/devopus/agent/v2/agent_pb"
 import { agent, errorText } from "@/lib/api"
 import { ago, date, isFeature } from "@/lib/format"
 

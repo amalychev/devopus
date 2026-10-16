@@ -7,7 +7,7 @@ import type {
   EnvironmentStatus,
   LogLine,
   LogSource,
-} from "@/gen/devopus/agent/v1/agent_pb"
+} from "@/gen/devopus/agent/v2/agent_pb"
 import { agent, errorText } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -90,7 +90,7 @@ export function LogsView({
     <div className="grid min-h-0 gap-4 md:grid-cols-[12rem_1fr]">
       <div className="flex flex-col gap-4">
         <SourceList
-          title="Modules and services"
+          title="Applications and services"
           items={units}
           current={current}
           onChoose={onChoose}

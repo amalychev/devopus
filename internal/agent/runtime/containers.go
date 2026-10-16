@@ -28,7 +28,7 @@ const (
 	// LabelInstance separates agents with different data directories (a test agent
 	// next to the real one): each observes and collects only its own resources.
 	LabelInstance = "com.devopus.instance"
-	// LabelRole is proxy, dns, module, service…
+	// LabelRole is proxy, dns, application, service…
 	LabelRole = "com.devopus.role"
 	// LabelConfig is a hash of what the container was created from; a different hash
 	// means the container must be recreated.

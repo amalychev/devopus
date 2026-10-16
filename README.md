@@ -93,8 +93,8 @@ go build -o devopus ./cmd/devopus      # бинарник
 ./devopus routes                       # таблица маршрутов прокси
 ./devopus logs api --follow            # вывод модуля или сервиса
 ./devopus exec api -- sh               # команда в контейнере модуля
-./devopus feature create PAY-1 -m api  # фича: worktree на feature/PAY-1, свой URL https://pay-1.<домен>
-./devopus feature add PAY-1 web        # форкнуть ещё модуль
+./devopus feature create PAY-1 --apps api  # фича: worktree на feature/PAY-1, свой URL https://pay-1.<домен>
+./devopus feature add PAY-1 web        # форкнуть ещё приложение
 ./devopus feature list                 # фичи проекта: фаза, URL, форки, что общее с main
 ./devopus feature path PAY-1           # папка кода фичи (для IDE и AI-агентов)
 ./devopus feature sleep PAY-1          # усыпить (сама засыпает после features.sleep_after); первый запрос будит

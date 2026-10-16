@@ -15,7 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Toaster } from "@/components/ui/toast"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import type { StatusResponse } from "@/gen/devopus/agent/v1/agent_pb"
+import type { StatusResponse } from "@/gen/devopus/agent/v2/agent_pb"
 import { useAgent, type Connection } from "@/hooks/use-agent"
 import { isFeature } from "@/lib/format"
 

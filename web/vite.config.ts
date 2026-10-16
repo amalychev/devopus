@@ -36,7 +36,7 @@ export default defineConfig(({ command }) => {
     },
     server: panel && {
       proxy: {
-        "/devopus.agent.v1.AgentService": {
+        "/devopus.agent.v2.AgentService": {
           target: `http://127.0.0.1:${panel.port}`,
           changeOrigin: true,
           headers: { Authorization: `Bearer ${panel.token}` },

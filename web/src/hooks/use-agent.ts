@@ -3,7 +3,7 @@ import * as React from "react"
 import type {
   EnvironmentStatus,
   StatusResponse,
-} from "@/gen/devopus/agent/v1/agent_pb"
+} from "@/gen/devopus/agent/v2/agent_pb"
 import { agent, isUnauthenticated } from "@/lib/api"
 
 export type Connection = "connecting" | "live" | "lost" | "signed-out"

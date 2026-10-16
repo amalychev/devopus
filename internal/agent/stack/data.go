@@ -34,7 +34,7 @@ type Data struct {
 	Golden string
 	// Container is the service's container in this environment.
 	Container string
-	// Uses are the modules of the environment that use the service: their migrations
+	// Uses are the applications of the environment that use the service: their migrations
 	// shape its data.
 	Uses []string
 }

@@ -11,15 +11,15 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
-	"github.com/amalychev/devopus/gen/devopus/agent/v1/agentv1connect"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/daemon"
 	"github.com/amalychev/devopus/internal/service"
 )
 
 // New returns an API client over the agent's unix socket.
-func New(socket string) agentv1connect.AgentServiceClient {
+func New(socket string) agentv2connect.AgentServiceClient {
 	tr := &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			var d net.Dialer
@@ -27,23 +27,23 @@ func New(socket string) agentv1connect.AgentServiceClient {
 		},
 	}
 	// The host is ignored: every request goes to the socket.
-	return agentv1connect.NewAgentServiceClient(&http.Client{Transport: tr}, "http://devopus-agent")
+	return agentv2connect.NewAgentServiceClient(&http.Client{Transport: tr}, "http://devopus-agent")
 }
 
 // ErrNotRunning: nothing answers on the socket.
 var ErrNotRunning = errors.New("the agent is not running")
 
 // Ping checks that an agent answers.
-func Ping(ctx context.Context, c agentv1connect.AgentServiceClient) error {
+func Ping(ctx context.Context, c agentv2connect.AgentServiceClient) error {
 	_, err := Version(ctx, c)
 	return err
 }
 
 // Version returns the running agent's version.
-func Version(ctx context.Context, c agentv1connect.AgentServiceClient) (string, error) {
+func Version(ctx context.Context, c agentv2connect.AgentServiceClient) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	res, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+	res, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 	if err != nil {
 		if connect.CodeOf(err) == connect.CodeUnavailable {
 			return "", ErrNotRunning
@@ -57,7 +57,7 @@ func Version(ctx context.Context, c agentv1connect.AgentServiceClient) (string, 
 // needed: through the service when `devopus agent install` registered it, otherwise in the
 // background. An agent of another version (left running by an upgrade) is restarted;
 // reconcile picks up where it was. started reports whether it started one.
-func Ensure(ctx context.Context, version string) (c agentv1connect.AgentServiceClient, started bool, err error) {
+func Ensure(ctx context.Context, version string) (c agentv2connect.AgentServiceClient, started bool, err error) {
 	c = New(paths.Socket())
 	running, err := Version(ctx, c)
 	switch {

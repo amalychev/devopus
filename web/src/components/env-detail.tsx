@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/toast"
-import { Phase, type EnvironmentStatus } from "@/gen/devopus/agent/v1/agent_pb"
+import { Phase, type EnvironmentStatus } from "@/gen/devopus/agent/v2/agent_pb"
 import { agent, errorText } from "@/lib/api"
 import {
   ago,
@@ -78,7 +78,7 @@ export function EnvDetail({
       )}
       <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
         <TabsList variant="line">
-          <TabsTrigger value="units">Modules and services</TabsTrigger>
+          <TabsTrigger value="units">Applications and services</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
           {hasCode && <TabsTrigger value="code">Code</TabsTrigger>}
@@ -131,8 +131,8 @@ function Header({
               <>
                 Feature of {env.project} on{" "}
                 <span className="font-mono text-foreground">{env.branch}</span>
-                {env.forkedModules.length > 0 && (
-                  <>, forks {env.forkedModules.join(", ")}</>
+                {env.forkedApps.length > 0 && (
+                  <>, forks {env.forkedApps.join(", ")}</>
                 )}
               </>
             ) : (
@@ -355,9 +355,9 @@ function CodeView({ env }: { env: EnvironmentStatus }) {
   return (
     <ul className="flex flex-col divide-y">
       {env.sources.map((s) => (
-        <li key={s.module} className="flex flex-col gap-0.5 py-3">
+        <li key={s.app} className="flex flex-col gap-0.5 py-3">
           <span className="font-medium">
-            {s.module}{" "}
+            {s.app}{" "}
             <span className="font-normal text-muted-foreground">
               {s.branch ? `on ${s.branch}` : "at the base branch"}
             </span>

@@ -20,8 +20,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
-	"github.com/amalychev/devopus/gen/devopus/agent/v1/agentv1connect"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/proxy"
@@ -29,7 +29,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/store"
 )
 
-// The api module takes a second to start, like an app that loads before it listens.
+// The api application takes a second to start, like an app that loads before it listens.
 const sleepConfig = `version: 1
 project: %s
 domain: %s.localhost
@@ -131,13 +131,13 @@ func TestFeatureSleep(t *testing.T) {
 	}
 	t.Cleanup(func() { purge(t, rt, c, project) })
 
-	up, err := c.Up(ctx, connect.NewRequest(&agentv1.UpRequest{WorkspacePath: wsPath, Config: config}))
+	up, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: wsPath, Config: config}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	baseID := up.Msg.EnvironmentId
-	waitFor(t, ctx, c, baseID, func(s *agentv1.EnvironmentStatus) bool { return s.Phase == agentv1.Phase_PHASE_RUNNING })
-	status, _ := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+	waitFor(t, ctx, c, baseID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
+	status, _ := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 	roots := x509.NewCertPool()
 	pemData, _ := os.ReadFile(status.Msg.Ca.RootPath)
 	roots.AppendCertsFromPEM(pemData)
@@ -162,24 +162,24 @@ func TestFeatureSleep(t *testing.T) {
 		return res.StatusCode, string(b), nil
 	}
 
-	f, err := c.CreateFeature(ctx, connect.NewRequest(&agentv1.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "f1", Modules: []string{"api"}}))
+	f, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "f1", Apps: []string{"api"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	fID := f.Msg.EnvironmentId
 	host := "f1." + project + ".localhost"
-	waitFor(t, ctx, c, fID, func(s *agentv1.EnvironmentStatus) bool { return s.Phase == agentv1.Phase_PHASE_RUNNING })
+	waitFor(t, ctx, c, fID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
 	apiCtr := project + "-env-" + fID + "-api"
 
 	// Idle for sleep_after: it sleeps, its container stops; the base never sleeps.
 	start := time.Now()
-	st := waitPhase(t, ctx, c, fID, agentv1.Phase_PHASE_SLEEPING)
+	st := waitPhase(t, ctx, c, fID, agentv2.Phase_PHASE_SLEEPING)
 	t.Logf("asleep %s after the last request (sleep_after 4s)", time.Since(start).Round(100*time.Millisecond))
 	if st.SleepReason != "idle" || running(t, ctx, rt, apiCtr) {
 		t.Errorf("asleep: reason %q, container running %v", st.SleepReason, running(t, ctx, rt, apiCtr))
 	}
 
-	// 20 requests at once wake it once; every one gets the module's answer.
+	// 20 requests at once wake it once; every one gets the application's answer.
 	start = time.Now()
 	var wg sync.WaitGroup
 	var ok atomic.Int32
@@ -201,7 +201,7 @@ func TestFeatureSleep(t *testing.T) {
 	if ok.Load() != 20 {
 		t.Errorf("%d of 20 requests to a sleeping feature succeeded; one failed with %v", ok.Load(), bad.Load())
 	}
-	waitPhase(t, ctx, c, fID, agentv1.Phase_PHASE_RUNNING)
+	waitPhase(t, ctx, c, fID, agentv2.Phase_PHASE_RUNNING)
 
 	// A POST keeps its body; a browser sees the starting page of a slow wake.
 	sleepNow(t, ctx, c, project, fID)
@@ -216,7 +216,7 @@ func TestFeatureSleep(t *testing.T) {
 		out, _ := exec.Command("docker", "logs", "--tail", "8", paths.ProxyName()).CombinedOutput()
 		t.Logf("proxy log:\n%s", out)
 	}
-	waitPhase(t, ctx, c, fID, agentv1.Phase_PHASE_RUNNING)
+	waitPhase(t, ctx, c, fID, agentv2.Phase_PHASE_RUNNING)
 	if code, body, _ := call("GET", host, "/api/", "text/html,*/*", ""); code != 200 || body != "api "+fID {
 		t.Errorf("browser after the wake: %d %q", code, body)
 	}
@@ -243,7 +243,7 @@ func TestFeatureSleep(t *testing.T) {
 		}
 	}()
 	for i := 0; i < 3; i++ {
-		if _, err := c.SetSleep(ctx, connect.NewRequest(&agentv1.SetSleepRequest{Project: project, Feature: fID, Asleep: true})); err != nil {
+		if _, err := c.SetSleep(ctx, connect.NewRequest(&agentv2.SetSleepRequest{Project: project, Feature: fID, Asleep: true})); err != nil {
 			t.Fatal(err)
 		}
 		time.Sleep(2 * time.Second)
@@ -256,48 +256,48 @@ func TestFeatureSleep(t *testing.T) {
 
 	// Budget: one feature of the project may be awake; the least recently used sleeps.
 	budget := fmt.Appendf(nil, sleepConfig, project, project, "1h", "  max_running: 1\n")
-	if _, err := c.AddFeatureModules(ctx, connect.NewRequest(&agentv1.AddFeatureModulesRequest{WorkspacePath: wsPath, Config: budget, Feature: "f1", Modules: []string{"api"}})); err != nil {
+	if _, err := c.AddFeatureApps(ctx, connect.NewRequest(&agentv2.AddFeatureAppsRequest{WorkspacePath: wsPath, Config: budget, Feature: "f1", Apps: []string{"api"}})); err != nil {
 		t.Fatal(err)
 	}
-	waitPhase(t, ctx, c, fID, agentv1.Phase_PHASE_RUNNING)
+	waitPhase(t, ctx, c, fID, agentv2.Phase_PHASE_RUNNING)
 	// The proxy reports requests every few seconds: let f1's last ones arrive first.
 	time.Sleep(proxy.StatsInterval + time.Second)
-	g, err := c.CreateFeature(ctx, connect.NewRequest(&agentv1.CreateFeatureRequest{WorkspacePath: wsPath, Config: budget, Name: "f2", Modules: []string{"web"}}))
+	g, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{WorkspacePath: wsPath, Config: budget, Name: "f2", Apps: []string{"web"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	gID := g.Msg.EnvironmentId
-	waitFor(t, ctx, c, gID, func(s *agentv1.EnvironmentStatus) bool {
-		return s.Phase == agentv1.Phase_PHASE_RUNNING || s.Phase == agentv1.Phase_PHASE_SLEEPING
+	waitFor(t, ctx, c, gID, func(s *agentv2.EnvironmentStatus) bool {
+		return s.Phase == agentv2.Phase_PHASE_RUNNING || s.Phase == agentv2.Phase_PHASE_SLEEPING
 	})
-	if st := waitPhase(t, ctx, c, fID, agentv1.Phase_PHASE_SLEEPING); st.SleepReason != "budget" {
+	if st := waitPhase(t, ctx, c, fID, agentv2.Phase_PHASE_SLEEPING); st.SleepReason != "budget" {
 		t.Errorf("f1 sleeps for %q, want budget", st.SleepReason)
 	}
 	if _, body, _ := call("GET", host, "/api/", "", ""); body != "api "+fID {
 		t.Errorf("f1 after waking over the budget: %q", body)
 	}
-	if st := waitPhase(t, ctx, c, gID, agentv1.Phase_PHASE_SLEEPING); st.SleepReason != "budget" {
+	if st := waitPhase(t, ctx, c, gID, agentv2.Phase_PHASE_SLEEPING); st.SleepReason != "budget" {
 		t.Errorf("f2 sleeps for %q, want budget", st.SleepReason)
 	}
-	if st := waitPhase(t, ctx, c, baseID, agentv1.Phase_PHASE_RUNNING); st.Phase != agentv1.Phase_PHASE_RUNNING {
+	if st := waitPhase(t, ctx, c, baseID, agentv2.Phase_PHASE_RUNNING); st.Phase != agentv2.Phase_PHASE_RUNNING {
 		t.Error("the base environment must never sleep")
 	}
 }
 
-func sleepNow(t *testing.T, ctx context.Context, c agentv1connect.AgentServiceClient, project, envID string) {
+func sleepNow(t *testing.T, ctx context.Context, c agentv2connect.AgentServiceClient, project, envID string) {
 	t.Helper()
-	if _, err := c.SetSleep(ctx, connect.NewRequest(&agentv1.SetSleepRequest{Project: project, Feature: envID, Asleep: true})); err != nil {
+	if _, err := c.SetSleep(ctx, connect.NewRequest(&agentv2.SetSleepRequest{Project: project, Feature: envID, Asleep: true})); err != nil {
 		t.Fatal(err)
 	}
-	waitPhase(t, ctx, c, envID, agentv1.Phase_PHASE_SLEEPING)
+	waitPhase(t, ctx, c, envID, agentv2.Phase_PHASE_SLEEPING)
 }
 
 // waitPhase polls the status: phases of sleep and wake change outside passes.
-func waitPhase(t *testing.T, ctx context.Context, c agentv1connect.AgentServiceClient, envID string, phase agentv1.Phase) *agentv1.EnvironmentStatus {
+func waitPhase(t *testing.T, ctx context.Context, c agentv2connect.AgentServiceClient, envID string, phase agentv2.Phase) *agentv2.EnvironmentStatus {
 	t.Helper()
 	deadline := time.Now().Add(90 * time.Second)
 	for {
-		st, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+		st, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 		if err != nil {
 			t.Fatal(err)
 		}

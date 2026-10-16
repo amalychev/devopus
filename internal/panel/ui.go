@@ -115,7 +115,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func isAPI(p string) bool { return strings.HasPrefix(p, "/devopus.agent.v1.") }
+func isAPI(p string) bool { return strings.HasPrefix(p, "/devopus.agent.v2.") }
 
 func (s *Server) ownHost(host string) bool {
 	h, p, err := net.SplitHostPort(host)

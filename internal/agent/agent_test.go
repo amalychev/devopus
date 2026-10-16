@@ -19,8 +19,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
-	"github.com/amalychev/devopus/gen/devopus/agent/v1/agentv1connect"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/proxy"
@@ -28,7 +28,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/store"
 )
 
-// TestAgentEndToEnd runs the agent against the real runtime: up brings a module and a
+// TestAgentEndToEnd runs the agent against the real runtime: up brings an application and a
 // service up behind the proxy, down stops them, purge removes everything. Skipped when
 // no runtime answers.
 func TestAgentEndToEnd(t *testing.T) {
@@ -79,7 +79,7 @@ func TestAgentEndToEnd(t *testing.T) {
 		t.Errorf("second agent: %v", err)
 	}
 
-	// A module that serves its folder, with an install hook that writes into it, and a
+	// An application that serves its folder, with an install hook that writes into it, and a
 	// service with a web UI on its own host. The image is small and usually at hand.
 	// Under the home folder: Colima shares only it with its VM.
 	userHome, err := os.UserHomeDir()
@@ -94,8 +94,8 @@ func TestAgentEndToEnd(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "web"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	os.WriteFile(filepath.Join(root, "web", "index.html"), []byte("served by the module "+project), 0o644)
-	// A module built from its Dockerfile, on a path of the same host.
+	os.WriteFile(filepath.Join(root, "web", "index.html"), []byte("served by the application "+project), 0o644)
+	// An application built from its Dockerfile, on a path of the same host.
 	os.MkdirAll(filepath.Join(root, "api"), 0o755)
 	os.WriteFile(filepath.Join(root, "api", "Dockerfile"), []byte("FROM python:3.12-slim\nRUN mkdir -p /srv/api && echo built by docker > /srv/api/index.html\nWORKDIR /srv\n"), 0o644)
 	config := fmt.Appendf(nil, `version: 1
@@ -122,12 +122,12 @@ modules:
     routes: [/api]
     command: python -m http.server 8080
 `, project, project)
-	invalid, err := c.Up(ctx, connect.NewRequest(&agentv1.UpRequest{WorkspacePath: "/src/x/workspace.yaml", Config: []byte("version: 1\n")}))
+	invalid, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: "/src/x/workspace.yaml", Config: []byte("version: 1\n")}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("invalid config accepted: %v %v", invalid, err)
 	}
 
-	up, err := c.Up(ctx, connect.NewRequest(&agentv1.UpRequest{WorkspacePath: filepath.Join(root, "workspace.yaml"), Config: config}))
+	up, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: filepath.Join(root, "workspace.yaml"), Config: config}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ modules:
 		// leave nothing behind even if the test fails half-way
 		purge(t, rt, c, project)
 	})
-	st := waitFor(t, ctx, c, envID, func(s *agentv1.EnvironmentStatus) bool { return s.Phase == agentv1.Phase_PHASE_RUNNING })
+	st := waitFor(t, ctx, c, envID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
 	if st.Network.GetSubnet() == "" {
 		t.Fatalf("no network in %v", st)
 	}
@@ -149,7 +149,7 @@ modules:
 	}
 
 	// The proxy serves the environment over HTTPS with the local CA, on both loopbacks.
-	status, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+	status, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ modules:
 	}
 	roots.AppendCertsFromPEM(pemData)
 	for _, addr := range []string{"127.0.0.1", "::1"} {
-		if code, body := httpsGet(t, ctx, addr, ports.HTTPS, host, roots); code != 200 || !strings.Contains(body, "served by the module "+project) {
+		if code, body := httpsGet(t, ctx, addr, ports.HTTPS, host, roots); code != 200 || !strings.Contains(body, "served by the application "+project) {
 			t.Errorf("%s: %d %s", addr, code, body)
 		}
 	}
@@ -173,11 +173,11 @@ modules:
 	if code, body := httpsGetPath(t, ctx, "127.0.0.1", ports.HTTPS, host, "/api/", roots); code != 200 || !strings.Contains(body, "built by docker") {
 		t.Errorf("%s/api/: %d %s", host, code, body)
 	}
-	routes, err := c.Routes(ctx, connect.NewRequest(&agentv1.RoutesRequest{EnvironmentId: envID}))
-	if err != nil || len(routes.Msg.Routes) != 3 || routes.Msg.Routes[0].Host != host || !strings.HasPrefix(routes.Msg.Routes[0].Target, "module web") {
+	routes, err := c.Routes(ctx, connect.NewRequest(&agentv2.RoutesRequest{EnvironmentId: envID}))
+	if err != nil || len(routes.Msg.Routes) != 3 || routes.Msg.Routes[0].Host != host || !strings.HasPrefix(routes.Msg.Routes[0].Target, "application web") {
 		t.Errorf("routes: %v %v", routes, err)
 	}
-	// The install hook ran in the module's container, in its code folder.
+	// The install hook ran in the application's container, in its code folder.
 	if data, err := os.ReadFile(filepath.Join(root, "web", ".installed")); err != nil || strings.TrimSpace(string(data)) != "installed" {
 		t.Errorf("install hook: %q %v", data, err)
 	}
@@ -185,13 +185,13 @@ modules:
 		t.Errorf("units: %v", st.Units)
 	}
 
-	// A module calls its environment's public URL: DNS gives the proxy, the proxy listens
-	// on the public port inside the network too, the module trusts the local CA.
+	// An application calls its environment's public URL: DNS gives the proxy, the proxy listens
+	// on the public port inside the network too, the application trusts the local CA.
 	web := project + "-env-" + envID + "-web"
 	out, err := exec.CommandContext(ctx, "docker", "exec", web, "python", "-c",
 		"import urllib.request;print(urllib.request.urlopen('"+st.Url+"/').read().decode())").CombinedOutput()
-	if err != nil || !strings.Contains(string(out), "served by the module") {
-		t.Errorf("the module calling %s: %s %v", st.Url, out, err)
+	if err != nil || !strings.Contains(string(out), "served by the application") {
+		t.Errorf("the application calling %s: %s %v", st.Url, out, err)
 	}
 
 	// Inside the environment network every *.localhost name is the proxy (CoreDNS).
@@ -204,12 +204,12 @@ modules:
 	}
 
 	// down stops the environment: the site says so, the DNS server goes, the network stays.
-	down, err := c.Down(ctx, connect.NewRequest(&agentv1.DownRequest{Project: project}))
+	down, err := c.Down(ctx, connect.NewRequest(&agentv2.DownRequest{Project: project}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, ctx, c, envID, func(s *agentv1.EnvironmentStatus) bool {
-		return s.Phase == agentv1.Phase_PHASE_STOPPED && s.AppliedRevision >= down.Msg.Revision
+	waitFor(t, ctx, c, envID, func(s *agentv2.EnvironmentStatus) bool {
+		return s.Phase == agentv2.Phase_PHASE_STOPPED && s.AppliedRevision >= down.Msg.Revision
 	})
 	if code, _ := httpsGet(t, ctx, "127.0.0.1", ports.HTTPS, host, roots); code != 503 {
 		t.Errorf("stopped environment answers %d", code)
@@ -217,14 +217,14 @@ modules:
 	if !hasNetwork(t, ctx, rt, envID) || len(containers(t, ctx, rt, "dns")) != 0 {
 		t.Error("stop must keep the network and drop the DNS server")
 	}
-	if names := containers(t, ctx, rt, "module"); len(names) != 2 || running(t, ctx, rt, names[0]) {
-		t.Errorf("stop must keep the module container, stopped: %v", names)
+	if names := containers(t, ctx, rt, "app"); len(names) != 2 || running(t, ctx, rt, names[0]) {
+		t.Errorf("stop must keep the application container, stopped: %v", names)
 	}
 
-	if _, err := c.Down(ctx, connect.NewRequest(&agentv1.DownRequest{Project: project, Purge: true})); err != nil {
+	if _, err := c.Down(ctx, connect.NewRequest(&agentv2.DownRequest{Project: project, Purge: true})); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, ctx, c, envID, func(s *agentv1.EnvironmentStatus) bool { return s.Removed })
+	waitFor(t, ctx, c, envID, func(s *agentv2.EnvironmentStatus) bool { return s.Removed })
 	if hasNetwork(t, ctx, rt, envID) {
 		t.Fatal("network left behind")
 	}
@@ -313,10 +313,10 @@ func containers(t *testing.T, ctx context.Context, rt *runtime.Docker, role stri
 }
 
 // purge removes the project and waits until the agent's containers are gone.
-func purge(t *testing.T, rt *runtime.Docker, c agentv1connect.AgentServiceClient, project string) {
+func purge(t *testing.T, rt *runtime.Docker, c agentv2connect.AgentServiceClient, project string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	_, _ = c.Down(ctx, connect.NewRequest(&agentv1.DownRequest{Project: project, Purge: true}))
+	_, _ = c.Down(ctx, connect.NewRequest(&agentv2.DownRequest{Project: project, Purge: true}))
 	for ctx.Err() == nil {
 		if all, err := rt.Containers(ctx, paths.Instance()); err != nil || len(all) == 0 {
 			return
@@ -336,16 +336,16 @@ func freePort(t *testing.T) uint16 {
 	return uint16(ln.Addr().(*net.TCPAddr).Port)
 }
 
-func waitFor(t *testing.T, ctx context.Context, c agentv1connect.AgentServiceClient, envID string, cond func(*agentv1.EnvironmentStatus) bool) *agentv1.EnvironmentStatus {
+func waitFor(t *testing.T, ctx context.Context, c agentv2connect.AgentServiceClient, envID string, cond func(*agentv2.EnvironmentStatus) bool) *agentv2.EnvironmentStatus {
 	t.Helper()
-	w, err := c.Watch(ctx, connect.NewRequest(&agentv1.WatchRequest{EnvironmentId: envID}))
+	w, err := c.Watch(ctx, connect.NewRequest(&agentv2.WatchRequest{EnvironmentId: envID}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer w.Close()
 	for w.Receive() {
 		if s := w.Msg().Status; s != nil {
-			if s.Phase == agentv1.Phase_PHASE_ERROR {
+			if s.Phase == agentv2.Phase_PHASE_ERROR {
 				t.Fatalf("environment failed: %s", s.Error)
 			}
 			if cond(s) {

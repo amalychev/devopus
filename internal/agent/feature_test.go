@@ -16,7 +16,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/proxy"
@@ -82,7 +82,7 @@ func TestFeatures(t *testing.T) {
 		t.Setenv(k, v)
 	}
 
-	// The project is a git repository with its modules in folders.
+	// The project is a git repository with its applications in folders.
 	project := "ft-" + store.NewID()
 	root := filepath.Join(home, "repo")
 	os.MkdirAll(filepath.Join(root, "web"), 0o755)
@@ -132,13 +132,13 @@ func TestFeatures(t *testing.T) {
 		purge(t, rt, c, project)
 	})
 
-	up, err := c.Up(ctx, connect.NewRequest(&agentv1.UpRequest{WorkspacePath: wsPath, Config: config}))
+	up, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: wsPath, Config: config}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	baseID := up.Msg.EnvironmentId
-	waitFor(t, ctx, c, baseID, func(s *agentv1.EnvironmentStatus) bool { return s.Phase == agentv1.Phase_PHASE_RUNNING })
-	status, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+	waitFor(t, ctx, c, baseID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
+	status, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +196,7 @@ func TestFeatures(t *testing.T) {
 	}()
 
 	// Feature A forks api: web uses api, so it runs in the feature too; store is its own.
-	a, err := c.CreateFeature(ctx, connect.NewRequest(&agentv1.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "PAY-1", Modules: []string{"api"}}))
+	a, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "PAY-1", Apps: []string{"api"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestFeatures(t *testing.T) {
 	if a.Msg.Slug != "pay-1" || a.Msg.Branch != "feature/PAY-1" || a.Msg.BaseEnvironmentId != baseID {
 		t.Errorf("create = %v", a.Msg)
 	}
-	fa := waitFor(t, ctx, c, aID, func(s *agentv1.EnvironmentStatus) bool { return s.Phase == agentv1.Phase_PHASE_RUNNING })
+	fa := waitFor(t, ctx, c, aID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
 	hostA := "pay-1." + host
 	if want := fmt.Sprintf("https://%s:%d", hostA, ports.HTTPS); fa.Url != want {
 		t.Errorf("url = %s, want %s", fa.Url, want)
@@ -213,7 +213,7 @@ func TestFeatures(t *testing.T) {
 		t.Fatalf("sources = %v, code root %q", fa.Sources, fa.CodeRoot)
 	}
 	for _, s := range fa.Sources {
-		if s.Module == "api" && s.Branch != "feature/PAY-1" || s.Module == "web" && s.Branch != "feature/PAY-1" {
+		if s.App == "api" && s.Branch != "feature/PAY-1" || s.App == "web" && s.Branch != "feature/PAY-1" {
 			// One worktree of the repository: it is on the feature branch.
 			t.Errorf("source %v", s)
 		}
@@ -238,12 +238,12 @@ func TestFeatures(t *testing.T) {
 	}
 
 	// Feature B forks only web: api and the paths it serves come from the base.
-	b, err := c.CreateFeature(ctx, connect.NewRequest(&agentv1.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "ui-2", Modules: []string{"web"}}))
+	b, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "ui-2", Apps: []string{"web"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	bID := b.Msg.EnvironmentId
-	fb := waitFor(t, ctx, c, bID, func(s *agentv1.EnvironmentStatus) bool { return s.Phase == agentv1.Phase_PHASE_RUNNING })
+	fb := waitFor(t, ctx, c, bID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
 	hostB := "ui-2." + host
 	if len(fb.Shared) != 1 || fb.Shared[0] != "api" {
 		t.Errorf("shared = %v", fb.Shared)
@@ -276,12 +276,12 @@ func TestFeatures(t *testing.T) {
 
 	// database: shared — PAY-1 drops its store and reaches the base's over TCP.
 	shared := fmt.Appendf(nil, featureConfig, project, project, "shared")
-	add, err := c.AddFeatureModules(ctx, connect.NewRequest(&agentv1.AddFeatureModulesRequest{WorkspacePath: wsPath, Config: shared, Feature: "pay-1", Modules: []string{"api"}}))
+	add, err := c.AddFeatureApps(ctx, connect.NewRequest(&agentv2.AddFeatureAppsRequest{WorkspacePath: wsPath, Config: shared, Feature: "pay-1", Apps: []string{"api"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, ctx, c, aID, func(s *agentv1.EnvironmentStatus) bool {
-		return s.Phase == agentv1.Phase_PHASE_RUNNING && s.AppliedRevision >= add.Msg.Revision
+	waitFor(t, ctx, c, aID, func(s *agentv2.EnvironmentStatus) bool {
+		return s.Phase == agentv2.Phase_PHASE_RUNNING && s.AppliedRevision >= add.Msg.Revision
 	})
 	if b := inside(aID, "api", "http://store:9000/i.html"); b != "store-"+baseID {
 		t.Errorf("api→store in PAY-1 with a shared database = %q", b)
@@ -291,15 +291,15 @@ func TestFeatures(t *testing.T) {
 	}
 
 	// PAY-1 has uncommitted work: removal refuses without --force.
-	_, err = c.RemoveFeature(ctx, connect.NewRequest(&agentv1.RemoveFeatureRequest{Project: project, Feature: "PAY-1"}))
+	_, err = c.RemoveFeature(ctx, connect.NewRequest(&agentv2.RemoveFeatureRequest{Project: project, Feature: "PAY-1"}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), "uncommitted") {
 		t.Errorf("remove with work: %v", err)
 	}
-	rmB, err := c.RemoveFeature(ctx, connect.NewRequest(&agentv1.RemoveFeatureRequest{Project: project, Feature: "ui-2", Force: true}))
+	rmB, err := c.RemoveFeature(ctx, connect.NewRequest(&agentv2.RemoveFeatureRequest{Project: project, Feature: "ui-2", Force: true}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, ctx, c, bID, func(s *agentv1.EnvironmentStatus) bool { return s.Removed && s.AppliedRevision >= rmB.Msg.Revision })
+	waitFor(t, ctx, c, bID, func(s *agentv2.EnvironmentStatus) bool { return s.Removed && s.AppliedRevision >= rmB.Msg.Revision })
 	if _, err := os.Stat(fb.CodeRoot); !os.IsNotExist(err) {
 		t.Errorf("ui-2's worktree stays: %v", err)
 	}
@@ -321,11 +321,11 @@ func TestFeatures(t *testing.T) {
 		t.Errorf("PAY-1 after ui-2 left: %q", b)
 	}
 
-	if _, err := c.Down(ctx, connect.NewRequest(&agentv1.DownRequest{Project: project, Purge: true})); err != nil {
+	if _, err := c.Down(ctx, connect.NewRequest(&agentv2.DownRequest{Project: project, Purge: true})); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; ; i++ {
-		st, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+		st, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -14,7 +14,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/stack"
 )
@@ -25,7 +25,7 @@ const roleCopy = "copy"
 // dataMark is what the agent remembers about a copy of a database: in the base
 // environment the golden copy, in a feature its own copy.
 type dataMark struct {
-	// Key identifies the golden copy: the migrations of the modules that use the
+	// Key identifies the golden copy: the migrations of the applications that use the
 	// database. A feature keeps the key of the golden copy it came from.
 	Key   string    `json:"key"`
 	Reset uint64    `json:"reset"`
@@ -73,9 +73,9 @@ func goldenKey(d stack.Data, hooks hookMarks) string {
 // feature first needs one, made again after the base's migrations change and on
 // 'devopus db golden refresh'. The copy is taken from the running database without
 // stopping it: pg_basebackup for Postgres, CLONE LOCAL for MySQL.
-func (r *Reconciler) ensureGolden(ctx context.Context, env *agentv1.EnvironmentSpec, p *prepared) (string, error) {
+func (r *Reconciler) ensureGolden(ctx context.Context, env *agentv2.EnvironmentSpec, p *prepared) (string, error) {
 	if len(p.plan.Data) == 0 {
-		r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.Data = nil })
+		r.update(env.Id, func(s *agentv2.EnvironmentStatus) { s.Data = nil })
 		return "no databases", nil
 	}
 	marks := r.loadData(env.Id)
@@ -183,9 +183,9 @@ func (r *Reconciler) goldenCopy(ctx context.Context, d stack.Data, containerID s
 // ensureData gives a feature's databases their data: a copy of the base environment's
 // golden copy, made once and again on 'devopus db reset'. The feature's migrations then
 // run on its copy only.
-func (r *Reconciler) ensureData(ctx context.Context, env *agentv1.EnvironmentSpec, p *prepared, o *observed) (string, error) {
+func (r *Reconciler) ensureData(ctx context.Context, env *agentv2.EnvironmentSpec, p *prepared, o *observed) (string, error) {
 	if len(p.plan.Data) == 0 {
-		r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.Data = nil })
+		r.update(env.Id, func(s *agentv2.EnvironmentStatus) { s.Data = nil })
 		return "no databases of its own", nil
 	}
 	marks := r.loadData(env.Id)
@@ -232,7 +232,7 @@ func (r *Reconciler) ensureData(ctx context.Context, env *agentv1.EnvironmentSpe
 }
 
 // copyData replaces the feature's database and its volume with a copy of the golden one.
-func (r *Reconciler) copyData(ctx context.Context, env *agentv1.EnvironmentSpec, d stack.Data, o *observed) error {
+func (r *Reconciler) copyData(ctx context.Context, env *agentv2.EnvironmentSpec, d stack.Data, o *observed) error {
 	ctrs := o.byEnv[env.Id][:0:0]
 	for _, c := range o.byEnv[env.Id] {
 		if c.Name == d.Container {
@@ -289,9 +289,9 @@ func (r *Reconciler) copyData(ctx context.Context, env *agentv1.EnvironmentSpec,
 // setDataStatus publishes the databases of an environment. golden is the base's marks,
 // for a feature: its copy is behind when the golden copy changed since.
 func (r *Reconciler) setDataStatus(envID string, data []stack.Data, marks, golden map[string]dataMark) {
-	var out []*agentv1.DataStatus
+	var out []*agentv2.DataStatus
 	for _, d := range data {
-		st := &agentv1.DataStatus{Service: d.Service, Engine: d.Engine}
+		st := &agentv2.DataStatus{Service: d.Service, Engine: d.Engine}
 		if m, ok := marks[d.Service]; ok {
 			st.CopiedAt, st.Size = timestamppb.New(m.At), m.Size
 			if g, ok := golden[d.Service]; ok && g.Key != m.Key {
@@ -303,5 +303,5 @@ func (r *Reconciler) setDataStatus(envID string, data []stack.Data, marks, golde
 		}
 		out = append(out, st)
 	}
-	r.update(envID, func(s *agentv1.EnvironmentStatus) { s.Data = out })
+	r.update(envID, func(s *agentv2.EnvironmentStatus) { s.Data = out })
 }

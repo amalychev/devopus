@@ -30,19 +30,19 @@ import (
 const (
 	// LabelUnit is the unit's name in the environment: mysql, api, api-worker-1.
 	LabelUnit = "com.devopus.unit"
-	// LabelModule is the module or service a unit belongs to.
-	LabelModule = "com.devopus.module"
+	// LabelApp is the application or service a unit belongs to.
+	LabelApp = "com.devopus.app"
 )
 
 // Roles of the containers (runtime.LabelRole).
 const (
 	RoleService = "service"
-	RoleModule  = "module"
+	RoleApp     = "app"
 	RoleWorker  = "worker"
 	RoleHook    = "hook"
 )
 
-// Where the local CA appears in module containers (local-networking.md: no image
+// Where the local CA appears in application containers (local-networking.md: no image
 // rebuild, environment variables point at the files).
 const (
 	CAPath     = "/devopus/ca.pem"
@@ -57,10 +57,10 @@ type Env struct {
 	// Root is the repository root: the folder of workspace.yaml. Services mount files
 	// from it.
 	Root string
-	// CodeRoot is the checkout that modules with path come from: Root, or the
+	// CodeRoot is the checkout that applications with path come from: Root, or the
 	// feature's worktree of the repository. Empty means Root.
 	CodeRoot string
-	// Isolation is set for a feature: it runs only its modules and services.
+	// Isolation is set for a feature: it runs only its applications and services.
 	Isolation *Isolation
 	// BaseID is the project's base environment, which keeps the golden copies of the
 	// databases; empty in the base environment itself.
@@ -70,9 +70,9 @@ type Env struct {
 	Subnet  netip.Prefix
 	// URL is the environment's public URL, the value of ${{ env.url }}.
 	URL string
-	// Sources maps modules to the folder of their code on the host.
+	// Sources maps applications to the folder of their code on the host.
 	Sources map[string]string
-	// Heads maps modules to the commit of their code; a new one reruns migrate.
+	// Heads maps applications to the commit of their code; a new one reruns migrate.
 	Heads   map[string]string
 	Secrets map[string]string
 	// CA is the local root; Bundle is the public roots plus it.
@@ -87,11 +87,11 @@ type Env struct {
 type Unit struct {
 	Name string
 	Role string
-	// Owner is the module or service in workspace.yaml.
+	// Owner is the application or service in workspace.yaml.
 	Owner string
 	Spec  runtime.ContainerSpec
 	IP    netip.Addr
-	// Port is where the proxy sends requests: the module's port, the service's web UI.
+	// Port is where the proxy sends requests: the application's port, the service's web UI.
 	Port   int
 	Routes []string
 	Expose string
@@ -101,9 +101,9 @@ type Unit struct {
 	Healthcheck bool
 }
 
-// Hook is a one-shot command in a module's container.
+// Hook is a one-shot command in an application's container.
 type Hook struct {
-	Module  string
+	App     string
 	Name    string // install, migrate
 	Command string
 	Spec    runtime.ContainerSpec
@@ -119,7 +119,7 @@ type Plan struct {
 	Hooks   []Hook
 	Volumes []string
 	Builds  []runtime.BuildSpec
-	// Images to pull: services, runtimes and module images.
+	// Images to pull: services, runtimes and application images.
 	Images []string
 	// Data are the databases features copy from the base environment.
 	Data []Data
@@ -207,7 +207,7 @@ func Build(p *spec.Project, env Env) (*Plan, error) {
 	// migrations may need what another one migrated.
 	var installs, migrates []Hook
 	for _, u := range b.plan.Units {
-		if u.Role != RoleModule {
+		if u.Role != RoleApp {
 			continue
 		}
 		a := p.Apps[u.Owner]
@@ -232,7 +232,7 @@ func Build(p *spec.Project, env Env) (*Plan, error) {
 	b.plan.Hooks = append(installs, migrates...)
 	for i, d := range b.plan.Data {
 		for _, u := range b.plan.Units {
-			if u.Role == RoleModule && contains(p.Services[d.Service].Apps, u.Owner) {
+			if u.Role == RoleApp && contains(p.Services[d.Service].Apps, u.Owner) {
 				b.plan.Data[i].Uses = append(b.plan.Data[i].Uses, u.Owner)
 			}
 		}
@@ -258,7 +258,7 @@ type builder struct {
 }
 
 func (b *builder) labels(role, unit, owner string) map[string]string {
-	l := map[string]string{runtime.LabelRole: role, LabelUnit: unit, LabelModule: owner}
+	l := map[string]string{runtime.LabelRole: role, LabelUnit: unit, LabelApp: owner}
 	for k, v := range b.env.Labels {
 		l[k] = v
 	}
@@ -376,7 +376,7 @@ func (b *builder) app(name string, a *spec.App) ([]Unit, error) {
 	needs := b.p.Needs(name)
 	main := clone(base)
 	main.Name = Prefix(b.env.Project, b.env.ID) + "-" + name
-	main.Labels = b.labels(RoleModule, name, name)
+	main.Labels = b.labels(RoleApp, name, name)
 	main.IP = b.ips[name]
 	main.Aliases = []string{name}
 	if main.Cmd, err = b.command(a.Command); err != nil {
@@ -386,7 +386,7 @@ func (b *builder) app(name string, a *spec.App) ([]Unit, error) {
 		return nil, err
 	}
 	finish(&main)
-	units := []Unit{{Name: name, Role: RoleModule, Owner: name, Spec: main, IP: main.IP, Port: a.AppPort(), Routes: a.Routes,
+	units := []Unit{{Name: name, Role: RoleApp, Owner: name, Spec: main, IP: main.IP, Port: a.AppPort(), Routes: a.Routes,
 		Needs: needs, Healthcheck: main.Health != nil && main.Health.Test[0] != "NONE"}}
 
 	// Queues run the application's code with their own command, replicas apart.
@@ -425,10 +425,10 @@ func (b *builder) hook(u Unit, name, command, input string) (Hook, error) {
 	s.Cmd = []string{"sh", "-c", cmd}
 	finish(&s)
 	sum := sha256.Sum256([]byte(s.Labels[runtime.LabelConfig] + "\n" + input))
-	return Hook{Module: u.Owner, Name: name, Command: cmd, Spec: s, Key: hex.EncodeToString(sum[:])[:16]}, nil
+	return Hook{App: u.Owner, Name: name, Command: cmd, Spec: s, Key: hex.EncodeToString(sum[:])[:16]}, nil
 }
 
-// build describes the image of a module with build; its tag changes with the
+// build describes the image of an application with build; its tag changes with the
 // Dockerfile and the build options, not with every change of the code.
 func (b *builder) build(name, ctxDir string, bd *spec.Build) (runtime.BuildSpec, error) {
 	args := map[string]string{}
@@ -466,7 +466,7 @@ func (b *builder) mount(spec *runtime.ContainerSpec, v string, binds bool) error
 	ro := len(parts) == 3 && parts[2] == "ro"
 	if strings.HasPrefix(src, ".") || strings.HasPrefix(src, "/") {
 		if !binds {
-			return fmt.Errorf("volume %q: modules get their code from the checkout; mount only named volumes", v)
+			return fmt.Errorf("volume %q: applications get their code from the checkout; mount only named volumes", v)
 		}
 		if path.IsAbs(src) {
 			return fmt.Errorf("volume %q: folders outside the repository are not supported yet", v)
@@ -568,7 +568,7 @@ func Command(line string) []string {
 	return words
 }
 
-// caEnv points TLS libraries at the bundle, so modules trust the environment's own
+// caEnv points TLS libraries at the bundle, so applications trust the environment's own
 // HTTPS URL and public sites alike (P-6: curl, Python, Node, PHP).
 func caEnv() []string {
 	return []string{
@@ -651,13 +651,13 @@ func health(h *spec.Healthcheck) (*runtime.Health, error) {
 	return out, nil
 }
 
-// pinIPs gives every service and module a fixed address in the upper half of the
+// pinIPs gives every service and application a fixed address in the upper half of the
 // network, which Docker does not hand out (.128–.252; .253 is DNS, .254 the proxy).
-// The address depends on the name, so adding a module rarely moves another.
+// The address depends on the name, so adding an application rarely moves another.
 func pinIPs(subnet netip.Prefix, names []string) (map[string]netip.Addr, error) {
 	const first, last = 128, 252
 	if len(names) > last-first+1 {
-		return nil, fmt.Errorf("%d services and modules do not fit into one environment (at most %d)", len(names), last-first+1)
+		return nil, fmt.Errorf("%d services and applications do not fit into one environment (at most %d)", len(names), last-first+1)
 	}
 	sorted := append([]string{}, names...)
 	sort.Strings(sorted)
@@ -679,7 +679,7 @@ func pinIPs(subnet netip.Prefix, names []string) (map[string]netip.Addr, error) 
 	return out, nil
 }
 
-// order sorts units so that each comes after what it needs. Cycles among modules are
+// order sorts units so that each comes after what it needs. Cycles among applications are
 // allowed (specs/workspace-yaml.md, rule 3): their members start in name order.
 func order(units []Unit) []Unit {
 	byName := map[string]int{}

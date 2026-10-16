@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/stack"
 )
@@ -48,8 +48,8 @@ modules:
     workers: [{command: php artisan queue:work}]
 `
 
-// appProject is a repository with two modules and a secret.
-func appProject(t *testing.T) (root string, state func(rev uint64, phase agentv1.DesiredPhase) *agentv1.DesiredState) {
+// appProject is a repository with two applications and a secret.
+func appProject(t *testing.T) (root string, state func(rev uint64, phase agentv2.DesiredPhase) *agentv2.DesiredState) {
 	t.Helper()
 	root = t.TempDir()
 	for _, d := range []string{"web", "api"} {
@@ -60,14 +60,14 @@ func appProject(t *testing.T) (root string, state func(rev uint64, phase agentv1
 	os.WriteFile(filepath.Join(root, "api", "Dockerfile"), []byte("FROM php:8.3\n"), 0o644)
 	os.WriteFile(filepath.Join(root, "web", "package-lock.json"), []byte("{}"), 0o644)
 	os.WriteFile(filepath.Join(root, SecretsFile), []byte("KEY=\"s3cr3t\"\n"), 0o600)
-	return root, func(rev uint64, phase agentv1.DesiredPhase) *agentv1.DesiredState {
-		env := &agentv1.EnvironmentSpec{Id: "bbbbbb", Project: "app", Kind: agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE, Phase: phase}
-		var envs []*agentv1.EnvironmentSpec
-		if phase != agentv1.DesiredPhase_DESIRED_PHASE_UNSPECIFIED {
+	return root, func(rev uint64, phase agentv2.DesiredPhase) *agentv2.DesiredState {
+		env := &agentv2.EnvironmentSpec{Id: "bbbbbb", Project: "app", Kind: agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE, Phase: phase}
+		var envs []*agentv2.EnvironmentSpec
+		if phase != agentv2.DesiredPhase_DESIRED_PHASE_UNSPECIFIED {
 			envs = append(envs, env)
 		}
-		return &agentv1.DesiredState{Revision: rev, Environments: envs,
-			Projects: []*agentv1.ProjectSpec{{Name: "app", Root: root, Config: []byte(appYAML)}}}
+		return &agentv2.DesiredState{Revision: rev, Environments: envs,
+			Projects: []*agentv2.ProjectSpec{{Name: "app", Root: root, Config: []byte(appYAML)}}}
 	}
 }
 
@@ -81,12 +81,12 @@ func TestModulesComeUp(t *testing.T) {
 	}
 	r := h.new(nil)
 	root, state := appProject(t)
-	running := agentv1.DesiredPhase_DESIRED_PHASE_RUNNING
+	running := agentv2.DesiredPhase_DESIRED_PHASE_RUNNING
 	if err := r.Reconcile(ctx, state(1, running)); err != nil {
 		t.Fatal(err)
 	}
 	st := r.Statuses()[0]
-	if st.Phase != agentv1.Phase_PHASE_RUNNING {
+	if st.Phase != agentv2.Phase_PHASE_RUNNING {
 		t.Fatalf("phase %v: %s", st.Phase, st.Error)
 	}
 
@@ -101,9 +101,9 @@ func TestModulesComeUp(t *testing.T) {
 	if len(h.rt.byRole(stack.RoleHook)) != 0 {
 		t.Error("hook containers are left behind")
 	}
-	api := h.rt.byRole(stack.RoleModule)
+	api := h.rt.byRole(stack.RoleApp)
 	if len(api) != 2 || len(h.rt.byRole(stack.RoleWorker)) != 1 || len(h.rt.byRole(stack.RoleService)) != 2 {
-		t.Fatalf("modules %d workers %d services %d", len(api), len(h.rt.byRole(stack.RoleWorker)), len(h.rt.byRole(stack.RoleService)))
+		t.Fatalf("applications %d workers %d services %d", len(api), len(h.rt.byRole(stack.RoleWorker)), len(h.rt.byRole(stack.RoleService)))
 	}
 	for _, c := range api {
 		spec := h.rt.specs[c.ID]
@@ -112,7 +112,7 @@ func TestModulesComeUp(t *testing.T) {
 		}
 	}
 
-	// The proxy sends paths to modules and the mail host to the web UI.
+	// The proxy sends paths to applications and the mail host to the web UI.
 	cfg := h.xds.last()
 	if len(cfg.Sites) != 1 || len(cfg.Sites[0].VHosts) != 2 {
 		t.Fatalf("sites %+v", cfg.Sites)
@@ -125,7 +125,7 @@ func TestModulesComeUp(t *testing.T) {
 	for _, rt := range r.Routes() {
 		routes = append(routes, rt.Host+rt.Path+" → "+strings.Fields(rt.Target)[0]+" "+strings.Fields(rt.Target)[1])
 	}
-	if strings.Join(routes, "; ") != "app.localhost/ → module web; app.localhost/api → module api; mail.app.localhost/ → service mail" {
+	if strings.Join(routes, "; ") != "app.localhost/ → application web; app.localhost/api → application api; mail.app.localhost/ → service mail" {
 		t.Errorf("routes %v", routes)
 	}
 	if asked["app.localhost/"] != 1 || asked["app.localhost/api"] != 1 {
@@ -166,7 +166,7 @@ func TestModulesComeUp(t *testing.T) {
 	}
 	stoppedBefore := h.rt.stopped
 
-	// A changed lock file reruns install and restarts that module only.
+	// A changed lock file reruns install and restarts that application only.
 	os.WriteFile(filepath.Join(root, "web", "package-lock.json"), []byte(`{"lockfileVersion":3}`), 0o644)
 	if err := r.Reconcile(ctx, state(2, running)); err != nil {
 		t.Fatal(err)
@@ -176,17 +176,17 @@ func TestModulesComeUp(t *testing.T) {
 	}
 
 	// Stopped: containers stop and stay, the volume stays, the site says so.
-	if err := r.Reconcile(ctx, state(3, agentv1.DesiredPhase_DESIRED_PHASE_STOPPED)); err != nil {
+	if err := r.Reconcile(ctx, state(3, agentv2.DesiredPhase_DESIRED_PHASE_STOPPED)); err != nil {
 		t.Fatal(err)
 	}
-	for _, role := range []string{stack.RoleModule, stack.RoleService, stack.RoleWorker} {
+	for _, role := range []string{stack.RoleApp, stack.RoleService, stack.RoleWorker} {
 		for _, c := range h.rt.byRole(role) {
 			if c.Running {
 				t.Errorf("%s still runs", c.Name)
 			}
 		}
 	}
-	if st := r.Statuses()[0]; st.Phase != agentv1.Phase_PHASE_STOPPED || len(st.Units) != 5 || st.Units[0].State != "exited" {
+	if st := r.Statuses()[0]; st.Phase != agentv2.Phase_PHASE_STOPPED || len(st.Units) != 5 || st.Units[0].State != "exited" {
 		t.Errorf("stopped: %v units %v", st.Phase, st.Units)
 	}
 	if h.xds.last().Sites[0].Page.Status != 503 || len(h.rt.vols) != 2 {
@@ -194,7 +194,7 @@ func TestModulesComeUp(t *testing.T) {
 	}
 
 	// Removed with its data: containers, volumes and the environment's files go.
-	if err := r.Reconcile(ctx, state(4, agentv1.DesiredPhase_DESIRED_PHASE_UNSPECIFIED)); err != nil {
+	if err := r.Reconcile(ctx, state(4, agentv2.DesiredPhase_DESIRED_PHASE_UNSPECIFIED)); err != nil {
 		t.Fatal(err)
 	}
 	if len(h.rt.ctrs) != 0 || len(h.rt.vols) != 0 {
@@ -204,7 +204,7 @@ func TestModulesComeUp(t *testing.T) {
 	if len(h.rt.built) != 1 {
 		t.Errorf("built images %v", h.rt.built)
 	}
-	gone := state(5, agentv1.DesiredPhase_DESIRED_PHASE_UNSPECIFIED)
+	gone := state(5, agentv2.DesiredPhase_DESIRED_PHASE_UNSPECIFIED)
 	gone.Projects = nil
 	if err := r.Reconcile(ctx, gone); err != nil {
 		t.Fatal(err)
@@ -223,27 +223,27 @@ func TestHookFailure(t *testing.T) {
 	h.rt.hookExit["sh -c php artisan migrate"] = 1
 	r := h.new(nil)
 	_, state := appProject(t)
-	if err := r.Reconcile(ctx, state(1, agentv1.DesiredPhase_DESIRED_PHASE_RUNNING)); err == nil {
+	if err := r.Reconcile(ctx, state(1, agentv2.DesiredPhase_DESIRED_PHASE_RUNNING)); err == nil {
 		t.Fatal("a failed migration must fail the pass")
 	}
 	st := r.Statuses()[0]
-	if st.Phase != agentv1.Phase_PHASE_ERROR || !strings.Contains(st.Error, `migrate: api: "php artisan migrate" exited with 1`) {
+	if st.Phase != agentv2.Phase_PHASE_ERROR || !strings.Contains(st.Error, `migrate: api: "php artisan migrate" exited with 1`) {
 		t.Errorf("status %v: %s", st.Phase, st.Error)
 	}
 	if !strings.Contains(st.Error, filepath.Join("bbbbbb", "logs", "api-migrate.log")) {
 		t.Errorf("the error does not point at the log: %s", st.Error)
 	}
-	if len(h.rt.byRole(stack.RoleModule)) != 0 {
-		t.Error("modules started although their migration failed")
+	if len(h.rt.byRole(stack.RoleApp)) != 0 {
+		t.Error("applications started although their migration failed")
 	}
 	// The services that did start stay reachable through the proxy.
 	if len(h.xds.last().Sites[0].VHosts) == 0 {
 		t.Error("the site has no routes after a failed hook")
 	}
 
-	// Fixed: the next pass migrates and starts the modules; install does not run again.
+	// Fixed: the next pass migrates and starts the applications; install does not run again.
 	delete(h.rt.hookExit, "sh -c php artisan migrate")
-	if err := r.Reconcile(ctx, state(1, agentv1.DesiredPhase_DESIRED_PHASE_RUNNING)); err != nil {
+	if err := r.Reconcile(ctx, state(1, agentv2.DesiredPhase_DESIRED_PHASE_RUNNING)); err != nil {
 		t.Fatal(err)
 	}
 	if n := len(h.rt.hooks); n != 4 || h.rt.hooks[3] != "sh -c php artisan migrate" {
@@ -258,23 +258,23 @@ func TestModuleStillStarting(t *testing.T) {
 	h.opt.Answers = func(context.Context, string, string, proxy.Ports) error { return proxy.ErrNoAnswer }
 	r := h.new(nil)
 	_, state := appProject(t)
-	if err := r.Reconcile(ctx, state(1, agentv1.DesiredPhase_DESIRED_PHASE_RUNNING)); err != ErrNotReady {
+	if err := r.Reconcile(ctx, state(1, agentv2.DesiredPhase_DESIRED_PHASE_RUNNING)); err != ErrNotReady {
 		t.Fatalf("err = %v", err)
 	}
 	st := r.Statuses()[0]
 	ready := findStep(st, "ready")
-	if st.Phase != agentv1.Phase_PHASE_CREATING || ready.State != agentv1.StepState_STEP_STATE_RUNNING || !strings.Contains(ready.Message, "waiting for") {
+	if st.Phase != agentv2.Phase_PHASE_CREATING || ready.State != agentv2.StepState_STEP_STATE_RUNNING || !strings.Contains(ready.Message, "waiting for") {
 		t.Errorf("phase %v ready %v %q", st.Phase, ready.State, ready.Message)
 	}
 
-	// A module that exits fails the environment with its output.
-	h.rt.crash[stack.RoleModule] = true
-	for _, c := range h.rt.byRole(stack.RoleModule) {
+	// An application that exits fails the environment with its output.
+	h.rt.crash[stack.RoleApp] = true
+	for _, c := range h.rt.byRole(stack.RoleApp) {
 		h.rt.StopContainer(ctx, c.ID)
 	}
-	err := r.Reconcile(ctx, state(2, agentv1.DesiredPhase_DESIRED_PHASE_RUNNING))
+	err := r.Reconcile(ctx, state(2, agentv2.DesiredPhase_DESIRED_PHASE_RUNNING))
 	st = r.Statuses()[0]
-	if err == nil || st.Phase != agentv1.Phase_PHASE_ERROR || !strings.Contains(st.Error, "exited") {
+	if err == nil || st.Phase != agentv2.Phase_PHASE_ERROR || !strings.Contains(st.Error, "exited") {
 		t.Errorf("err %v phase %v: %s", err, st.Phase, st.Error)
 	}
 }
@@ -304,28 +304,28 @@ func TestCloneRepoModule(t *testing.T) {
 	cfg := "version: 1\nproject: site\ndomain: site.localhost\nmodules:\n  web:\n    repo: file://" + repo + "\n    image: nginx:1.27.4\n    mount: /usr/share/nginx/html\n    port: 80\n    routes: [/]\n"
 	h := newHarness(t, newFake())
 	r := h.new(nil)
-	state := func(phase agentv1.DesiredPhase) *agentv1.DesiredState {
-		d := &agentv1.DesiredState{Revision: 1, Projects: []*agentv1.ProjectSpec{{Name: "site", Root: root, Config: []byte(cfg)}}}
-		if phase != agentv1.DesiredPhase_DESIRED_PHASE_UNSPECIFIED {
-			d.Environments = []*agentv1.EnvironmentSpec{{Id: "cccccc", Project: "site", Kind: agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE, Phase: phase}}
+	state := func(phase agentv2.DesiredPhase) *agentv2.DesiredState {
+		d := &agentv2.DesiredState{Revision: 1, Projects: []*agentv2.ProjectSpec{{Name: "site", Root: root, Config: []byte(cfg)}}}
+		if phase != agentv2.DesiredPhase_DESIRED_PHASE_UNSPECIFIED {
+			d.Environments = []*agentv2.EnvironmentSpec{{Id: "cccccc", Project: "site", Kind: agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE, Phase: phase}}
 		}
 		return d
 	}
-	if err := r.Reconcile(ctx, state(agentv1.DesiredPhase_DESIRED_PHASE_RUNNING)); err != nil {
+	if err := r.Reconcile(ctx, state(agentv2.DesiredPhase_DESIRED_PHASE_RUNNING)); err != nil {
 		t.Fatal(err)
 	}
 	src := r.SourceDir("site", "cccccc", "web")
 	if data, err := os.ReadFile(filepath.Join(src, "index.html")); err != nil || string(data) != "hi" {
 		t.Fatalf("checkout: %v %q", err, data)
 	}
-	web := h.rt.byRole(stack.RoleModule)[0]
+	web := h.rt.byRole(stack.RoleApp)[0]
 	if b := h.rt.specs[web.ID].Binds[0]; b.Source != src || b.Target != "/usr/share/nginx/html" {
 		t.Errorf("bind %+v", b)
 	}
 
 	// Removal keeps a checkout with work that exists nowhere else.
 	os.WriteFile(filepath.Join(src, "draft.html"), []byte("wip"), 0o644)
-	if err := r.Reconcile(ctx, state(agentv1.DesiredPhase_DESIRED_PHASE_UNSPECIFIED)); err != nil {
+	if err := r.Reconcile(ctx, state(agentv2.DesiredPhase_DESIRED_PHASE_UNSPECIFIED)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(src, "draft.html")); err != nil {

@@ -14,7 +14,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/stack"
@@ -25,7 +25,7 @@ import (
 func (a *app) featureCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "feature",
-		Short: "Environments for feature branches: create, add modules, list, remove",
+		Short: "Environments for feature branches: create, add applications, list, remove",
 	}
 	cmd.AddCommand(a.featureCreateCmd(), a.featureAddCmd(), a.featureListCmd(), a.featureRmCmd(), a.featurePathCmd(),
 		a.featureSleepCmd(true), a.featureSleepCmd(false))
@@ -71,28 +71,28 @@ func splitList(list []string) []string {
 }
 
 func (a *app) featureCreateCmd() *cobra.Command {
-	var modules []string
+	var apps []string
 	var branch string
 	var detach bool
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:   "create <name> --modules a,b",
-		Short: "Create a feature that forks some modules on its own branch and URL",
-		Long: "Creates a feature environment: the forked modules get worktrees on the feature branch\n" +
-			"(features.branch_prefix + name, or --branch), the modules that use them run in the\n" +
-			"feature too, and everything else comes from the base environment.",
+		Use:   "create <name> --apps a,b",
+		Short: "Create a feature that forks some applications on its own branch and URL",
+		Long: "Creates a feature environment: the forked applications get worktrees on the feature\n" +
+			"branch (features.branch_prefix + name, or --branch), the applications that use them run\n" +
+			"in the feature too, and everything else comes from the base environment.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			modules = splitList(modules)
-			if len(modules) == 0 {
-				return fail(ExitInvalid, "name the modules to fork: --modules a,b")
+			apps = splitList(apps)
+			if len(apps) == 0 {
+				return fail(ExitInvalid, "name the applications to fork: --apps a,b")
 			}
 			ws, abs, config, err := a.loadValid("devopus feature create")
 			if err != nil {
 				return err
 			}
-			iso, err := stack.Feature(ws, modules)
+			iso, err := stack.Feature(ws, apps)
 			if err != nil {
 				return fail(ExitInvalid, "%v", err)
 			}
@@ -107,8 +107,8 @@ func (a *app) featureCreateCmd() *cobra.Command {
 				return err
 			}
 			defer w.Close()
-			res, err := c.CreateFeature(ctx, connect.NewRequest(&agentv1.CreateFeatureRequest{
-				WorkspacePath: abs, Config: config, Name: name, Modules: modules, Branch: branch,
+			res, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{
+				WorkspacePath: abs, Config: config, Name: name, Apps: apps, Branch: branch,
 			}))
 			if err != nil {
 				return rpcError(err)
@@ -124,8 +124,8 @@ func (a *app) featureCreateCmd() *cobra.Command {
 			return a.awaitRunning(ctx, c, w, r.EnvironmentId, r.Revision, "Feature "+name)
 		},
 	}
-	cmd.Flags().StringSliceVarP(&modules, "modules", "m", nil, "modules to fork, comma-separated")
-	cmd.Flags().StringVar(&branch, "branch", "", "branch of the forked modules (default: features.branch_prefix + name)")
+	cmd.Flags().StringSliceVarP(&apps, "apps", "a", nil, "applications to fork, comma-separated")
+	cmd.Flags().StringVar(&branch, "branch", "", "branch of the forked applications (default: features.branch_prefix + name)")
 	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "return without waiting for the feature")
 	cmd.Flags().DurationVar(&timeout, "timeout", 15*time.Minute, "how long to wait")
 	return cmd
@@ -138,7 +138,7 @@ func (a *app) printIsolation(ws *spec.Project, iso *stack.Isolation, name, branc
 	fmt.Fprintf(w, "Feature %s of %s\n", name, ws.Name)
 	fmt.Fprintf(w, "  forks\t%s (branch %s)\n", strings.Join(iso.Forked, ", "), branch)
 	if d := iso.Dependents(); len(d) > 0 {
-		fmt.Fprintf(w, "  also runs\t%s: they use forked modules, on the base branch\n", strings.Join(d, ", "))
+		fmt.Fprintf(w, "  also runs\t%s: they use forked applications, on the base branch\n", strings.Join(d, ", "))
 	}
 	var copies, fresh []string
 	for _, svc := range iso.Services {
@@ -179,15 +179,15 @@ func (a *app) featureAddCmd() *cobra.Command {
 	var detach bool
 	var timeout time.Duration
 	cmd := &cobra.Command{
-		Use:   "add <feature> <module>...",
-		Short: "Fork more modules in a feature",
+		Use:   "add <feature> <app>...",
+		Short: "Fork more applications in a feature",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ws, abs, config, err := a.loadValid("devopus feature add")
 			if err != nil {
 				return err
 			}
-			modules := splitList(args[1:])
+			apps := splitList(args[1:])
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 			c, err := a.connect(ctx)
@@ -199,8 +199,8 @@ func (a *app) featureAddCmd() *cobra.Command {
 				return err
 			}
 			defer w.Close()
-			res, err := c.AddFeatureModules(ctx, connect.NewRequest(&agentv1.AddFeatureModulesRequest{
-				WorkspacePath: abs, Config: config, Feature: args[0], Modules: modules,
+			res, err := c.AddFeatureApps(ctx, connect.NewRequest(&agentv2.AddFeatureAppsRequest{
+				WorkspacePath: abs, Config: config, Feature: args[0], Apps: apps,
 			}))
 			if err != nil {
 				return rpcError(err)
@@ -232,10 +232,10 @@ func (a *app) project(flag string) (string, error) {
 	return res.Workspace.Project, nil
 }
 
-func features(st *agentv1.StatusResponse, project string) []*agentv1.EnvironmentStatus {
-	var out []*agentv1.EnvironmentStatus
+func features(st *agentv2.StatusResponse, project string) []*agentv2.EnvironmentStatus {
+	var out []*agentv2.EnvironmentStatus
 	for _, e := range st.Environments {
-		if e.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE && (project == "" || e.Project == project) {
+		if e.Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_FEATURE && (project == "" || e.Project == project) {
 			out = append(out, e)
 		}
 	}
@@ -249,7 +249,7 @@ func features(st *agentv1.StatusResponse, project string) []*agentv1.Environment
 }
 
 // findFeature resolves a feature by name, slug or ID within a project.
-func findFeature(st *agentv1.StatusResponse, project, key string) (*agentv1.EnvironmentStatus, error) {
+func findFeature(st *agentv2.StatusResponse, project, key string) (*agentv2.EnvironmentStatus, error) {
 	list := features(st, project)
 	var names []string
 	for _, e := range list {
@@ -284,11 +284,11 @@ func (a *app) featureListCmd() *cobra.Command {
 			}
 			list := features(st, project)
 			if a.json {
-				out := &agentv1.StatusResponse{Environments: list}
+				out := &agentv2.StatusResponse{Environments: list}
 				return a.writeProto(out)
 			}
 			if len(list) == 0 {
-				fmt.Fprintln(a.stdout, "No features. 'devopus feature create <name> --modules a,b' makes one.")
+				fmt.Fprintln(a.stdout, "No features. 'devopus feature create <name> --apps a,b' makes one.")
 				return nil
 			}
 			w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
@@ -296,7 +296,7 @@ func (a *app) featureListCmd() *cobra.Command {
 			var merged []string
 			for _, e := range list {
 				phase := phaseName(e.Phase)
-				if e.Phase == agentv1.Phase_PHASE_SLEEPING && e.SleepReason != "" {
+				if e.Phase == agentv2.Phase_PHASE_SLEEPING && e.SleepReason != "" {
 					phase += " (" + e.SleepReason + ")"
 				}
 				if e.Error != "" {
@@ -312,7 +312,7 @@ func (a *app) featureListCmd() *cobra.Command {
 					active = ago(time.Since(e.LastActive.AsTime()))
 				}
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", e.Project, e.Name, phase, active, dash(e.Url),
-					dash(strings.Join(e.ForkedModules, ",")), branch, dash(strings.Join(e.Shared, ",")))
+					dash(strings.Join(e.ForkedApps, ",")), branch, dash(strings.Join(e.Shared, ",")))
 			}
 			if err := w.Flush(); err != nil {
 				return err
@@ -354,7 +354,7 @@ func (a *app) featureRmCmd() *cobra.Command {
 				return err
 			}
 			defer w.Close()
-			res, err := c.RemoveFeature(ctx, connect.NewRequest(&agentv1.RemoveFeatureRequest{Project: project, Feature: args[0], Force: force}))
+			res, err := c.RemoveFeature(ctx, connect.NewRequest(&agentv2.RemoveFeatureRequest{Project: project, Feature: args[0], Force: force}))
 			if err != nil {
 				var ce *connect.Error
 				if errors.As(err, &ce) && ce.Code() == connect.CodeFailedPrecondition {
@@ -363,7 +363,7 @@ func (a *app) featureRmCmd() *cobra.Command {
 				return rpcError(err)
 			}
 			id := res.Msg.EnvironmentId
-			if _, err := a.follow(w, []string{id}, res.Msg.Revision, false, func(s *agentv1.EnvironmentStatus) bool { return s.Removed }); err != nil {
+			if _, err := a.follow(w, []string{id}, res.Msg.Revision, false, func(s *agentv2.EnvironmentStatus) bool { return s.Removed }); err != nil {
 				return err
 			}
 			return a.done(map[string]any{"environment_id": id, "revision": res.Msg.Revision}, "Feature %s of %s is removed.\n", args[0], project)
@@ -378,9 +378,9 @@ func (a *app) featureRmCmd() *cobra.Command {
 func (a *app) featurePathCmd() *cobra.Command {
 	var project string
 	cmd := &cobra.Command{
-		Use:   "path <feature> [module]",
+		Use:   "path <feature> [app]",
 		Short: "Print the folder of a feature's code, for IDEs and AI agents",
-		Long: "Prints the feature's folder of the project in its worktree, or the folder of one module.\n" +
+		Long: "Prints the feature's folder of the project in its worktree, or the folder of one application.\n" +
 			"For example: code $(devopus feature path PAY-123)",
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -404,10 +404,10 @@ func (a *app) featurePathCmd() *cobra.Command {
 			case len(args) == 2:
 				var names []string
 				for _, s := range e.Sources {
-					if s.Module == args[1] {
+					if s.App == args[1] {
 						path = s.Path
 					}
-					names = append(names, s.Module)
+					names = append(names, s.App)
 				}
 				if path == "" {
 					return fail(ExitInvalid, "feature %s does not run %q; it runs %s", e.Name, args[1], strings.Join(names, ", "))
@@ -419,9 +419,9 @@ func (a *app) featurePathCmd() *cobra.Command {
 			default:
 				var names []string
 				for _, s := range e.Sources {
-					names = append(names, s.Module)
+					names = append(names, s.App)
 				}
-				return fail(ExitInvalid, "the modules of %s are in separate repositories; name one: %s", e.Name, strings.Join(names, ", "))
+				return fail(ExitInvalid, "the applications of %s are in separate repositories; name one: %s", e.Name, strings.Join(names, ", "))
 			}
 			return a.done(map[string]any{"path": path}, "%s\n", path)
 		},
@@ -458,9 +458,9 @@ func ago(d time.Duration) string {
 func (a *app) featureSleepCmd(asleep bool) *cobra.Command {
 	var project string
 	var timeout time.Duration
-	use, short, want := "wake <feature>", "Wake a sleeping feature", agentv1.Phase_PHASE_RUNNING
+	use, short, want := "wake <feature>", "Wake a sleeping feature", agentv2.Phase_PHASE_RUNNING
 	if asleep {
-		use, short, want = "sleep <feature>", "Put a feature to sleep: its containers stop, its first request wakes it", agentv1.Phase_PHASE_SLEEPING
+		use, short, want = "sleep <feature>", "Put a feature to sleep: its containers stop, its first request wakes it", agentv2.Phase_PHASE_SLEEPING
 	}
 	cmd := &cobra.Command{
 		Use:   use,
@@ -477,7 +477,7 @@ func (a *app) featureSleepCmd(asleep bool) *cobra.Command {
 			if err := client.Ping(ctx, c); err != nil {
 				return fail(ExitError, "%v", err)
 			}
-			res, err := c.SetSleep(ctx, connect.NewRequest(&agentv1.SetSleepRequest{Project: project, Feature: args[0], Asleep: asleep}))
+			res, err := c.SetSleep(ctx, connect.NewRequest(&agentv2.SetSleepRequest{Project: project, Feature: args[0], Asleep: asleep}))
 			if err != nil {
 				var ce *connect.Error
 				if errors.As(err, &ce) && ce.Code() == connect.CodeFailedPrecondition {
@@ -487,7 +487,7 @@ func (a *app) featureSleepCmd(asleep bool) *cobra.Command {
 			}
 			// Sleep and wake happen outside passes: poll until the phase says so.
 			for {
-				st, err := c.Status(ctx, connect.NewRequest(&agentv1.StatusRequest{}))
+				st, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
 				if err != nil {
 					return rpcError(err)
 				}
@@ -506,7 +506,7 @@ func (a *app) featureSleepCmd(asleep bool) *cobra.Command {
 						fmt.Fprintf(a.stdout, "Feature %s %s\n", e.Name, verb)
 						return nil
 					}
-					if e.Error != "" && !asleep && e.Phase == agentv1.Phase_PHASE_SLEEPING {
+					if e.Error != "" && !asleep && e.Phase == agentv2.Phase_PHASE_SLEEPING {
 						return fail(ExitError, "%s", e.Error)
 					}
 				}

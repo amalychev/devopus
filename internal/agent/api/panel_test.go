@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 )
 
-func collect(ch chan string) func(*agentv1.LogLine) error {
-	return func(l *agentv1.LogLine) error {
+func collect(ch chan string) func(*agentv2.LogLine) error {
+	return func(l *agentv2.LogLine) error {
 		ch <- l.Text
 		return nil
 	}
@@ -35,7 +35,7 @@ func TestTailFileLastLines(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got []string
-	err := tailFile(context.Background(), path, 2, false, func(l *agentv1.LogLine) error {
+	err := tailFile(context.Background(), path, 2, false, func(l *agentv2.LogLine) error {
 		got = append(got, l.Text)
 		return nil
 	})

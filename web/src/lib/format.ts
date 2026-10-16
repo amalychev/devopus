@@ -4,7 +4,7 @@ import {
   EnvironmentKind,
   Phase,
   type EnvironmentStatus,
-} from "@/gen/devopus/agent/v1/agent_pb"
+} from "@/gen/devopus/agent/v2/agent_pb"
 
 export type PhaseKey = "running" | "sleeping" | "creating" | "error" | "stopped"
 

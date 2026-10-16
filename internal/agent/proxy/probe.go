@@ -65,7 +65,7 @@ func probeClient(roots *x509.CertPool, host, addr string, timeout time.Duration)
 				return (&net.Dialer{}).DialContext(ctx, network, addr)
 			},
 		},
-		// A redirect is an answer of the module.
+		// A redirect is an answer of the application.
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 }

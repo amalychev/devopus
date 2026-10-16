@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 )
 
@@ -69,7 +69,7 @@ func newHarness(t *testing.T, envs ...Env) *harness {
 			return nil
 		},
 		Answers: func(context.Context, string, string) error { return nil },
-		Publish: func(string, func(*agentv1.EnvironmentStatus)) {},
+		Publish: func(string, func(*agentv2.EnvironmentStatus)) {},
 		Kick:    func() {},
 	})
 	h.m.now = func() time.Time {
@@ -91,7 +91,7 @@ func feature(id string, maxRunning int) Env {
 	return Env{ID: id, Project: "shop", Name: id, Host: id + ".shop.localhost", Ready: true, SleepAfter: time.Hour, MaxRunning: maxRunning,
 		Units: []Unit{
 			{Name: "db", Container: id + "-db", Role: "service"},
-			{Name: "api", Container: id + "-api", Role: "module", Path: "/api"},
+			{Name: "api", Container: id + "-api", Role: "app", Path: "/api"},
 		}}
 }
 
@@ -112,7 +112,7 @@ func TestIdleFeatureSleepsAndWakesOnce(t *testing.T) {
 	if !h.m.Asleep("f1") {
 		t.Fatal("an idle feature stays awake")
 	}
-	// Traffic to the waker first, then the module before what it uses.
+	// Traffic to the waker first, then the application before what it uses.
 	if !slices.Equal(h.switches, []string{"sleep f1"}) || !slices.Equal(h.rt.stops, []string{"f1-api", "f1-db"}) {
 		t.Errorf("switches %v, stops %v", h.switches, h.rt.stops)
 	}

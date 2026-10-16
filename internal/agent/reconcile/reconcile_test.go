@@ -15,7 +15,7 @@ import (
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/pki"
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/runtime"
@@ -387,13 +387,13 @@ func newHarness(t *testing.T, rt *fakeRuntime) *harness {
 	return h
 }
 
-func (h *harness) new(publish func(*agentv1.EnvironmentStatus)) *Reconciler {
+func (h *harness) new(publish func(*agentv2.EnvironmentStatus)) *Reconciler {
 	return New(h.rt, h.opt, publish)
 }
 
 const shopYAML = "version: 1\nproject: shop\ndomain: shop.localhost\nservices:\n  mail:\n    image: axllent/mailpit:v1.20\n    port: 1025\n    ui_port: 8025\n    expose: mail\nmodules:\n  web:\n    path: web\n    image: nginx:1.27\n    routes: [/]\n"
 
-// testRoot is the repository of the test project: a folder with the module web.
+// testRoot is the repository of the test project: a folder with the application web.
 var testRoot string
 
 func TestMain(m *testing.M) {
@@ -410,20 +410,20 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func desired(rev uint64, envs ...*agentv1.EnvironmentSpec) *agentv1.DesiredState {
-	return &agentv1.DesiredState{Revision: rev, Environments: envs, Projects: []*agentv1.ProjectSpec{{Name: "shop", Root: testRoot, Config: []byte(shopYAML)}}}
+func desired(rev uint64, envs ...*agentv2.EnvironmentSpec) *agentv2.DesiredState {
+	return &agentv2.DesiredState{Revision: rev, Environments: envs, Projects: []*agentv2.ProjectSpec{{Name: "shop", Root: testRoot, Config: []byte(shopYAML)}}}
 }
 
-func base(id string) *agentv1.EnvironmentSpec {
-	return &agentv1.EnvironmentSpec{Id: id, Project: "shop", Kind: agentv1.EnvironmentKind_ENVIRONMENT_KIND_BASE, Phase: agentv1.DesiredPhase_DESIRED_PHASE_RUNNING}
+func base(id string) *agentv2.EnvironmentSpec {
+	return &agentv2.EnvironmentSpec{Id: id, Project: "shop", Kind: agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE, Phase: agentv2.DesiredPhase_DESIRED_PHASE_RUNNING}
 }
 
 type recorder struct {
 	mu     sync.Mutex
-	events []*agentv1.EnvironmentStatus
+	events []*agentv2.EnvironmentStatus
 }
 
-func (r *recorder) publish(s *agentv1.EnvironmentStatus) {
+func (r *recorder) publish(s *agentv2.EnvironmentStatus) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.events = append(r.events, s)
@@ -449,7 +449,7 @@ func TestCreateConvergeAndGC(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := r.Statuses()
-	if len(st) != 1 || st[0].Phase != agentv1.Phase_PHASE_RUNNING || st[0].AppliedRevision != 1 {
+	if len(st) != 1 || st[0].Phase != agentv2.Phase_PHASE_RUNNING || st[0].AppliedRevision != 1 {
 		t.Fatalf("status = %v", st)
 	}
 	if st[0].Network.Name != "shop-env-aaaaaa" || st[0].Network.Subnet != "10.213.2.0/24" {
@@ -457,12 +457,12 @@ func TestCreateConvergeAndGC(t *testing.T) {
 	}
 	var steps []string
 	for _, s := range st[0].Steps {
-		if s.State != agentv1.StepState_STEP_STATE_DONE {
+		if s.State != agentv2.StepState_STEP_STATE_DONE {
 			t.Errorf("step %s: %v %s", s.Name, s.State, s.Message)
 		}
 		steps = append(steps, s.Name)
 	}
-	if got := strings.Join(steps, ","); got != "network,certificate,proxy,dns,source,images,services,install,migrate,golden,modules,routes,ready" {
+	if got := strings.Join(steps, ","); got != "network,certificate,proxy,dns,source,images,services,install,migrate,golden,apps,routes,ready" {
 		t.Errorf("steps = %s", got)
 	}
 	if st[0].Url != "https://shop.localhost" {
@@ -500,7 +500,7 @@ func TestCreateConvergeAndGC(t *testing.T) {
 	if err := r.Reconcile(ctx, desired(1, base("aaaaaa"))); err != nil {
 		t.Fatal(err)
 	}
-	// Four containers: the proxy, DNS, the service mail and the module web.
+	// Four containers: the proxy, DNS, the service mail and the application web.
 	if rec.count() != n || h.rt.creates != 1 || h.rt.created != 4 || h.rt.connects != 1 || h.chooses != 1 {
 		t.Errorf("second pass: %d new events, %d network creates, %d container creates, %d connects, %d port probes",
 			rec.count()-n, h.rt.creates, h.rt.created, h.rt.connects, h.chooses)
@@ -543,11 +543,11 @@ func TestStoppedPhase(t *testing.T) {
 		t.Fatal(err)
 	}
 	env := base("bbbbbb")
-	env.Phase = agentv1.DesiredPhase_DESIRED_PHASE_STOPPED
+	env.Phase = agentv2.DesiredPhase_DESIRED_PHASE_STOPPED
 	if err := r.Reconcile(context.Background(), desired(2, env)); err != nil {
 		t.Fatal(err)
 	}
-	if p := r.Statuses()[0].Phase; p != agentv1.Phase_PHASE_STOPPED {
+	if p := r.Statuses()[0].Phase; p != agentv2.Phase_PHASE_STOPPED {
 		t.Errorf("phase = %v", p)
 	}
 	if len(h.rt.byRole("dns")) != 0 || len(h.rt.byRole("proxy")) != 1 {
@@ -589,7 +589,7 @@ func TestFallbackPortsStick(t *testing.T) {
 	// devopus proxy restart: a new generation recreates the proxy, which probes again
 	// and is attached to the environment network again.
 	d := desired(3, base("dddddd"))
-	d.Device = &agentv1.DeviceSettings{ProxyGeneration: 1}
+	d.Device = &agentv2.DeviceSettings{ProxyGeneration: 1}
 	if err := r.Reconcile(ctx, d); err != nil {
 		t.Fatal(err)
 	}
@@ -632,14 +632,14 @@ func TestProbeFailureIsReported(t *testing.T) {
 		t.Fatal("a site the proxy does not serve must fail the pass")
 	}
 	s := r.Statuses()[0]
-	if s.Phase != agentv1.Phase_PHASE_ERROR || !strings.HasPrefix(s.Error, "routes: connection refused") || s.AppliedRevision != 1 {
+	if s.Phase != agentv2.Phase_PHASE_ERROR || !strings.HasPrefix(s.Error, "routes: connection refused") || s.AppliedRevision != 1 {
 		t.Fatalf("status = %v", s)
 	}
 	h.probe = nil
 	if err := r.Reconcile(ctx, desired(1, base("ffffff"))); err != nil {
 		t.Fatal(err)
 	}
-	if s := r.Statuses()[0]; s.Phase != agentv1.Phase_PHASE_RUNNING || s.Error != "" {
+	if s := r.Statuses()[0]; s.Phase != agentv2.Phase_PHASE_RUNNING || s.Error != "" {
 		t.Fatalf("status = %v", s)
 	}
 }
@@ -652,7 +652,7 @@ func TestFailedStepRecovers(t *testing.T) {
 	if err := r.Reconcile(ctx, desired(1, base("gggggg"))); err == nil {
 		t.Fatal("expected the dns step to fail")
 	}
-	if s := r.Statuses()[0]; s.Phase != agentv1.Phase_PHASE_ERROR || !strings.HasPrefix(s.Error, "dns: boom") || s.AppliedRevision != 1 {
+	if s := r.Statuses()[0]; s.Phase != agentv2.Phase_PHASE_ERROR || !strings.HasPrefix(s.Error, "dns: boom") || s.AppliedRevision != 1 {
 		t.Fatalf("status = %v", s)
 	}
 	// The site is still served: the certificate was ready.
@@ -662,7 +662,7 @@ func TestFailedStepRecovers(t *testing.T) {
 	if err := r.Reconcile(ctx, desired(1, base("gggggg"))); err != nil {
 		t.Fatal(err)
 	}
-	if s := r.Statuses()[0]; s.Phase != agentv1.Phase_PHASE_RUNNING {
+	if s := r.Statuses()[0]; s.Phase != agentv2.Phase_PHASE_RUNNING {
 		t.Fatalf("status = %v", s)
 	}
 }

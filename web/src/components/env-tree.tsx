@@ -2,7 +2,7 @@ import { PlusIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { PhaseDot } from "@/components/phase-dot"
-import type { EnvironmentStatus } from "@/gen/devopus/agent/v1/agent_pb"
+import type { EnvironmentStatus } from "@/gen/devopus/agent/v2/agent_pb"
 import { envTitle, isFeature, phaseKey, phaseLabel } from "@/lib/format"
 import { cn } from "@/lib/utils"
 

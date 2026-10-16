@@ -161,7 +161,7 @@ var ErrSubnetTaken = errors.New("subnet overlaps an existing network")
 
 // CreateNetwork creates a bridge network. Docker hands out addresses only from the
 // lower half of the subnet; the upper half is for the fixed addresses the agent
-// assigns (the proxy, the DNS server, modules that must keep their IP across restarts).
+// assigns (the proxy, the DNS server, applications that must keep their IP across restarts).
 func (d *Docker) CreateNetwork(ctx context.Context, name string, subnet netip.Prefix, labels map[string]string) (string, error) {
 	ipam := network.IPAMConfig{Subnet: subnet}
 	if subnet.Addr().Is4() && subnet.Bits() < 31 {

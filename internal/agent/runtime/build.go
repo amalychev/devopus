@@ -14,7 +14,7 @@ import (
 	"github.com/moby/moby/client"
 )
 
-// BuildSpec is an image build of a module.
+// BuildSpec is an image build of an application.
 type BuildSpec struct {
 	Tag        string
 	Context    string // absolute folder on the host

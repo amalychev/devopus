@@ -58,7 +58,7 @@ const HostGateway = "host.docker.internal"
 // Config is everything Envoy serves.
 type Config struct {
 	// HTTPPort and HTTPSPort are the public ports; HTTP redirects to HTTPS. Envoy also
-	// listens on them inside the environment networks, so a module that calls its
+	// listens on them inside the environment networks, so an application that calls its
 	// environment's URL reaches the proxy on the same port as a browser does.
 	HTTPPort  uint32
 	HTTPSPort uint32
@@ -83,11 +83,11 @@ type Site struct {
 	Hosts   []string
 	CertPEM []byte
 	KeyPEM  []byte
-	// VHosts route the hosts to modules and service web UIs. A site without them shows
-	// Page on every host and path: before modules run, and while the environment is stopped.
+	// VHosts route the hosts to applications and service web UIs. A site without them shows
+	// Page on every host and path: before applications run, and while the environment is stopped.
 	VHosts []VHost
 	Page   Page
-	// Shared: a feature's way to the base environment's modules and services.
+	// Shared: a feature's way to the base environment's applications and services.
 	Shared *Shared
 	// Sleep is set for sites whose units sleep (features): Awake says whether the
 	// proxy sends their traffic to them or to the waker.
@@ -115,7 +115,7 @@ type PathRoute struct {
 
 // Upstream is a container in the environment network, at its pinned address.
 type Upstream struct {
-	// Name is unique within the site: the module or service.
+	// Name is unique within the site: the application or service.
 	Name string
 	Addr netip.AddrPort
 	// Sleeps: the unit belongs to the site and sleeps with it.
@@ -361,7 +361,7 @@ func httpManager(stat, routes string) (*listenerv3.Filter, error) {
 }
 
 // HealthPath is answered by the proxy itself on every site: the agent checks with it
-// that a site is served, without waiting for the modules behind it.
+// that a site is served, without waiting for the applications behind it.
 const HealthPath = "/.devopus/health"
 
 func healthRoute() *routev3.Route {

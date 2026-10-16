@@ -16,7 +16,7 @@ func TestAgentAPI(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "a.sock")
 	h := AgentAPI(sock)
 
-	req := httptest.NewRequest(http.MethodPost, "/devopus.agent.v1.AgentService/Status", strings.NewReader("{}"))
+	req := httptest.NewRequest(http.MethodPost, "/devopus.agent.v2.AgentService/Status", strings.NewReader("{}"))
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), `"code":"unavailable"`) {
@@ -35,7 +35,7 @@ func TestAgentAPI(t *testing.T) {
 	go srv.Serve(ln)
 	defer srv.Close()
 
-	req = httptest.NewRequest(http.MethodPost, "/devopus.agent.v1.AgentService/Status", strings.NewReader("{}"))
+	req = httptest.NewRequest(http.MethodPost, "/devopus.agent.v2.AgentService/Status", strings.NewReader("{}"))
 	req.Header.Set("Cookie", "devopus_panel_x=secret")
 	req.Header.Set(TokenHeader, "Bearer secret")
 	rec = httptest.NewRecorder()
@@ -43,7 +43,7 @@ func TestAgentAPI(t *testing.T) {
 	if rec.Code != http.StatusOK || rec.Body.String() != `{"agentVersion":"x"}` {
 		t.Fatalf("with an agent: %d %s", rec.Code, rec.Body)
 	}
-	if got.URL.Path != "/devopus.agent.v1.AgentService/Status" || got.Header.Get("Cookie") != "" || got.Header.Get(TokenHeader) != "" {
+	if got.URL.Path != "/devopus.agent.v2.AgentService/Status" || got.Header.Get("Cookie") != "" || got.Header.Get(TokenHeader) != "" {
 		t.Fatalf("forwarded %s with cookie %q, auth %q", got.URL.Path, got.Header.Get("Cookie"), got.Header.Get(TokenHeader))
 	}
 }

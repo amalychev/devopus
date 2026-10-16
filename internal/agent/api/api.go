@@ -14,8 +14,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
-	"github.com/amalychev/devopus/gen/devopus/agent/v1/agentv1connect"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
 	"github.com/amalychev/devopus/internal/agent/stack"
 	"github.com/amalychev/devopus/internal/agent/store"
 	"github.com/amalychev/devopus/internal/importer"
@@ -26,14 +26,14 @@ import (
 // Backend is what the API needs from the running agent.
 type Backend interface {
 	Store() *store.Store
-	Statuses() []*agentv1.EnvironmentStatus
-	Runtime() *agentv1.RuntimeInfo
+	Statuses() []*agentv2.EnvironmentStatus
+	Runtime() *agentv2.RuntimeInfo
 	Version() string
-	Proxy() *agentv1.ProxyStatus
-	Routes() []*agentv1.Route
-	CA() *agentv1.CAInfo
+	Proxy() *agentv2.ProxyStatus
+	Routes() []*agentv2.Route
+	CA() *agentv2.CAInfo
 	// Unsaved describes work in a feature's worktrees that exists nowhere else.
-	Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *spec.Project) (map[string]string, error)
+	Unsaved(ctx context.Context, env *agentv2.EnvironmentSpec, ws *spec.Project) (map[string]string, error)
 	// Force lets the removal of a feature drop its worktrees even with work in them.
 	Force(envID string)
 	// Sleep and Wake switch a feature; they return once it started switching.
@@ -49,17 +49,17 @@ type Server struct {
 	hub *Hub
 }
 
-var _ agentv1connect.AgentServiceHandler = (*Server)(nil)
+var _ agentv2connect.AgentServiceHandler = (*Server)(nil)
 
 func New(b Backend, hub *Hub) *Server { return &Server{b: b, hub: hub} }
 
-func (s *Server) Status(context.Context, *connect.Request[agentv1.StatusRequest]) (*connect.Response[agentv1.StatusResponse], error) {
+func (s *Server) Status(context.Context, *connect.Request[agentv2.StatusRequest]) (*connect.Response[agentv2.StatusResponse], error) {
 	st := s.b.Store().Snapshot()
 	projects := st.Projects
 	for _, p := range projects {
 		p.Config = nil // the CLI needs names and roots, not files
 	}
-	return connect.NewResponse(&agentv1.StatusResponse{
+	return connect.NewResponse(&agentv2.StatusResponse{
 		AgentVersion:    s.b.Version(),
 		DesiredRevision: st.Revision,
 		Runtime:         s.b.Runtime(),
@@ -70,17 +70,17 @@ func (s *Server) Status(context.Context, *connect.Request[agentv1.StatusRequest]
 	}), nil
 }
 
-func (s *Server) Routes(_ context.Context, req *connect.Request[agentv1.RoutesRequest]) (*connect.Response[agentv1.RoutesResponse], error) {
-	var out []*agentv1.Route
+func (s *Server) Routes(_ context.Context, req *connect.Request[agentv2.RoutesRequest]) (*connect.Response[agentv2.RoutesResponse], error) {
+	var out []*agentv2.Route
 	for _, r := range s.b.Routes() {
 		if req.Msg.EnvironmentId == "" || r.EnvironmentId == req.Msg.EnvironmentId {
 			out = append(out, r)
 		}
 	}
-	return connect.NewResponse(&agentv1.RoutesResponse{Routes: out, Proxy: s.b.Proxy()}), nil
+	return connect.NewResponse(&agentv2.RoutesResponse{Routes: out, Proxy: s.b.Proxy()}), nil
 }
 
-func (s *Server) SetProxy(_ context.Context, req *connect.Request[agentv1.SetProxyRequest]) (*connect.Response[agentv1.SetProxyResponse], error) {
+func (s *Server) SetProxy(_ context.Context, req *connect.Request[agentv2.SetProxyRequest]) (*connect.Response[agentv2.SetProxyResponse], error) {
 	m := req.Msg
 	for _, p := range []uint32{m.CoexistHttpPort, m.CoexistHttpsPort} {
 		if p > 65535 {
@@ -97,10 +97,10 @@ func (s *Server) SetProxy(_ context.Context, req *connect.Request[agentv1.SetPro
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&agentv1.SetProxyResponse{Revision: rev}), nil
+	return connect.NewResponse(&agentv2.SetProxyResponse{Revision: rev}), nil
 }
 
-func (s *Server) Up(_ context.Context, req *connect.Request[agentv1.UpRequest]) (*connect.Response[agentv1.UpResponse], error) {
+func (s *Server) Up(_ context.Context, req *connect.Request[agentv2.UpRequest]) (*connect.Response[agentv2.UpResponse], error) {
 	ws, path, config, err := s.workspaceOf(req.Msg.Project, req.Msg.WorkspacePath, req.Msg.Config)
 	if err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func (s *Server) Up(_ context.Context, req *connect.Request[agentv1.UpRequest]) 
 	if err != nil {
 		return nil, storeError(err)
 	}
-	return connect.NewResponse(&agentv1.UpResponse{EnvironmentId: envID, Revision: rev}), nil
+	return connect.NewResponse(&agentv2.UpResponse{EnvironmentId: envID, Revision: rev}), nil
 }
 
 // parseWorkspace checks workspace.yaml: the agent does it itself, the CLI may be older
@@ -146,7 +146,7 @@ func storeError(err error) error {
 	return connect.NewError(connect.CodeInternal, err)
 }
 
-func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv1.CreateFeatureRequest]) (*connect.Response[agentv1.CreateFeatureResponse], error) {
+func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv2.CreateFeatureRequest]) (*connect.Response[agentv2.CreateFeatureResponse], error) {
 	m := req.Msg
 	ws, path, config, err := s.workspaceOf(m.Project, m.WorkspacePath, m.Config)
 	if err != nil {
@@ -155,7 +155,7 @@ func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv1.C
 	if strings.TrimSpace(m.Name) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a feature needs a name"))
 	}
-	if _, err := stack.Feature(ws, m.Modules); err != nil {
+	if _, err := stack.Feature(ws, m.Apps); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	branch := m.Branch
@@ -172,33 +172,33 @@ func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv1.C
 		}
 	}
 	f, base, rev, err := s.b.Store().CreateFeature(ws.Name, filepath.Dir(path), config,
-		store.NewFeature{Name: m.Name, Branch: branch, Modules: m.Modules, Reserved: reserved})
+		store.NewFeature{Name: m.Name, Branch: branch, Apps: m.Apps, Reserved: reserved})
 	if err != nil {
 		return nil, storeError(err)
 	}
-	return connect.NewResponse(&agentv1.CreateFeatureResponse{EnvironmentId: f.Id, Slug: f.Slug, Branch: f.Branch, Revision: rev, BaseEnvironmentId: base.Id}), nil
+	return connect.NewResponse(&agentv2.CreateFeatureResponse{EnvironmentId: f.Id, Slug: f.Slug, Branch: f.Branch, Revision: rev, BaseEnvironmentId: base.Id}), nil
 }
 
-func (s *Server) AddFeatureModules(_ context.Context, req *connect.Request[agentv1.AddFeatureModulesRequest]) (*connect.Response[agentv1.AddFeatureModulesResponse], error) {
+func (s *Server) AddFeatureApps(_ context.Context, req *connect.Request[agentv2.AddFeatureAppsRequest]) (*connect.Response[agentv2.AddFeatureAppsResponse], error) {
 	m := req.Msg
 	ws, path, config, err := s.workspaceOf(m.Project, m.WorkspacePath, m.Config)
 	if err != nil {
 		return nil, err
 	}
-	if len(m.Modules) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name the modules to fork"))
+	if len(m.Apps) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name the applications to fork"))
 	}
-	if _, err := stack.Feature(ws, m.Modules); err != nil {
+	if _, err := stack.Feature(ws, m.Apps); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	env, rev, err := s.b.Store().AddFeatureModules(ws.Name, filepath.Dir(path), config, m.Feature, m.Modules)
+	env, rev, err := s.b.Store().AddFeatureApps(ws.Name, filepath.Dir(path), config, m.Feature, m.Apps)
 	if err != nil {
 		return nil, storeError(err)
 	}
-	return connect.NewResponse(&agentv1.AddFeatureModulesResponse{EnvironmentId: env.Id, Revision: rev}), nil
+	return connect.NewResponse(&agentv2.AddFeatureAppsResponse{EnvironmentId: env.Id, Revision: rev}), nil
 }
 
-func (s *Server) RemoveFeature(ctx context.Context, req *connect.Request[agentv1.RemoveFeatureRequest]) (*connect.Response[agentv1.RemoveFeatureResponse], error) {
+func (s *Server) RemoveFeature(ctx context.Context, req *connect.Request[agentv2.RemoveFeatureRequest]) (*connect.Response[agentv2.RemoveFeatureResponse], error) {
 	m := req.Msg
 	var ws *spec.Project
 	for _, p := range s.b.Store().Snapshot().Projects {
@@ -208,7 +208,7 @@ func (s *Server) RemoveFeature(ctx context.Context, req *connect.Request[agentv1
 			}
 		}
 	}
-	env, rev, err := s.b.Store().RemoveFeature(m.Project, m.Feature, func(env *agentv1.EnvironmentSpec) error {
+	env, rev, err := s.b.Store().RemoveFeature(m.Project, m.Feature, func(env *agentv2.EnvironmentSpec) error {
 		if m.Force {
 			return nil
 		}
@@ -238,10 +238,10 @@ func (s *Server) RemoveFeature(ctx context.Context, req *connect.Request[agentv1
 	if m.Force {
 		s.b.Force(env.Id)
 	}
-	return connect.NewResponse(&agentv1.RemoveFeatureResponse{EnvironmentId: env.Id, Revision: rev}), nil
+	return connect.NewResponse(&agentv2.RemoveFeatureResponse{EnvironmentId: env.Id, Revision: rev}), nil
 }
 
-func (s *Server) ResetData(_ context.Context, req *connect.Request[agentv1.ResetDataRequest]) (*connect.Response[agentv1.ResetDataResponse], error) {
+func (s *Server) ResetData(_ context.Context, req *connect.Request[agentv2.ResetDataRequest]) (*connect.Response[agentv2.ResetDataResponse], error) {
 	m := req.Msg
 	var ws *spec.Project
 	st := s.b.Store()
@@ -262,7 +262,7 @@ func (s *Server) ResetData(_ context.Context, req *connect.Request[agentv1.Reset
 		if f == nil {
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%w %q in %s", store.ErrUnknownFeature, m.Environment, m.Project))
 		}
-		iso, err := stack.Feature(ws, f.ForkedModules)
+		iso, err := stack.Feature(ws, f.ForkedApps)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
@@ -298,15 +298,15 @@ func (s *Server) ResetData(_ context.Context, req *connect.Request[agentv1.Reset
 	if err != nil {
 		return nil, storeError(err)
 	}
-	return connect.NewResponse(&agentv1.ResetDataResponse{EnvironmentId: env.Id, Revision: rev, Services: services}), nil
+	return connect.NewResponse(&agentv2.ResetDataResponse{EnvironmentId: env.Id, Revision: rev, Services: services}), nil
 }
 
-func (s *Server) SetSleep(_ context.Context, req *connect.Request[agentv1.SetSleepRequest]) (*connect.Response[agentv1.SetSleepResponse], error) {
+func (s *Server) SetSleep(_ context.Context, req *connect.Request[agentv2.SetSleepRequest]) (*connect.Response[agentv2.SetSleepResponse], error) {
 	f := s.b.Store().Feature(req.Msg.Project, req.Msg.Feature)
 	if f == nil {
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%w %q in %s", store.ErrUnknownFeature, req.Msg.Feature, req.Msg.Project))
 	}
-	if f.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED {
+	if f.Phase == agentv2.DesiredPhase_DESIRED_PHASE_STOPPED {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("%s is stopped; 'devopus up' starts it", f.Name))
 	}
 	do := s.b.Wake
@@ -316,7 +316,7 @@ func (s *Server) SetSleep(_ context.Context, req *connect.Request[agentv1.SetSle
 	if err := do(f.Id); err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	return connect.NewResponse(&agentv1.SetSleepResponse{EnvironmentId: f.Id}), nil
+	return connect.NewResponse(&agentv2.SetSleepResponse{EnvironmentId: f.Id}), nil
 }
 
 // validBranch is a rough git check-ref-format: what people type into a feature name.
@@ -333,16 +333,16 @@ func validBranch(b string) bool {
 	return true
 }
 
-func (s *Server) Down(_ context.Context, req *connect.Request[agentv1.DownRequest]) (*connect.Response[agentv1.DownResponse], error) {
+func (s *Server) Down(_ context.Context, req *connect.Request[agentv2.DownRequest]) (*connect.Response[agentv2.DownResponse], error) {
 	rev, err := s.b.Store().Down(req.Msg.Project, req.Msg.Purge)
 	if err != nil {
 		return nil, storeError(err)
 	}
-	return connect.NewResponse(&agentv1.DownResponse{Revision: rev}), nil
+	return connect.NewResponse(&agentv2.DownResponse{Revision: rev}), nil
 }
 
-func (s *Server) Watch(ctx context.Context, req *connect.Request[agentv1.WatchRequest], stream *connect.ServerStream[agentv1.WatchResponse]) error {
-	want := func(st *agentv1.EnvironmentStatus) bool {
+func (s *Server) Watch(ctx context.Context, req *connect.Request[agentv2.WatchRequest], stream *connect.ServerStream[agentv2.WatchResponse]) error {
+	want := func(st *agentv2.EnvironmentStatus) bool {
 		return req.Msg.EnvironmentId == "" || st.Id == req.Msg.EnvironmentId
 	}
 	// Subscribe before reading the current state so no change falls in between.
@@ -350,12 +350,12 @@ func (s *Server) Watch(ctx context.Context, req *connect.Request[agentv1.WatchRe
 	defer cancel()
 	for _, st := range s.b.Statuses() {
 		if want(st) {
-			if err := stream.Send(&agentv1.WatchResponse{Status: st}); err != nil {
+			if err := stream.Send(&agentv2.WatchResponse{Status: st}); err != nil {
 				return err
 			}
 		}
 	}
-	if err := stream.Send(&agentv1.WatchResponse{Synced: true}); err != nil {
+	if err := stream.Send(&agentv2.WatchResponse{Synced: true}); err != nil {
 		return err
 	}
 	for {
@@ -367,7 +367,7 @@ func (s *Server) Watch(ctx context.Context, req *connect.Request[agentv1.WatchRe
 				return connect.NewError(connect.CodeUnavailable, errors.New("agent is shutting down"))
 			}
 			if want(st) {
-				if err := stream.Send(&agentv1.WatchResponse{Status: st}); err != nil {
+				if err := stream.Send(&agentv2.WatchResponse{Status: st}); err != nil {
 					return err
 				}
 			}
@@ -379,13 +379,13 @@ func (s *Server) Watch(ctx context.Context, req *connect.Request[agentv1.WatchRe
 // rather than slowing the reconciler; the CLI reconnects and gets the current state.
 type Hub struct {
 	mu   sync.Mutex
-	subs map[chan *agentv1.EnvironmentStatus]struct{}
+	subs map[chan *agentv2.EnvironmentStatus]struct{}
 }
 
-func NewHub() *Hub { return &Hub{subs: map[chan *agentv1.EnvironmentStatus]struct{}{}} }
+func NewHub() *Hub { return &Hub{subs: map[chan *agentv2.EnvironmentStatus]struct{}{}} }
 
-func (h *Hub) Subscribe() (<-chan *agentv1.EnvironmentStatus, func()) {
-	ch := make(chan *agentv1.EnvironmentStatus, 64)
+func (h *Hub) Subscribe() (<-chan *agentv2.EnvironmentStatus, func()) {
+	ch := make(chan *agentv2.EnvironmentStatus, 64)
 	h.mu.Lock()
 	h.subs[ch] = struct{}{}
 	h.mu.Unlock()
@@ -399,7 +399,7 @@ func (h *Hub) Subscribe() (<-chan *agentv1.EnvironmentStatus, func()) {
 	}
 }
 
-func (h *Hub) Publish(st *agentv1.EnvironmentStatus) {
+func (h *Hub) Publish(st *agentv2.EnvironmentStatus) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for ch := range h.subs {

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/lifecycle"
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/stack"
@@ -23,7 +23,7 @@ type Lifecycle interface {
 
 // asleep: a feature whose containers the lifecycle manager stopped. The reconciler
 // keeps its network, routes and worktrees and leaves its containers alone.
-func (r *Reconciler) asleep(env *agentv1.EnvironmentSpec) bool {
+func (r *Reconciler) asleep(env *agentv2.EnvironmentSpec) bool {
 	return isFeature(env) && r.opt.Lifecycle != nil && r.opt.Lifecycle.Asleep(env.Id)
 }
 
@@ -92,7 +92,7 @@ func (r *Reconciler) tellLifecycle(preps []*prepared) {
 	var envs []lifecycle.Env
 	for _, p := range preps {
 		env := p.env
-		if !isFeature(env) || env.Phase == agentv1.DesiredPhase_DESIRED_PHASE_STOPPED || p.plan == nil || p.ws == nil || len(p.hosts) == 0 {
+		if !isFeature(env) || env.Phase == agentv2.DesiredPhase_DESIRED_PHASE_STOPPED || p.plan == nil || p.ws == nil || len(p.hosts) == 0 {
 			continue
 		}
 		pol := p.ws.Policy()
@@ -104,7 +104,7 @@ func (r *Reconciler) tellLifecycle(preps []*prepared) {
 		}
 		for _, u := range p.plan.Units {
 			lu := lifecycle.Unit{Name: u.Name, Container: u.Spec.Name, Role: u.Role, Healthcheck: u.Healthcheck}
-			if u.Role == stack.RoleModule && len(u.Routes) > 0 {
+			if u.Role == stack.RoleApp && len(u.Routes) > 0 {
 				lu.Path = u.Routes[0]
 			}
 			e.Units = append(e.Units, lu)

@@ -169,7 +169,7 @@ func TestPlanUnits(t *testing.T) {
 		}
 	}
 
-	// Adding a module does not move the others, unless their slots collide.
+	// Adding an application does not move the others, unless their slots collide.
 	p2, _ := plan(t)
 	if unit(t, p2, "api").IP != unit(t, p, "api").IP {
 		t.Error("addresses are not stable")
@@ -254,7 +254,7 @@ func TestPlanHooks(t *testing.T) {
 	p, env := plan(t)
 	var got []string
 	for _, h := range p.Hooks {
-		got = append(got, h.Module+"."+h.Name)
+		got = append(got, h.App+"."+h.Name)
 	}
 	// Every install comes before any migration: migrations may need dependencies.
 	if len(got) != 3 || got[2] != "api.migrate" {
@@ -265,14 +265,14 @@ func TestPlanHooks(t *testing.T) {
 		t.Errorf("migrate spec %v %s", h.Spec.Cmd, h.Spec.Name)
 	}
 	if h.Spec.IP.IsValid() || h.Spec.Aliases != nil || h.Spec.Labels[runtime.LabelRole] != RoleHook {
-		t.Error("a hook must not take the module's address or name")
+		t.Error("a hook must not take the application's address or name")
 	}
 
 	// A new commit reruns migrate, a lock file change reruns install, nothing else does.
 	keys := func(p *Plan) map[string]string {
 		out := map[string]string{}
 		for _, h := range p.Hooks {
-			out[h.Module+"."+h.Name] = h.Key
+			out[h.App+"."+h.Name] = h.Key
 		}
 		return out
 	}
