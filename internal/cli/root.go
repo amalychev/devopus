@@ -52,8 +52,21 @@ type app struct {
 func Run(args []string, stdout, stderr io.Writer) int {
 	a := &app{stdout: stdout, stderr: stderr}
 	root := &cobra.Command{
-		Use:           "devopus",
-		Short:         "Local environments for every feature branch",
+		Use:   "devopus",
+		Short: "Local environments for every feature branch",
+		Long: `Devopus gives every feature branch its own environment on this machine: its own
+containers, data and URL (https://pay-123.shop.localhost), next to the main one.
+
+The devopus command controls all of it: the agent and the web panel on this machine,
+projects and their features. Workspaces, agents on servers and the team's remote
+panel come with the Devopus server (stage 2) as more devopus commands.
+
+Get started:
+  devopus agent install           run the agent as a service and check this machine
+  devopus init                    create workspace.yaml from docker-compose.yml
+  devopus up                      start the project's main environment
+  devopus feature create PAY-1    an environment of its own for a branch
+  devopus panel open              the web panel`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -66,26 +79,25 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return fail(ExitInvalid, "%v\nRun '%s --help' for usage.", err, c.CommandPath())
 	})
 
-	root.AddCommand(
-		a.initCmd(),
-		a.validateCmd(),
-		a.exportCmd(),
-		a.schemaCmd(),
-		a.versionCmd(),
-		a.agentCmd(),
-		a.statusCmd(),
-		a.upCmd(),
-		a.downCmd(),
-		a.doctorCmd(),
-		a.routesCmd(),
-		a.openCmd(),
-		a.logsCmd(),
-		a.execCmd(),
-		a.proxyCmd(),
-		a.featureCmd(),
-		a.dbCmd(),
-		a.uiCmd(),
+	// Commands keep the order below: the most used first.
+	cobra.EnableCommandSorting = false
+	root.AddGroup(
+		&cobra.Group{ID: "machine", Title: "This machine: the agent, the panel and what they need:"},
+		&cobra.Group{ID: "project", Title: "Projects and their main environment:"},
+		&cobra.Group{ID: "features", Title: "Features and data:"},
+		&cobra.Group{ID: "config", Title: "workspace.yaml:"},
 	)
+	add := func(group string, cmds ...*cobra.Command) {
+		for _, c := range cmds {
+			c.GroupID = group
+			root.AddCommand(c)
+		}
+	}
+	add("machine", a.agentCmd(), a.panelCmd(), a.statusCmd(), a.doctorCmd(), a.proxyCmd())
+	add("project", a.upCmd(), a.downCmd(), a.openCmd(), a.logsCmd(), a.execCmd(), a.routesCmd())
+	add("features", a.featureCmd(), a.dbCmd())
+	add("config", a.initCmd(), a.validateCmd(), a.exportCmd(), a.schemaCmd())
+	root.AddCommand(a.versionCmd())
 
 	err := root.Execute()
 	if err == nil {

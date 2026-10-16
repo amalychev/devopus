@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -25,42 +26,204 @@ import (
 	"github.com/devopus/devopus/internal/agent/client"
 	"github.com/devopus/devopus/internal/agent/paths"
 	"github.com/devopus/devopus/internal/agent/pki"
+	"github.com/devopus/devopus/internal/service"
 	"github.com/devopus/devopus/internal/trust"
 )
 
 func (a *app) agentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "agent",
-		Short: "Run the Devopus agent",
+		Short: "Install, start, stop and inspect the agent on this machine",
+		Long: "The agent runs the environments on this machine: it keeps Docker in the state the\n" +
+			"projects describe. Commands that need it start it on their own; 'devopus agent install'\n" +
+			"makes it a service that starts at login.",
 	}
-	cmd.AddCommand(&cobra.Command{
+	run := &cobra.Command{
 		Use:   "run",
-		Short: "Run the agent in the foreground",
-		Long: "Runs the agent in the foreground until interrupted. Commands that need the agent\n" +
-			"start it in the background on their own; 'devopus install' will register it as a service.",
-		Args: cobra.NoArgs,
+		Short: "Run the agent in the foreground (what the service runs)",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			log := slog.New(slog.NewTextHandler(a.stderr, nil))
 			err := agent.Run(ctx, agent.Options{Version: Version, Log: log})
 			if errors.Is(err, agent.ErrAlreadyRunning) {
-				return fail(ExitError, "%v", err)
+				return fail(ExitError, "another agent is running for %s: %v", paths.Home(), err)
 			}
 			return err
 		},
-	})
+	}
+	cmd.AddCommand(
+		a.agentInstallCmd(),
+		&cobra.Command{
+			Use:   "start",
+			Short: "Start the agent: its service if installed, otherwise in the background",
+			Args:  cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				if _, err := a.connect(ctx); err != nil {
+					return err
+				}
+				return a.done(map[string]any{"running": true, "pid": client.Pid()}, "The agent is running (pid %d).\n", client.Pid())
+			},
+		},
+		&cobra.Command{
+			Use:   "stop",
+			Short: "Stop the agent; environments keep running, the next command starts it again",
+			Args:  cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				if err := client.Stop(ctx); err != nil {
+					return fail(ExitError, "%v", err)
+				}
+				return a.done(map[string]any{"running": false}, "The agent is stopped. Environments keep running; any devopus command starts it again.\n")
+			},
+		},
+		&cobra.Command{
+			Use:   "restart",
+			Short: "Restart the agent (after rebuilding devopus, for example)",
+			Args:  cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				if err := client.Stop(ctx); err != nil {
+					return fail(ExitError, "%v", err)
+				}
+				if err := client.Start(); err != nil {
+					return fail(ExitError, "start the agent: %v", err)
+				}
+				if err := client.Wait(ctx, 15*time.Second); err != nil {
+					return fail(ExitError, "%v", err)
+				}
+				return a.done(map[string]any{"running": true, "pid": client.Pid()}, "The agent is running again (pid %d).\n", client.Pid())
+			},
+		},
+		&cobra.Command{
+			Use:   "status",
+			Short: "Whether the agent runs, its version, service and files",
+			Args:  cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				version, err := client.Version(ctx, client.New(paths.Socket()))
+				return a.componentStatus(service.Agent, err == nil, version, client.Pid(), paths.Log(),
+					map[string]string{"data": paths.Home(), "socket": paths.Socket()})
+			},
+		},
+		a.logFileCmd("Show the agent's log", paths.Log),
+		a.agentUninstallCmd(),
+		run,
+	)
 	return cmd
+}
+
+// componentStatus prints how a component (the agent, the panel) runs on this machine.
+func (a *app) componentStatus(component string, running bool, version string, pid int, logFile string, extra map[string]string) error {
+	installed := service.Installed(component)
+	file := ""
+	if s, err := service.For(component); err == nil {
+		file, _ = s.File()
+	}
+	if a.json {
+		v := map[string]any{"running": running, "version": version, "pid": pid, "service": installed, "log": logFile}
+		if installed {
+			v["service_file"] = file
+		}
+		for k, x := range extra {
+			v[k] = x
+		}
+		return a.writeJSON(v)
+	}
+	state := "not running"
+	if running {
+		state = fmt.Sprintf("running, version %s, pid %d", version, pid)
+	}
+	how := "not installed as a service: 'devopus " + component + " install'"
+	if installed {
+		how = "service " + file
+	}
+	w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "State\t%s\n", state)
+	fmt.Fprintf(w, "Runs as\t%s\n", how)
+	keys := make([]string, 0, len(extra))
+	for k := range extra {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Fprintf(w, "%s\t%s\n", strings.ToUpper(k[:1])+k[1:], extra[k])
+	}
+	fmt.Fprintf(w, "Log\t%s\n", logFile)
+	return w.Flush()
+}
+
+// logFileCmd prints the end of a component's log; --follow keeps printing.
+func (a *app) logFileCmd(short string, file func() string) *cobra.Command {
+	var follow bool
+	var lines int
+	cmd := &cobra.Command{
+		Use:   "logs",
+		Short: short,
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			if err := tailFile(ctx, a.stdout, file(), lines, follow); err != nil {
+				return fail(ExitError, "%v", err)
+			}
+			return nil
+		},
+	}
+	// -f is --file everywhere, so only --follow, as in devopus logs.
+	cmd.Flags().BoolVar(&follow, "follow", false, "keep printing new lines")
+	cmd.Flags().IntVarP(&lines, "lines", "n", 100, "how many lines from the end")
+	return cmd
+}
+
+// tailFile prints the last n lines of file and, with follow, what is appended.
+func tailFile(ctx context.Context, w io.Writer, file string, n int, follow bool) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
+	all := strings.SplitAfter(string(data), "\n")
+	if len(all) > 0 && all[len(all)-1] == "" {
+		all = all[:len(all)-1]
+	}
+	if len(all) > n {
+		all = all[len(all)-n:]
+	}
+	for _, l := range all {
+		io.WriteString(w, l)
+	}
+	for follow {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(300 * time.Millisecond):
+		}
+		if _, err := io.Copy(w, f); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // connect returns a client to the agent, starting it if needed.
 func (a *app) connect(ctx context.Context) (agentv1connect.AgentServiceClient, error) {
-	c, started, err := client.Ensure(ctx)
+	c, started, err := client.Ensure(ctx, Version)
 	if err != nil {
 		return nil, fail(ExitError, "%v", err)
 	}
-	if started && !a.json {
-		fmt.Fprintf(a.stderr, "Started the agent in the background (log: %s)\n", paths.Log())
+	if started && !a.json && !service.Installed(service.Agent) {
+		fmt.Fprintf(a.stderr, "Started the agent in the background (log: %s); 'devopus agent install' runs it as a service\n", paths.Log())
 	}
 	return c, nil
 }
@@ -107,9 +270,7 @@ func (a *app) printStatus(s *agentv1.StatusResponse) {
 	}
 	a.printProxy(s.Proxy)
 	a.printCA(s.Ca)
-	if s.PanelUrl != "" {
-		fmt.Fprintf(a.stdout, "Panel    %s ('devopus ui' opens it signed in)\n", s.PanelUrl)
-	}
+	fmt.Fprintf(a.stdout, "Panel    %s\n", panelLine(context.Background()))
 	if len(s.Projects) == 0 {
 		fmt.Fprintln(a.stdout, "\nNo projects. Run 'devopus up' in a folder with workspace.yaml.")
 		return

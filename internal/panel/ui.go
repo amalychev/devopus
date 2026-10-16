@@ -1,13 +1,15 @@
-// Package ui serves the local panel: the web app from web/, built into dist, and the
-// agent's API for it on 127.0.0.1.
+// Package panel is the local panel, a process of its own (`devopus panel`): it serves
+// the web app from web/, built into dist, on 127.0.0.1 and passes the app's API calls
+// to the agent's unix socket. The agent knows nothing about it; a remote panel
+// (stage 2) talks to agents through the server instead.
 //
 // The CLI reaches the agent through a unix socket only the user can open; a browser
 // cannot, and any web page can send requests to 127.0.0.1. So the panel's API needs a
-// token: `devopus ui` reads it from the agent's folder and opens /auth with it, which
+// token: `devopus panel open` reads it from the panel's folder and opens /auth with it, which
 // turns it into a SameSite=Strict cookie. Requests whose Host is not the panel's own
 // address are refused, so a rebinding DNS name cannot make the browser treat the
 // panel as its site.
-package ui
+package panel
 
 import (
 	"crypto/rand"
@@ -15,6 +17,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net"
 	"net/http"
@@ -51,6 +54,9 @@ func Token(file string) (string, error) {
 
 // Server is the panel's HTTP handler.
 type Server struct {
+	// Version answers /healthz, so the CLI can restart a panel of another version.
+	Version string
+
 	api    http.Handler
 	token  string
 	cookie string
@@ -68,17 +74,20 @@ func New(api http.Handler, token, cookie string, port int) *Server {
 	return &Server{api: api, token: token, cookie: cookie, port: port, static: spa(sub)}
 }
 
-// AuthPath is where `devopus ui` sends the browser with the token.
+// AuthPath is where `devopus panel open` sends the browser with the token.
 const AuthPath = "/auth"
 
-// URL is the address `devopus ui` opens.
+// HealthPath tells a running panel and its version; it needs no token.
+const HealthPath = "/healthz"
+
+// URL is the address `devopus panel open` opens.
 func URL(port int, token string) string {
 	return "http://127.0.0.1:" + strconv.Itoa(port) + AuthPath + "?token=" + token
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !s.ownHost(r.Host) {
-		http.Error(w, "this address does not serve the Devopus panel; open it with 'devopus ui'", http.StatusMisdirectedRequest)
+		http.Error(w, "this address does not serve the Devopus panel; open it with 'devopus panel open'", http.StatusMisdirectedRequest)
 		return
 	}
 	h := w.Header()
@@ -89,12 +98,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.URL.Path == AuthPath:
 		s.auth(w, r)
+	case r.URL.Path == HealthPath:
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, "{\"version\":%q}\n", s.Version)
 	case isAPI(r.URL.Path):
 		if !s.authorized(r) {
 			// The panel shows how to sign in on this code.
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = w.Write([]byte(`{"code":"unauthenticated","message":"open the panel with 'devopus ui'"}`))
+			_, _ = w.Write([]byte(`{"code":"unauthenticated","message":"open the panel with 'devopus panel open'"}`))
 			return
 		}
 		s.api.ServeHTTP(w, r)
@@ -115,7 +127,7 @@ func (s *Server) ownHost(host string) bool {
 
 func (s *Server) auth(w http.ResponseWriter, r *http.Request) {
 	if !s.valid(r.URL.Query().Get("token")) {
-		http.Error(w, "the link is out of date; open the panel with 'devopus ui'", http.StatusForbidden)
+		http.Error(w, "the link is out of date; open the panel with 'devopus panel open'", http.StatusForbidden)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{

@@ -110,9 +110,10 @@ func (a *app) preflight(ctx context.Context) []check {
 		status = res.Msg
 		out = append(out, check{Name: "agent", Status: "ok", Detail: fmt.Sprintf("running, version %s", status.AgentVersion)})
 	} else {
-		out = append(out, check{Name: "agent", Status: "info", Detail: "not running; 'devopus up' starts it"})
+		out = append(out, check{Name: "agent", Status: "info", Detail: "not running; 'devopus agent start' or any command that needs it starts it"})
 	}
 
+	out = append(out, check{Name: "panel", Status: "info", Detail: panelLine(ctx)})
 	out = append(out, portChecks(ctx, status, rtName)...)
 	out = append(out, dnsCheck(ctx))
 	out = append(out, caCheck())
@@ -217,7 +218,7 @@ func dnsCheck(ctx context.Context) check {
 	}
 	if len(bad) > 0 {
 		return check{Name: "dns", Status: "fail", Detail: "*.localhost does not resolve to loopback:\n" + strings.Join(bad, "\n"),
-			Fix: "a VPN or a custom resolver may override .localhost; on macOS before 26 Devopus will set up /etc/resolver/localhost (devopus install)"}
+			Fix: "a VPN or a custom resolver may override .localhost; macOS before 26 needs /etc/resolver/localhost, which Devopus does not set up yet"}
 	}
 	return check{Name: "dns", Status: "ok", Detail: "*.localhost resolves to loopback (nested names too)"}
 }

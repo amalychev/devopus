@@ -11,7 +11,7 @@
 | Runtime'ы | Docker Desktop, OrbStack, Colima, Podman | Обход лицензии Docker Desktop, быстрые ФС на Mac |
 | Git и worktree | Системный `git` через exec | Совместимость с SSH-ключами и настройками разработчика |
 | Связь с облаком | WebSocket + Protobuf (или ConnectRPC streaming) | Исходящее соединение проходит NAT и корпоративные прокси |
-| Фоновая служба | launchd / systemd / Windows Service (`kardianos/service`) | Автостарт |
+| Фоновая служба | launchd agent / systemd user unit (свой пакет, без зависимостей); Windows Service — этап 3 | Автостарт без root |
 | AI-агенты | MCP-сервер (официальный Go SDK) | Claude Code, Codex создают фичи и получают URL |
 | Дистрибуция | GoReleaser, Homebrew, winget, .deb/.rpm, автообновление с подписью | Установка одной командой |
 

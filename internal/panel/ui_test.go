@@ -1,4 +1,4 @@
-package ui
+package panel
 
 import (
 	"net/http"

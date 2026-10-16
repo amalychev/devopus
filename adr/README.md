@@ -15,3 +15,4 @@
 | [0009](0009-secrets-key-distribution.md) | Доставка ключа команды на новое устройство | Proposed | До этапа 2 |
 | [0010](0010-agent-license.md) | Лицензия агента: Apache 2.0 | Accepted | — |
 | [0011](0011-privileged-helper.md) | Privileged helper, никогда не слушать 0.0.0.0 | Accepted | — |
+| [0012](0012-devopus-cli-control-point.md) | Команда `devopus` — единая точка управления; агент и панель — отдельные компоненты | Accepted | — |

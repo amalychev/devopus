@@ -1,0 +1,74 @@
+# Release build of the devopus binary (docs/stage-1/plan.md, M9).
+#   goreleaser release --snapshot --clean   # local check: dist/ with archives and packages
+#   git tag v0.1.0 && git push --tags       # CI (.github/workflows/release.yml) publishes
+# The panel is built into the binary from internal/panel/dist, which is committed:
+# no Node here.
+version: 2
+project_name: devopus
+
+builds:
+  - id: devopus
+    main: ./cmd/devopus
+    binary: devopus
+    env: [CGO_ENABLED=0]
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X github.com/devopus/devopus/internal/cli.Version={{ .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: devopus
+    formats: [tar.gz]
+    # Stable names: install.sh builds the URL from the OS and the architecture.
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    files: [README.md]
+
+checksum:
+  name_template: checksums.txt
+
+nfpms:
+  - id: packages
+    package_name: devopus
+    file_name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    vendor: Devopus
+    homepage: https://github.com/devopus/devopus
+    maintainer: Devopus  # an address, once the domain is chosen (STATUS.md)
+    description: Local environments for every feature branch, with their own data and URL.
+    license: Apache-2.0
+    formats: [deb, rpm]
+    bindir: /usr/bin
+    dependencies: [git]
+
+homebrew_casks:
+  - name: devopus
+    repository:
+      owner: devopus
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://github.com/devopus/devopus
+    description: Local environments for every feature branch, with their own data and URL
+    binaries: [devopus]
+    caveats: "Run 'devopus agent install' to start the agent as a service, 'devopus panel open' for the web panel."
+    hooks:
+      post:
+        # The binary is not notarized yet: without this, macOS refuses to run it.
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/devopus"]
+          end
+
+release:
+  github:
+    owner: devopus
+    name: devopus
+  draft: true
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs", "^chore"]

@@ -72,8 +72,17 @@ func Sources() string { return filepath.Join(Home(), "src") }
 // Envs keeps per-environment files: hook markers and logs of hooks and builds.
 func Envs() string { return filepath.Join(Home(), "envs") }
 
-// PanelPort and PanelToken are where the agent keeps the local panel's address and
-// the token `devopus ui` opens it with.
-func PanelPort() string { return filepath.Join(Home(), "panel-port") }
+// Panel keeps the local panel's files: it is its own process (`devopus panel`), next
+// to the agent's data because it serves this agent.
+func Panel() string { return filepath.Join(Home(), "panel") }
 
-func PanelToken() string { return filepath.Join(Home(), "panel-token") }
+// PanelPort and PanelToken are the panel's pinned address and the token
+// `devopus panel open` signs in with.
+func PanelPort() string { return filepath.Join(Panel(), "port") }
+
+func PanelToken() string { return filepath.Join(Panel(), "token") }
+
+// PanelLock guarantees one panel per data directory; PanelLog is its output.
+func PanelLock() string { return filepath.Join(Panel(), "panel.lock") }
+
+func PanelLog() string { return filepath.Join(Panel(), "panel.log") }

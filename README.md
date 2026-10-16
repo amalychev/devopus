@@ -26,7 +26,7 @@
 | | [docs/architecture/tech-stack.md](docs/architecture/tech-stack.md) | Технологии с обоснованием |
 | Спецификации | [specs/workspace-yaml.md](specs/workspace-yaml.md) | Формат конфига проекта v1 |
 | | [specs/agent-protocol.md](specs/agent-protocol.md) | Протокол агент ↔ сервер |
-| | [specs/cli.md](specs/cli.md) | CLI агента (MVP) |
+| | [specs/cli.md](specs/cli.md) | Команда `devopus` — единая точка управления: агент, панель, проекты, фичи |
 | | [specs/mvp-prd.md](specs/mvp-prd.md) | PRD этапа 1 (MVP): user stories и критерии приёмки |
 | | [specs/nfr.md](specs/nfr.md) | Нефункциональные требования и как их мерить |
 | План | [roadmap.md](roadmap.md) | Этапы 0–4, критерии перехода, P0/P1/P2 |
@@ -34,6 +34,7 @@
 | | [docs/stage-0/](docs/stage-0/README.md) | **Итоговый отчёт этапа 0**, итоги интервью, комплект для пилотов |
 | | [docs/stage-1/plan.md](docs/stage-1/plan.md) | **Этап 1 (MVP):** вехи M1–M9, раскладка кода, журнал |
 | Код | `cmd/`, `internal/`, `schema/` | Агент и CLI на Go (см. «Разработка» ниже) |
+| | [docs/development.md](docs/development.md) | **Как развернуть и запустить Devopus:** сборка, агент, демо, тесты, релиз, неполадки |
 | Прототипы | [prototypes/](prototypes/) | P-1…P-8: код и отчёты технических прототипов этапа 0 |
 | Решения | [adr/](adr/README.md) | Architecture Decision Records |
 | Риски | [risks-and-open-questions.md](risks-and-open-questions.md) | Риски, открытые вопросы, найденные противоречия в источниках |
@@ -48,11 +49,24 @@
 
 ## Статус
 
-Этап 1 (MVP) начат параллельно с продуктовой валидацией этапа 0 (20 интервью и 5 LOI ещё впереди — см. [итоговый отчёт этапа 0](docs/stage-0/report.md)). Готовы вехи M1 (`workspace.yaml` v1, импорт/экспорт compose), M2 (каркас агента), M3 (сеть, прокси, CA, DNS) и M4 (базовое окружение: модули, сервисы, хуки, маршруты по путям) — попробовать: [examples/demo](examples/demo). План — [docs/stage-1/plan.md](docs/stage-1/plan.md).
+Этап 1 (MVP) начат параллельно с продуктовой валидацией этапа 0 (интервью закрыты — [итоги](docs/stage-0/findings.md); 5 LOI ещё впереди — см. [итоговый отчёт этапа 0](docs/stage-0/report.md)). Готовы все вехи M1–M9: конфиг, агент, сеть и прокси, окружения, фичи, данные, сон и пробуждение, локальная панель, установка и релизная сборка — попробовать: [examples/demo](examples/demo). План — [docs/stage-1/plan.md](docs/stage-1/plan.md).
+
+## Установка
+
+```bash
+brew install devopus/tap/devopus                                              # macOS
+curl -fsSL https://raw.githubusercontent.com/devopus/devopus/main/install.sh | sh  # macOS и Linux
+devopus agent install                  # агент — служба пользователя, проверки, доверие к CA
+devopus panel open                     # локальная веб-панель (или devopus panel install — службой)
+devopus agent uninstall [--purge]      # всё обратно; --purge — с данными окружений и панелью
+devopus --help                         # все команды по группам
+```
+
+Пакеты `.deb` и `.rpm` — в релизах на GitHub. Первого публичного релиза ещё нет: репозиторий пока приватный (см. [STATUS.md](STATUS.md)).
 
 ## Разработка
 
-Нужен Go 1.27+. Тесты, которым нужен Docker (сквозной тест агента, `docker compose config` для экспорта), без него пропускаются.
+Полная инструкция — [docs/development.md](docs/development.md). Коротко: нужен Go 1.27+. Тесты, которым нужен Docker (сквозной тест агента, `docker compose config` для экспорта), без него пропускаются.
 
 ```bash
 go test ./...                          # все тесты
@@ -65,7 +79,7 @@ go build -o devopus ./cmd/devopus      # бинарник
 ./devopus up                           # поднять базовое окружение (стартует агента в фоне)
 ./devopus status                       # агент, runtime, прокси, окружения и их модули
 ./devopus open                         # открыть окружение в браузере
-./devopus ui                           # локальная панель: окружения, прогресс, логи, фичи
+./devopus panel open                   # локальная панель: окружения, прогресс, логи, фичи
 ./devopus routes                       # таблица маршрутов прокси
 ./devopus logs api --follow            # вывод модуля или сервиса
 ./devopus exec api -- sh               # команда в контейнере модуля
@@ -83,9 +97,12 @@ go build -o devopus ./cmd/devopus      # бинарник
 ./devopus doctor --fix                 # проверки; доверие к локальному CA
 ./devopus down                         # остановить (данные остаются)
 ./devopus down --volumes               # удалить окружения проекта с данными
+./devopus agent install                # агент службой (собранный бинарник — не из go run)
+./devopus agent restart                # после пересборки; так же devopus panel restart
 
 go tool -modfile=tools/go.mod buf generate   # после правок proto/
 (cd web && npm ci && npm run gen && npm run build)  # после правок proto/ или web/: TypeScript и сборка панели
+goreleaser release --snapshot --clean  # локальная сборка релиза в dist/: архивы, .deb, .rpm, cask
 ```
 
 Данные агента — в `~/.devopus` (или `$DEVOPUS_HOME`).

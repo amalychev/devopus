@@ -38,7 +38,6 @@ type Backend interface {
 	Sleep(envID string) error
 	Wake(envID string) error
 	Containers() Containers
-	PanelURL() string
 	// EnvsDir holds the hook and build logs of each environment.
 	EnvsDir() string
 }
@@ -66,7 +65,6 @@ func (s *Server) Status(context.Context, *connect.Request[agentv1.StatusRequest]
 		Environments:    s.b.Statuses(),
 		Proxy:           s.b.Proxy(),
 		Ca:              s.b.CA(),
-		PanelUrl:        s.b.PanelURL(),
 	}), nil
 }
 

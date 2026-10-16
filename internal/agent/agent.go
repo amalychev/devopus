@@ -32,7 +32,7 @@ import (
 	"github.com/devopus/devopus/internal/agent/reconcile"
 	"github.com/devopus/devopus/internal/agent/runtime"
 	"github.com/devopus/devopus/internal/agent/store"
-	"github.com/devopus/devopus/internal/agent/ui"
+	"github.com/devopus/devopus/internal/daemon"
 	"github.com/devopus/devopus/internal/workspace"
 )
 
@@ -67,8 +67,6 @@ type Agent struct {
 	life *lifecycle.Manager
 	// kick asks the loop for a pass now.
 	kick chan struct{}
-
-	panelURL string
 
 	mu      sync.Mutex
 	rtInfo  *agentv1.RuntimeInfo
@@ -106,7 +104,6 @@ func (a *Agent) kickLoop() {
 
 func (a *Agent) Containers() api.Containers             { return a.rt }
 func (a *Agent) EnvsDir() string                        { return paths.Envs() }
-func (a *Agent) PanelURL() string                       { return a.panelURL }
 func (a *Agent) Store() *store.Store                    { return a.store }
 func (a *Agent) Statuses() []*agentv1.EnvironmentStatus { return a.rec.Statuses() }
 func (a *Agent) Version() string                        { return a.opt.Version }
@@ -133,6 +130,9 @@ func (a *Agent) Runtime() *agentv1.RuntimeInfo {
 }
 
 // Run serves until ctx is done. Only one agent runs per data directory.
+// ErrAlreadyRunning: another agent holds the lock of this data directory.
+var ErrAlreadyRunning = daemon.ErrAlreadyRunning
+
 func Run(ctx context.Context, opt Options) error {
 	log := opt.Log
 	if log == nil {
@@ -141,7 +141,7 @@ func Run(ctx context.Context, opt Options) error {
 	if err := paths.Ensure(); err != nil {
 		return err
 	}
-	unlock, err := lock(paths.Lock())
+	unlock, err := daemon.Lock(paths.Lock())
 	if err != nil {
 		return err
 	}
@@ -245,15 +245,9 @@ func Run(ctx context.Context, opt Options) error {
 	mux := http.NewServeMux()
 	mux.Handle(agentv1connect.NewAgentServiceHandler(api.New(a, a.hub)))
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
-	serveErr := make(chan error, 2)
+	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 
-	panel, err := servePanel(mux)
-	if err != nil {
-		return fmt.Errorf("panel: %w", err)
-	}
-	a.panelURL = panel.url
-	go func() { serveErr <- panel.srv.Serve(panel.ln) }()
 	log.Info("agent started", "version", opt.Version, "socket", paths.Socket(), "runtime", ep.Name, "endpoint", ep.Host, "xds", xds.Port())
 
 	loopDone := make(chan struct{})
@@ -270,7 +264,6 @@ func Run(ctx context.Context, opt Options) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
-	_ = panel.srv.Shutdown(shutdownCtx)
 	<-loopDone
 	_ = os.Remove(paths.Socket())
 	log.Info("agent stopped")
@@ -418,32 +411,6 @@ func listenPinned(file string, listen func(addr string) (net.Listener, error)) (
 
 // listenXDS keeps the xDS port across agent restarts: it is baked into the proxy's
 // bootstrap, and a new port would mean recreating the proxy.
-type panel struct {
-	ln  net.Listener
-	srv *http.Server
-	url string
-}
-
-// servePanel listens for the local panel on 127.0.0.1, on the same port as last time
-// so open tabs keep working across agent restarts.
-func servePanel(api http.Handler) (*panel, error) {
-	token, err := ui.Token(paths.PanelToken())
-	if err != nil {
-		return nil, err
-	}
-	ln, err := listenPinned(paths.PanelPort(), func(addr string) (net.Listener, error) { return net.Listen("tcp", addr) })
-	if err != nil {
-		return nil, err
-	}
-	port := ln.Addr().(*net.TCPAddr).Port
-	h := ui.New(api, token, "devopus_panel_"+paths.Instance(), port)
-	return &panel{
-		ln:  ln,
-		srv: &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second},
-		url: "http://127.0.0.1:" + strconv.Itoa(port),
-	}, nil
-}
-
 func listenXDS(ctl *pki.Control) (*proxy.XDS, error) {
 	file := filepath.Join(paths.Proxy(), "xds-port")
 	if b, err := os.ReadFile(file); err == nil {

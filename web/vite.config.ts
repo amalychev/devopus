@@ -5,14 +5,14 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
-// npm run dev talks to the running agent: its panel port and token are in
-// $DEVOPUS_HOME (default ~/.devopus).
+// npm run dev talks to the running local panel (devopus panel start): its port and
+// token are in $DEVOPUS_HOME/panel (default ~/.devopus/panel).
 function agentPanel() {
-  const home = process.env.DEVOPUS_HOME || join(homedir(), ".devopus")
+  const home = join(process.env.DEVOPUS_HOME || join(homedir(), ".devopus"), "panel")
   try {
     return {
-      port: readFileSync(join(home, "panel-port"), "utf8").trim(),
-      token: readFileSync(join(home, "panel-token"), "utf8").trim(),
+      port: readFileSync(join(home, "port"), "utf8").trim(),
+      token: readFileSync(join(home, "token"), "utf8").trim(),
     }
   } catch {
     return undefined
@@ -29,8 +29,8 @@ export default defineConfig(({ command }) => {
       },
     },
     build: {
-      // Built into the agent binary (internal/agent/ui, go:embed).
-      outDir: resolve(import.meta.dirname, "../internal/agent/ui/dist"),
+      // Built into the devopus binary (internal/panel, go:embed).
+      outDir: resolve(import.meta.dirname, "../internal/panel/dist"),
       emptyOutDir: true,
       chunkSizeWarningLimit: 1024,
     },

@@ -144,7 +144,10 @@ function DeviceStatus({
   const proxy = status?.proxy
   const lines: { text: string; bad?: boolean }[] = []
   if (connection === "lost")
-    lines.push({ text: "Lost the agent; reconnecting…", bad: true })
+    lines.push({
+      text: "The agent does not answer; reconnecting… Start it with devopus agent start",
+      bad: true,
+    })
   if (rt) {
     lines.push(
       rt.reachable
@@ -201,8 +204,8 @@ function SignedOut() {
           <EmptyTitle>Open the panel from your terminal</EmptyTitle>
           <EmptyDescription>
             The panel controls containers and code on this machine, so it opens
-            only with a link from the agent. Run{" "}
-            <code className="font-mono text-foreground">devopus ui</code>.
+            only with a link from the devopus command. Run{" "}
+            <code className="font-mono text-foreground">devopus panel open</code>.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

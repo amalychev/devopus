@@ -1324,10 +1324,8 @@ type StatusResponse struct {
 	Environments    []*EnvironmentStatus   `protobuf:"bytes,5,rep,name=environments,proto3" json:"environments,omitempty"`
 	Proxy           *ProxyStatus           `protobuf:"bytes,6,opt,name=proxy,proto3" json:"proxy,omitempty"`
 	Ca              *CAInfo                `protobuf:"bytes,7,opt,name=ca,proto3" json:"ca,omitempty"`
-	// The local panel, without the token: `devopus ui` opens it signed in.
-	PanelUrl      string `protobuf:"bytes,8,opt,name=panel_url,json=panelUrl,proto3" json:"panel_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StatusResponse) Reset() {
@@ -1407,13 +1405,6 @@ func (x *StatusResponse) GetCa() *CAInfo {
 		return x.Ca
 	}
 	return nil
-}
-
-func (x *StatusResponse) GetPanelUrl() string {
-	if x != nil {
-		return x.PanelUrl
-	}
-	return ""
 }
 
 type PortConflict struct {
@@ -3818,7 +3809,7 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\x02os\x18\x04 \x01(\tR\x02os\x12\x1c\n" +
 	"\treachable\x18\x05 \x01(\bR\treachable\x12\x14\n" +
 	"\x05error\x18\x06 \x01(\tR\x05error\"\x0f\n" +
-	"\rStatusRequest\"\x99\x03\n" +
+	"\rStatusRequest\"\x8d\x03\n" +
 	"\x0eStatusResponse\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x12)\n" +
 	"\x10desired_revision\x18\x02 \x01(\x04R\x0fdesiredRevision\x127\n" +
@@ -3826,8 +3817,7 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\bprojects\x18\x04 \x03(\v2\x1d.devopus.agent.v1.ProjectSpecR\bprojects\x12G\n" +
 	"\fenvironments\x18\x05 \x03(\v2#.devopus.agent.v1.EnvironmentStatusR\fenvironments\x123\n" +
 	"\x05proxy\x18\x06 \x01(\v2\x1d.devopus.agent.v1.ProxyStatusR\x05proxy\x12(\n" +
-	"\x02ca\x18\a \x01(\v2\x18.devopus.agent.v1.CAInfoR\x02ca\x12\x1b\n" +
-	"\tpanel_url\x18\b \x01(\tR\bpanelUrl\"x\n" +
+	"\x02ca\x18\a \x01(\v2\x18.devopus.agent.v1.CAInfoR\x02caJ\x04\b\b\x10\tR\tpanel_url\"x\n" +
 	"\fPortConflict\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x10\n" +

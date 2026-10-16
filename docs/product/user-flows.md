@@ -14,7 +14,8 @@ sequenceDiagram
     participant Reg as OCI-реестр / S3
 
     Lead->>Panel: Пригласить в воркспейс
-    Dev->>Agent: Установка (brew / winget / .deb)
+    Dev->>Panel: Вход по приглашению
+    Dev->>Agent: brew / curl | sh / .deb → devopus login → devopus agent install
     Agent->>Panel: Device flow (RFC 8628)
     Dev->>Panel: Подтвердить код устройства
     Panel-->>Agent: DesiredState (базовое окружение проекта)
@@ -37,10 +38,10 @@ sequenceDiagram
 
 ## 2. Локальный старт без команды (MVP, этап 1)
 
-1. `brew install devopus` → агент регистрируется как служба.
+1. `brew install devopus` или `curl -fsSL https://<домен>/install.sh | sh` → `devopus agent install`: агент регистрируется как служба (скрипт делает это сам).
 2. `devopus init` в папке проекта: импорт `docker-compose.yml` → черновик `workspace.yaml`.
 3. `devopus up` → preflight (Docker runtime, порты 80/443, DNS `*.localhost`, CA) → базовое окружение на `shop.localhost`.
-4. Локальная веб-панель агента показывает статус окружений.
+4. `devopus panel open` — локальная веб-панель со статусом окружений. Это отдельный компонент: можно не ставить вовсе или сделать службой (`devopus panel install`).
 
 ## 3. Создание фичи
 

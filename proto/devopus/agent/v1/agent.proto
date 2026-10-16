@@ -231,8 +231,9 @@ message StatusResponse {
   repeated EnvironmentStatus environments = 5;
   ProxyStatus proxy = 6;
   CAInfo ca = 7;
-  // The local panel, without the token: `devopus ui` opens it signed in.
-  string panel_url = 8;
+  // Was the local panel's address: the panel is its own process now (`devopus panel`).
+  reserved 8;
+  reserved "panel_url";
 }
 
 message PortConflict {

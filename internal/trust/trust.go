@@ -4,7 +4,9 @@
 package trust
 
 import (
+	"crypto/sha1"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/devopus/devopus/internal/agent/pki"
@@ -57,6 +60,53 @@ func Install(rootPath string) error {
 		return fmt.Errorf("security add-trusted-cert: %w", err)
 	}
 	return nil
+}
+
+// Remove takes the root out of the login keychain: its trust settings, then the
+// certificate. removed is false when it was not there. macOS may ask for the password.
+func Remove(rootPath string) (removed bool, err error) {
+	if runtime.GOOS != "darwin" {
+		return false, errors.New("automatic removal is macOS-only for now; " + ManualRemoval())
+	}
+	data, err := os.ReadFile(rootPath)
+	if err != nil {
+		return false, err
+	}
+	certs, err := parseChain(data)
+	if err != nil {
+		return false, err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false, err
+	}
+	keychain := filepath.Join(home, "Library", "Keychains", "login.keychain-db")
+	sum := sha1.Sum(certs[0].Raw)
+	if !inKeychain(keychain, sum[:]) {
+		return false, nil
+	}
+	cmd := exec.Command("security", "remove-trusted-cert", rootPath)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stderr, os.Stderr
+	_ = cmd.Run() // fails when there are no trust settings, which is what we want anyway
+	if out, err := exec.Command("security", "delete-certificate", "-Z", strings.ToUpper(hex.EncodeToString(sum[:])), keychain).CombinedOutput(); err != nil {
+		return false, fmt.Errorf("security delete-certificate: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return true, nil
+}
+
+func inKeychain(keychain string, sha1sum []byte) bool {
+	out, err := exec.Command("security", "find-certificate", "-a", "-Z", keychain).Output()
+	return err == nil && strings.Contains(string(out), strings.ToUpper(hex.EncodeToString(sha1sum)))
+}
+
+// ManualRemoval tells people how to undo ManualSteps.
+func ManualRemoval() string {
+	switch runtime.GOOS {
+	case "linux":
+		return "Debian/Ubuntu: sudo rm /usr/local/share/ca-certificates/devopus.crt && sudo update-ca-certificates --fresh; " +
+			"Fedora: sudo rm /etc/pki/ca-trust/source/anchors/devopus.pem && sudo update-ca-trust"
+	}
+	return "remove the Devopus root from the system's trusted roots"
 }
 
 // ManualSteps tells people what to run where Devopus does not install the CA itself.

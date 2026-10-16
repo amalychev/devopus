@@ -1,6 +1,6 @@
 # Локальный агент
 
-Один бинарник на Go под macOS, Linux (и Windows через WSL2 с этапа 3). Работает фоновой службой (launchd / systemd / Windows Service через `kardianos/service`). Open-source.
+Один бинарник на Go под macOS, Linux (и Windows через WSL2 с этапа 3). Работает службой пользователя: launchd agent на macOS, systemd user unit на Linux (`devopus agent install`, пакет `internal/service`); Windows Service — с этапа 3. Open-source.
 
 ## Состав
 
@@ -16,7 +16,7 @@
 | **Lifecycle** | Детектор активности (запросы через Envoy + fs-события worktree), усыпление, пробуждение, бюджет ресурсов |
 | **Preflight / Doctor** | Проверки окружения ОС до старта и при смене сети |
 | **Cloud link** | Исходящий WebSocket к Agent gateway (этап 2+); в MVP — выключен |
-| **Local API / UI** | Локальная панель для одного разработчика (MVP); CLI говорит с агентом через сокет |
+| **Local API** | ConnectRPC на unix-сокете `~/.devopus/agent.sock`: через него с агентом говорят CLI и локальная панель. Панель — отдельный процесс (`devopus panel`), агент о ней не знает ([ADR-0012](../../adr/0012-devopus-cli-control-point.md)) |
 | **MCP server** | Официальный Go SDK; инструменты для AI-агентов (этап 3) |
 | **Updater** | Автообновление подписанных релизов (cosign) |
 
