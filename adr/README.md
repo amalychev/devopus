@@ -11,8 +11,12 @@
 | [0005](0005-isolation-modes.md) | Simple Isolation в MVP, Contextual — этап 3 | Accepted | — |
 | [0006](0006-docker-network-topology.md) | Топология docker-сетей: сеть на окружение | Accepted (P-2) | — |
 | [0007](0007-db-cloning.md) | Клонирование БД: PG — база в инстансе, MySQL — отдельный инстанс | Accepted (P-3, P-4) | — |
-| [0008](0008-config-location.md) | Где хранить `workspace.yaml` | Open | По пилотным командам |
+| [0008](0008-config-location.md) | Где хранить `workspace.yaml` | Superseded → 0013 | — |
 | [0009](0009-secrets-key-distribution.md) | Доставка ключа команды на новое устройство | Proposed | До этапа 2 |
 | [0010](0010-agent-license.md) | Лицензия агента: Apache 2.0 | Accepted | — |
 | [0011](0011-privileged-helper.md) | Privileged helper, никогда не слушать 0.0.0.0 | Accepted | — |
 | [0012](0012-devopus-cli-control-point.md) | Команда `devopus` — единая точка управления; агент и панель — отдельные компоненты | Accepted | — |
+| [0013](0013-config-on-workspace-server.md) | Конфигурация на сервере воркспейса; YAML — просмотр и переопределения | Accepted | — |
+| [0014](0014-auth-service.md) | Auth — отдельный сервис; вход по email и одноразовому коду, access/refresh токены | Accepted | — |
+| [0015](0015-roles-and-permissions.md) | Роли админ / тимлид / разработчик и права поверх ролей | Accepted | — |
+| [0016](0016-workspace-server.md) | Воркспейс — это сервер; облачный и self-hosted — одна программа | Accepted | — |

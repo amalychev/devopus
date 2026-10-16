@@ -10,6 +10,29 @@
 - **Один бинарник:** все компоненты — подкоманды `devopus` одной версии. Компонент другой версии (после обновления) CLI перезапускает сам.
 - **Команды, которым нужен агент, запускают его сами:** через службу, если она установлена, иначе в фоне.
 - `devopus --help` показывает команды по группам и как начать работу.
+- **Сначала вход** (с этапа 2, [ADR-0014](../adr/0014-auth-service.md)). Все команды, кроме `register`, `login`, `version`, `help` и `completion`, требуют входа; что можно — решает роль и права пользователя на сервере воркспейса ([роли](../docs/product/roles.md)). Без нужного права команда отказывает с кодом 5 и называет недостающее право.
+- **Всё, что есть в CLI, повторяет веб-интерфейс** с теми же правами.
+
+## Карта команд
+
+Модель — [vision](../docs/product/vision.md): воркспейс (настройки на сервере Devopus) → проекты (продукты) → приложения (репозитории) и сервисы проекта, подключённые к приложениям; разворачивает агент на машине. ✅ — есть в v0.1.0, иначе — этап [roadmap](../roadmap.md), где команда появится.
+
+| Группа | Команды | Кто может | Этап |
+|---|---|---|---|
+| **Аккаунт** | `register`, `login [--email\|--device]`, `logout`, `whoami`, `auth sessions`, `auth revoke <id>` | все | 2 |
+| **Воркспейсы** | `workspace create <имя> [--plan]`, `list`, `use <имя>`, `show`, `rename`, `transfer <email>`, `delete` | создать, передать, удалить — админ; список — все свои | 2 |
+| **Участники** | `invite create <email> --role teamlead\|developer [--project …]`, `invite list`, `invite revoke`, `invite accept <код>`, `member list`, `member grant\|revoke <email> <право> [--project]`, `member remove` | админ; тимлид — разработчиков в свои проекты | 2 |
+| **Проекты** | `project create <имя> [--from-compose …]`, `list`, `show`, `config show [--effective] [-o yaml]`, `config history`, `config rollback <версия>`, `rm` | создать и настроить — админ, тимлид; смотреть — все в проекте | 3 |
+| **Приложения** | `app add <проект> <имя> --repo <url> [--branch] [--path]`, `app set`, `app rm`, `app list` | админ, тимлид; разработчик — с правом `apps.manage` | 3 |
+| **Сервисы** | `service add <проект> <тип> [версия] --apps a,b [--…]`, `service set <проект> <сервис> <версия\|--ключ значение>`, `service link\|unlink <проект> <сервис> <приложение>`, `service rm`, `service list` — сервис живёт в проекте и подключается к одному или нескольким приложениям | админ, тимлид; разработчик — с правом `services.manage` | 3 |
+| **Секреты** | `secrets set\|list\|rm\|rotate` | по праву `secrets.*` | 3 |
+| **Расхождения** | `drift [--project]` — у кого какая версия, личные переопределения (`devopus.local.yaml`), кто не применил | админ, тимлид | 3 |
+| **Компоненты на машине** | `agent …`, `panel …` — ниже; `agent install --server` — агент на сервере админа для staging и production | все / `--server` — админ | ✅; `--server` — 5 |
+| **Сервер воркспейса (self-hosted)** | `server install`, `server upgrade`, `server status`, `server backup`, `server uninstall` — «пульт» на своём сервере | админ | 4 |
+| **Окружения** | `up [проект…]`, `down`, `open`, `status`, `logs`, `exec`, `routes`; `env create staging\|production --project … --branch …` на сервере админа | все в проекте; staging/production — `servers.manage` | ✅ (сейчас из `workspace.yaml`); staging — 5 |
+| **Фичи и данные** | `feature …`, `db …` — ниже | все в проекте | ✅ |
+| **AI-агенты** | `mcp` | все в проекте | 7 |
+| **Уходят** | `init`, `validate`, `export compose`, `schema` — работа с `workspace.yaml` без воркспейса. Режима без воркспейса не будет; импорт compose — `project create --from-compose`, отладка — демо-воркспейс | — | есть в v0.1.0, убираются на этапе 3 |
 
 ## Агент
 
@@ -48,7 +71,9 @@
 | `devopus proxy coexist --http <port> [--https <port>]` / `--off` | Режим сосуществования: dev-сервер (Herd, Valet, nginx) перенесён на другие порты, Devopus занимает 80/443 и отдаёт ему все незнакомые хосты (HTTPS — без расшифровки) |
 | `devopus version` | Версия |
 
-## Проект
+## Окружения (локальный движок)
+
+Сейчас (v0.1.0) команды работают с `workspace.yaml` в текущей папке. С этапа 3 источник — настройки воркспейса на сервере: `devopus up` без аргументов поднимает проекты текущего воркспейса, к которым у пользователя есть доступ; работы без воркспейса нет ([ADR-0013](../adr/0013-config-on-workspace-server.md)).
 
 | Команда | Описание |
 |---|---|
@@ -91,22 +116,4 @@
 
 ## Коды выхода
 
-`0` успех · `1` ошибка · `2` неверные аргументы/конфиг · `3` требуется подтверждение (в неинтерактивном режиме) · `4` preflight не пройден.
-
-## Дальше (этапы 2–4)
-
-Всё новое сначала проектируется как команды `devopus`, потом как экраны панели. Набор действий у компонентов тот же, что у `agent` и `panel`.
-
-| Команды | Этап | Что |
-|---|---|---|
-| `devopus login` / `logout` / `whoami` | 2 | Вход на сервер Devopus (device flow, RFC 8628); `--server URL` — для self-hosted |
-| `devopus workspace create` / `list` / `use` / `invite` / `members` / `roles` | 2 | Воркспейс команды, участники и роли; владелец окружения меняет стек команды |
-| `devopus project create` / `list` / `link` / `sync` / `rm` | 2 | Проекты воркспейса: создать из `workspace.yaml`, привязать репозиторий, двусторонняя синхронизация конфига с git. Сейчас проект появляется на машине при первом `devopus up` |
-| `devopus agent install --server` | 2 | Агент на сервере команды или хостинге: системная служба, подключение к серверу Devopus, без локальной панели |
-| `devopus agent list` / `revoke` | 2 | Устройства воркспейса и отзыв устройства |
-| `devopus secrets set` / `list` / `rm` / `rotate` | 2 | E2E-секреты воркспейса |
-| `devopus drift` | 2 | Расхождения окружений участников с конфигом команды |
-| `devopus config get` / `set` / `list` | 2 | Настройки компонентов и воркспейса (порты, политики) в одном месте |
-| `devopus snapshot build` | 2 | Обезличенный снапшот данных для онбординга (в CI клиента) |
-| `devopus mcp` | 3 | MCP-сервер (stdio) для AI-агентов: `list_projects`, `create_feature`, `feature_status`, `feature_url`, `feature_logs`, `delete_feature` |
-| `devopus server install` / `upgrade` / `status` / `backup` / `uninstall` | 4 | Self-hosted сервер: Core, Agent gateway, Tunnel и удалённая панель у клиента |
+`0` успех · `1` ошибка · `2` неверные аргументы/конфиг · `3` требуется подтверждение (в неинтерактивном режиме) · `4` preflight не пройден · `5` нет входа или нет права (с этапа 2).
