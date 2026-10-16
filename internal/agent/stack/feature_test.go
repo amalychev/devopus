@@ -82,13 +82,13 @@ func shopWorkspace(t *testing.T, database string) *workspace.Workspace {
 
 func TestFeatureRunsForksAndTheirDependents(t *testing.T) {
 	w := shopWorkspace(t, "")
-	iso, err := Feature(w, []string{"payments"})
+	iso, err := Feature(project(t, w), []string{"payments"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	// api uses payments and web uses api: both must reach the fork by its name.
-	if want := []string{"api", "payments", "web"}; !slices.Equal(iso.Modules, want) {
-		t.Errorf("modules = %v, want %v", iso.Modules, want)
+	if want := []string{"api", "payments", "web"}; !slices.Equal(iso.Apps, want) {
+		t.Errorf("modules = %v, want %v", iso.Apps, want)
 	}
 	if want := []string{"api", "web"}; !slices.Equal(iso.Dependents(), want) {
 		t.Errorf("dependents = %v, want %v", iso.Dependents(), want)
@@ -98,28 +98,28 @@ func TestFeatureRunsForksAndTheirDependents(t *testing.T) {
 	if want := []string{"cache", "db", "queue"}; !slices.Equal(iso.Services, want) {
 		t.Errorf("services = %v, want %v", iso.Services, want)
 	}
-	if len(iso.SharedModules) != 0 || len(iso.SharedServices) != 0 || len(iso.NoMigrate) != 0 {
-		t.Errorf("shared = %v %v, no migrate %v", iso.SharedModules, iso.SharedServices, iso.NoMigrate)
+	if len(iso.SharedApps) != 0 || len(iso.SharedServices) != 0 || len(iso.NoMigrate) != 0 {
+		t.Errorf("shared = %v %v, no migrate %v", iso.SharedApps, iso.SharedServices, iso.NoMigrate)
 	}
 }
 
 func TestFeatureSharesWhatItDoesNotRun(t *testing.T) {
 	w := shopWorkspace(t, "")
-	iso, err := Feature(w, []string{"web"})
+	iso, err := Feature(project(t, w), []string{"web"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(iso.Modules, []string{"web"}) || len(iso.Services) != 0 {
-		t.Errorf("modules = %v, services = %v", iso.Modules, iso.Services)
+	if !slices.Equal(iso.Apps, []string{"web"}) || len(iso.Services) != 0 {
+		t.Errorf("modules = %v, services = %v", iso.Apps, iso.Services)
 	}
-	if !slices.Equal(iso.SharedModules, []string{"api"}) {
-		t.Errorf("shared modules = %v", iso.SharedModules)
+	if !slices.Equal(iso.SharedApps, []string{"api"}) {
+		t.Errorf("shared modules = %v", iso.SharedApps)
 	}
 }
 
 func TestFeatureWithSharedDatabase(t *testing.T) {
 	w := shopWorkspace(t, "shared")
-	iso, err := Feature(w, []string{"payments"})
+	iso, err := Feature(project(t, w), []string{"payments"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,49 +139,49 @@ func TestFeatureBringsWhatTheBaseDoesNotRun(t *testing.T) {
 	// invoices is optional and active in the base through admin; pdf comes with it.
 	w := shopWorkspace(t, "shared")
 	w.Modules["admin"].Uses = []string{"cache"}
-	iso, err := Feature(w, []string{"admin"})
+	iso, err := Feature(project(t, w), []string{"admin"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(iso.Modules, []string{"admin"}) {
-		t.Errorf("modules = %v", iso.Modules)
+	if !slices.Equal(iso.Apps, []string{"admin"}) {
+		t.Errorf("modules = %v", iso.Apps)
 	}
 	w.Modules["admin"].Uses = []string{"invoices", "cache"}
-	if iso, err = Feature(w, []string{"admin"}); err != nil {
+	if iso, err = Feature(project(t, w), []string{"admin"}); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(iso.SharedModules, []string{"invoices"}) {
-		t.Errorf("shared modules = %v: invoices runs in the base", iso.SharedModules)
+	if !slices.Equal(iso.SharedApps, []string{"invoices"}) {
+		t.Errorf("shared modules = %v: invoices runs in the base", iso.SharedApps)
 	}
 
 	// Forking a module the base does not run brings what it needs, even with shared data.
 	w.Modules["admin"].Uses = []string{"cache"}
-	if iso, err = Feature(w, []string{"invoices"}); err != nil {
+	if iso, err = Feature(project(t, w), []string{"invoices"}); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(iso.Modules, []string{"invoices"}) || !slices.Equal(iso.Services, []string{"pdf"}) {
-		t.Errorf("modules = %v, services = %v", iso.Modules, iso.Services)
+	if !slices.Equal(iso.Apps, []string{"invoices"}) || !slices.Equal(iso.Services, []string{"pdf"}) {
+		t.Errorf("modules = %v, services = %v", iso.Apps, iso.Services)
 	}
 }
 
 func TestFeatureUnknownModule(t *testing.T) {
-	if _, err := Feature(shopWorkspace(t, ""), []string{"nope"}); err == nil {
+	if _, err := Feature(project(t, shopWorkspace(t, "")), []string{"nope"}); err == nil {
 		t.Fatal("want an error")
 	}
 }
 
 func TestBuildFeature(t *testing.T) {
 	w := shopWorkspace(t, "shared")
-	iso, err := Feature(w, []string{"payments"})
+	iso, err := Feature(project(t, w), []string{"payments"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	root, wt := t.TempDir(), t.TempDir()
 	sources := map[string]string{}
-	for _, m := range iso.Modules {
+	for _, m := range iso.Apps {
 		sources[m] = filepath.Join(wt, m)
 	}
-	p, err := Build(w, Env{ID: "f1", Project: "shop", Root: root, CodeRoot: wt, Isolation: iso,
+	p, err := Build(project(t, w), Env{ID: "f1", Project: "shop", Root: root, CodeRoot: wt, Isolation: iso,
 		Network: "n", Subnet: netip.MustParsePrefix("10.213.9.0/24"), Sources: sources})
 	if err != nil {
 		t.Fatal(err)
@@ -257,7 +257,7 @@ func TestPlanData(t *testing.T) {
 	w := res.Workspace
 	env := Env{ID: "base1", Project: "shop", Root: t.TempDir(), Network: "n", Subnet: netip.MustParsePrefix("10.213.9.0/24"),
 		Sources: map[string]string{"api": "/src/api", "web": "/src/web"}}
-	p, err := Build(w, env)
+	p, err := Build(project(t, w), env)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,12 +273,12 @@ func TestPlanData(t *testing.T) {
 	}
 
 	// A feature's instance starts from the base's golden copy; its MySQL is lean.
-	iso, err := Feature(w, []string{"api"})
+	iso, err := Feature(project(t, w), []string{"api"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	env.ID, env.BaseID, env.Isolation = "feat1", "base1", iso
-	p, err = Build(w, env)
+	p, err = Build(project(t, w), env)
 	if err != nil {
 		t.Fatal(err)
 	}

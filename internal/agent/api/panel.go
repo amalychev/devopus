@@ -21,6 +21,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/stack"
 	"github.com/amalychev/devopus/internal/agent/store"
+	"github.com/amalychev/devopus/internal/spec"
 	"github.com/amalychev/devopus/internal/workspace"
 )
 
@@ -48,7 +49,7 @@ func (s *Server) projectFile(project string) (string, []byte, error) {
 
 // workspaceOf is the workspace.yaml of a request: sent by the caller, or read from the
 // project's folder when the caller names only the project.
-func (s *Server) workspaceOf(project, path string, config []byte) (*workspace.Workspace, string, []byte, error) {
+func (s *Server) workspaceOf(project, path string, config []byte) (*spec.Project, string, []byte, error) {
 	if path == "" && project != "" {
 		var err error
 		if path, config, err = s.projectFile(project); err != nil {
@@ -59,8 +60,8 @@ func (s *Server) workspaceOf(project, path string, config []byte) (*workspace.Wo
 	if err != nil {
 		return nil, "", nil, err
 	}
-	if project != "" && ws.Project != project {
-		return nil, "", nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("%s now names project %q, not %q; run 'devopus up' there", path, ws.Project, project))
+	if project != "" && ws.Name != project {
+		return nil, "", nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("%s now names project %q, not %q; run 'devopus up' there", path, ws.Name, project))
 	}
 	return ws, path, config, nil
 }
@@ -71,12 +72,12 @@ func (s *Server) DescribeProject(_ context.Context, req *connect.Request[agentv1
 		return nil, err
 	}
 	res := &agentv1.DescribeProjectResponse{
-		Project: ws.Project, WorkspacePath: path, Domain: ws.Domain,
-		Services: ws.ServiceNames(), BranchPrefix: ws.Policy().BranchPrefix,
+		Project: ws.Name, WorkspacePath: path, Domain: ws.Domain,
+		Services: containerServices(ws), BranchPrefix: ws.Policy().BranchPrefix,
 	}
-	for _, n := range ws.ModuleNames() {
-		m := ws.Modules[n]
-		res.Modules = append(res.Modules, &agentv1.ModuleInfo{Name: n, Routes: m.Routes, Optional: m.Optional, Uses: m.Uses})
+	for _, n := range ws.AppNames() {
+		a := ws.Apps[n]
+		res.Modules = append(res.Modules, &agentv1.ModuleInfo{Name: n, Routes: a.Routes, Optional: a.Optional, Uses: ws.Needs(n)})
 	}
 	if len(req.Msg.Forks) > 0 {
 		iso, err := stack.Feature(ws, req.Msg.Forks)
@@ -89,22 +90,22 @@ func (s *Server) DescribeProject(_ context.Context, req *connect.Request[agentv1
 }
 
 // plan is what `devopus feature create` prints before it creates a feature.
-func plan(ws *workspace.Workspace, iso *stack.Isolation) *agentv1.FeaturePlan {
+func plan(ws *spec.Project, iso *stack.Isolation) *agentv1.FeaturePlan {
 	p := &agentv1.FeaturePlan{Forked: iso.Forked, Dependents: iso.Dependents()}
 	for _, svc := range iso.Services {
-		if stack.Engine(ws.Services[svc].Image) != "" {
+		if stack.Engine(ws.Services[svc].ImageRef()) != "" {
 			p.Copies = append(p.Copies, svc)
 		} else {
 			p.Own = append(p.Own, svc)
 		}
 	}
-	p.Shared = append(append([]string{}, iso.SharedModules...), iso.SharedServices...)
+	p.Shared = append(append([]string{}, iso.SharedApps...), iso.SharedServices...)
 	for _, m := range iso.NoMigrate {
 		p.Warnings = append(p.Warnings, fmt.Sprintf("%s writes to data of the base environment; its migrations are skipped (features.database: shared)", m))
 	}
-	for _, m := range iso.SharedModules {
+	for _, m := range iso.SharedApps {
 		var data []string
-		for _, u := range ws.Modules[m].Uses {
+		for _, u := range ws.Needs(m) {
 			if ws.Services[u] != nil {
 				data = append(data, u)
 			}
@@ -418,4 +419,16 @@ func sameHead(path string, head []byte) bool {
 		return false
 	}
 	return bytes.Equal(buf, head)
+}
+
+// containerServices are the services that run as their own containers: what the panel
+// lists next to the applications.
+func containerServices(p *spec.Project) []string {
+	var out []string
+	for _, n := range p.ServiceNames() {
+		if p.Services[n].IsContainer() {
+			out = append(out, n)
+		}
+	}
+	return out
 }

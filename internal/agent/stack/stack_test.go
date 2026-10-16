@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/amalychev/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/importer"
+	"github.com/amalychev/devopus/internal/spec"
 	"github.com/amalychev/devopus/internal/workspace"
 )
 
@@ -100,7 +102,7 @@ func plan(t *testing.T) (*Plan, Env) {
 		DNS:    netip.MustParseAddr("10.213.4.253"),
 		Labels: map[string]string{runtime.LabelManaged: "true", runtime.LabelEnv: "abc123"},
 	}
-	p, err := Build(res.Workspace, env)
+	p, err := Build(project(t, res.Workspace), env)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +279,7 @@ func TestPlanHooks(t *testing.T) {
 	before := keys(p)
 	res, _ := workspace.Parse([]byte(config))
 	env.Heads = map[string]string{"api": "beef"}
-	p2, err := Build(res.Workspace, env)
+	p2, err := Build(project(t, res.Workspace), env)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +288,7 @@ func TestPlanHooks(t *testing.T) {
 		t.Errorf("after a commit: %v → %v", before, after)
 	}
 	os.WriteFile(filepath.Join(env.Sources["web"], "package-lock.json"), []byte(`{"v":2}`), 0o644)
-	p3, _ := Build(res.Workspace, env)
+	p3, _ := Build(project(t, res.Workspace), env)
 	if keys(p3)["web.install"] == after["web.install"] {
 		t.Error("a changed lock file does not rerun install")
 	}
@@ -296,7 +298,7 @@ func TestMissingSecret(t *testing.T) {
 	res, _ := workspace.Parse([]byte(config))
 	_, env := plan(t)
 	env.Secrets = nil
-	if _, err := Build(res.Workspace, env); err == nil || !strings.Contains(err.Error(), "STRIPE_KEY is not in .env.secrets") {
+	if _, err := Build(project(t, res.Workspace), env); err == nil || !strings.Contains(err.Error(), "STRIPE_KEY is not in .env.secrets") {
 		t.Errorf("err = %v", err)
 	}
 }
@@ -316,4 +318,14 @@ func TestCommand(t *testing.T) {
 			t.Errorf("%s → %q, want %q", line, got, want)
 		}
 	}
+}
+
+// project converts a workspace.yaml v1 of the tests into the model the engine runs.
+func project(t *testing.T, w *workspace.Workspace) *spec.Project {
+	t.Helper()
+	p, err := importer.FromV1(w)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
 }

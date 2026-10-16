@@ -25,7 +25,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/stack"
-	"github.com/amalychev/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // Runtime is the part of the container runtime the reconciler uses.
@@ -351,7 +351,7 @@ type prepared struct {
 	env   *agentv1.EnvironmentSpec
 	hosts []string
 	leaf  *pki.Leaf
-	ws    *workspace.Workspace
+	ws    *spec.Project
 	url   string
 	plan  *stack.Plan
 	err   error

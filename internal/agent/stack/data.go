@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/amalychev/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // Engines whose data a feature gets as a copy of the base environment's (ADR-0007).
@@ -66,7 +66,7 @@ var (
 func DataDir(engine, image string, env map[string]string) string {
 	switch engine {
 	case EnginePostgres:
-		if v := env["PGDATA"]; v != "" && !workspace.HasExpr(v) {
+		if v := env["PGDATA"]; v != "" && !spec.HasExpr(v) {
 			return path.Clean(v)
 		}
 		if major := postgresMajor(image); major >= 18 {
@@ -101,12 +101,13 @@ func postgresMajor(image string) int {
 
 // dataOf finds the database data of a service: its engine and the named volume that
 // holds its data folder. ok is false for services that are not databases.
-func (b *builder) dataOf(name string, s *workspace.Service, container string) (Data, string, bool) {
-	engine := Engine(s.Image)
+func (b *builder) dataOf(name string, s *spec.Service, container string) (Data, string, bool) {
+	image := s.ImageRef()
+	engine := Engine(image)
 	if engine == "" {
 		return Data{}, "", false
 	}
-	dir := DataDir(engine, s.Image, s.Env)
+	dir := DataDir(engine, image, s.Env)
 	best, rel := "", ""
 	for _, v := range s.Volumes {
 		parts := strings.Split(v, ":")
@@ -123,7 +124,7 @@ func (b *builder) dataOf(name string, s *workspace.Service, container string) (D
 		return Data{}, name + " keeps its data in the container (no volume at " + dir + "): features get an empty " + name, true
 	}
 	return Data{
-		Service: name, Engine: engine, Image: s.Image,
+		Service: name, Engine: engine, Image: image,
 		Volume: VolumeName(b.env.Project, b.env.ID, best), Path: rel, DataDir: dir,
 		Golden:    GoldenVolume(b.env.Project, b.baseID(), name),
 		Container: container,

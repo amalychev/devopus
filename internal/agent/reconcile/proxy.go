@@ -17,7 +17,8 @@ import (
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/stack"
-	"github.com/amalychev/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/importer"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // LabelGeneration is the proxy generation the container was made for; a newer one in
@@ -427,7 +428,7 @@ func site(p *prepared, ports proxy.Ports) (proxy.Site, []*agentv1.Route) {
 		// Inside the feature: logical names of the base environment's modules and services.
 		for _, t := range append(append([]proxy.SharedTarget{}, sh.Modules...), sh.Services...) {
 			scheme := "tcp"
-			if contains(p.iso.SharedModules, t.Name) {
+			if contains(p.iso.SharedApps, t.Name) {
 				scheme = "http"
 			}
 			routes = append(routes, &agentv1.Route{Host: t.Name, EnvironmentId: env.Id, Project: env.Project,
@@ -518,7 +519,7 @@ func (r *Reconciler) whyNotServed(err error) error {
 
 // parsed is a project's workspace.yaml, or why it cannot be read.
 type parsed struct {
-	ws   *workspace.Workspace
+	ws   *spec.Project
 	root string
 	err  error
 }
@@ -526,14 +527,14 @@ type parsed struct {
 func parseProjects(projects []*agentv1.ProjectSpec) map[string]*parsed {
 	out := map[string]*parsed{}
 	for _, p := range projects {
-		res, err := workspace.Parse(p.Config)
+		proj, _, err := importer.Parse(p.Config)
 		switch {
 		case err != nil:
 			out[p.Name] = &parsed{err: err}
-		case res.Workspace == nil || res.Workspace.Domain == "":
+		case proj.Domain == "":
 			out[p.Name] = &parsed{err: errors.New("no domain")}
 		default:
-			out[p.Name] = &parsed{ws: res.Workspace, root: p.Root}
+			out[p.Name] = &parsed{ws: proj, root: p.Root}
 		}
 	}
 	return out
@@ -541,7 +542,7 @@ func parseProjects(projects []*agentv1.ProjectSpec) map[string]*parsed {
 
 // Hosts are the names an environment answers on: its own host first, then a host per
 // exposed service web UI (specs/workspace-yaml.md).
-func Hosts(ws *workspace.Workspace, env *agentv1.EnvironmentSpec) []string {
+func Hosts(ws *spec.Project, env *agentv1.EnvironmentSpec) []string {
 	host := ws.Domain
 	if env.Kind == agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE && env.Slug != "" {
 		host = env.Slug + "." + ws.Domain

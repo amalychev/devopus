@@ -18,6 +18,8 @@ import (
 	"github.com/amalychev/devopus/gen/devopus/agent/v1/agentv1connect"
 	"github.com/amalychev/devopus/internal/agent/stack"
 	"github.com/amalychev/devopus/internal/agent/store"
+	"github.com/amalychev/devopus/internal/importer"
+	"github.com/amalychev/devopus/internal/spec"
 	"github.com/amalychev/devopus/internal/workspace"
 )
 
@@ -31,7 +33,7 @@ type Backend interface {
 	Routes() []*agentv1.Route
 	CA() *agentv1.CAInfo
 	// Unsaved describes work in a feature's worktrees that exists nowhere else.
-	Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *workspace.Workspace) (map[string]string, error)
+	Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *spec.Project) (map[string]string, error)
 	// Force lets the removal of a feature drop its worktrees even with work in them.
 	Force(envID string)
 	// Sleep and Wake switch a feature; they return once it started switching.
@@ -103,7 +105,7 @@ func (s *Server) Up(_ context.Context, req *connect.Request[agentv1.UpRequest]) 
 	if err != nil {
 		return nil, err
 	}
-	envID, rev, err := s.b.Store().Up(ws.Project, filepath.Dir(path), config)
+	envID, rev, err := s.b.Store().Up(ws.Name, filepath.Dir(path), config)
 	if err != nil {
 		return nil, storeError(err)
 	}
@@ -112,7 +114,7 @@ func (s *Server) Up(_ context.Context, req *connect.Request[agentv1.UpRequest]) 
 
 // parseWorkspace checks workspace.yaml: the agent does it itself, the CLI may be older
 // or newer than the agent.
-func parseWorkspace(path string, config []byte) (*workspace.Workspace, error) {
+func parseWorkspace(path string, config []byte) (*spec.Project, error) {
 	if !filepath.IsAbs(path) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("workspace_path must be absolute, got %q", path))
 	}
@@ -123,7 +125,11 @@ func parseWorkspace(path string, config []byte) (*workspace.Workspace, error) {
 	if res.Diagnostics.HasErrors() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is invalid:\n%s", path, res.Diagnostics.Errors().Error()))
 	}
-	return res.Workspace, nil
+	p, err := importer.FromV1(res.Workspace)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s: %w", path, err))
+	}
+	return p, nil
 }
 
 func storeError(err error) error {
@@ -165,7 +171,7 @@ func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv1.C
 			reserved = append(reserved, e)
 		}
 	}
-	f, base, rev, err := s.b.Store().CreateFeature(ws.Project, filepath.Dir(path), config,
+	f, base, rev, err := s.b.Store().CreateFeature(ws.Name, filepath.Dir(path), config,
 		store.NewFeature{Name: m.Name, Branch: branch, Modules: m.Modules, Reserved: reserved})
 	if err != nil {
 		return nil, storeError(err)
@@ -185,7 +191,7 @@ func (s *Server) AddFeatureModules(_ context.Context, req *connect.Request[agent
 	if _, err := stack.Feature(ws, m.Modules); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	env, rev, err := s.b.Store().AddFeatureModules(ws.Project, filepath.Dir(path), config, m.Feature, m.Modules)
+	env, rev, err := s.b.Store().AddFeatureModules(ws.Name, filepath.Dir(path), config, m.Feature, m.Modules)
 	if err != nil {
 		return nil, storeError(err)
 	}
@@ -194,11 +200,11 @@ func (s *Server) AddFeatureModules(_ context.Context, req *connect.Request[agent
 
 func (s *Server) RemoveFeature(ctx context.Context, req *connect.Request[agentv1.RemoveFeatureRequest]) (*connect.Response[agentv1.RemoveFeatureResponse], error) {
 	m := req.Msg
-	var ws *workspace.Workspace
+	var ws *spec.Project
 	for _, p := range s.b.Store().Snapshot().Projects {
 		if p.Name == m.Project {
-			if res, err := workspace.Parse(p.Config); err == nil {
-				ws = res.Workspace
+			if proj, _, err := importer.Parse(p.Config); err == nil {
+				ws = proj
 			}
 		}
 	}
@@ -237,12 +243,12 @@ func (s *Server) RemoveFeature(ctx context.Context, req *connect.Request[agentv1
 
 func (s *Server) ResetData(_ context.Context, req *connect.Request[agentv1.ResetDataRequest]) (*connect.Response[agentv1.ResetDataResponse], error) {
 	m := req.Msg
-	var ws *workspace.Workspace
+	var ws *spec.Project
 	st := s.b.Store()
 	for _, p := range st.Snapshot().Projects {
 		if p.Name == m.Project {
-			if res, err := workspace.Parse(p.Config); err == nil {
-				ws = res.Workspace
+			if proj, _, err := importer.Parse(p.Config); err == nil {
+				ws = proj
 			}
 		}
 	}

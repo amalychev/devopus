@@ -1,6 +1,7 @@
-// Package stack turns a workspace.yaml into the containers of one environment: its
-// services, modules and workers, the hooks that prepare the modules, the volumes and
-// the images to build. It only describes them; the reconciler makes them exist.
+// Package stack turns a project (internal/spec) into the containers of one environment:
+// its container services, applications and workers, the hooks that prepare the
+// applications, the volumes and the images to build. It only describes them; the
+// reconciler makes them exist.
 package stack
 
 import (
@@ -21,7 +22,8 @@ import (
 	"github.com/mattn/go-shellwords"
 
 	"github.com/amalychev/devopus/internal/agent/runtime"
-	"github.com/amalychev/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/catalog"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // Labels on the containers of an environment, besides the common ones.
@@ -131,9 +133,9 @@ func Prefix(project, envID string) string { return project + "-env-" + envID }
 // VolumeName namespaces a volume by environment (docker-isolation.md).
 func VolumeName(project, envID, name string) string { return project + "-" + envID + "-" + name }
 
-// Active are the modules and services the environment runs: everything that is not
-// optional, and the optional ones something active uses.
-func Active(w *workspace.Workspace) (modules, services []string) {
+// Active are the applications and container services the environment runs: everything
+// that is not optional, and the optional ones something active needs.
+func Active(p *spec.Project) (apps, services []string) {
 	on := map[string]bool{}
 	var visit func(name string)
 	visit = func(name string) {
@@ -141,92 +143,86 @@ func Active(w *workspace.Workspace) (modules, services []string) {
 			return
 		}
 		on[name] = true
-		var uses []string
-		if m := w.Modules[name]; m != nil {
-			uses = m.Uses
-		} else if s := w.Services[name]; s != nil {
-			uses = s.Uses
-		}
-		for _, u := range uses {
+		for _, u := range p.Needs(name) {
 			visit(u)
 		}
 	}
-	for _, n := range w.ModuleNames() {
-		if !w.Modules[n].Optional {
+	for _, n := range p.AppNames() {
+		if !p.Apps[n].Optional {
 			visit(n)
 		}
 	}
-	for _, n := range w.ServiceNames() {
-		if !w.Services[n].Optional {
+	for _, n := range p.ServiceNames() {
+		if s := p.Services[n]; s.IsContainer() && !s.Optional {
 			visit(n)
 		}
 	}
-	for _, n := range w.ModuleNames() {
+	for _, n := range p.AppNames() {
 		if on[n] {
-			modules = append(modules, n)
+			apps = append(apps, n)
 		}
 	}
-	for _, n := range w.ServiceNames() {
-		if on[n] {
+	for _, n := range p.ServiceNames() {
+		if on[n] && p.Services[n].IsContainer() {
 			services = append(services, n)
 		}
 	}
-	return modules, services
+	return apps, services
 }
 
 // Build makes the plan of an environment.
-func Build(w *workspace.Workspace, env Env) (*Plan, error) {
-	modules, services := Active(w)
+func Build(p *spec.Project, env Env) (*Plan, error) {
+	apps, services := Active(p)
 	noMigrate := map[string]bool{}
 	if env.Isolation != nil {
-		modules, services = env.Isolation.Modules, env.Isolation.Services
+		apps, services = env.Isolation.Apps, env.Isolation.Services
 		noMigrate = set(env.Isolation.NoMigrate)
 	}
 	if env.CodeRoot == "" {
 		env.CodeRoot = env.Root
 	}
-	b := &builder{w: w, env: env, plan: &Plan{}, images: map[string]bool{}, volumes: map[string]bool{}}
-	ips, err := pinIPs(env.Subnet, append(append([]string{}, services...), modules...))
+	b := &builder{p: p, env: env, plan: &Plan{}, images: map[string]bool{}, volumes: map[string]bool{}}
+	ips, err := pinIPs(env.Subnet, append(append([]string{}, services...), apps...))
 	if err != nil {
 		return nil, err
 	}
 	b.ips = ips
 	var units []Unit
 	for _, name := range services {
-		u, err := b.service(name, w.Services[name])
+		u, err := b.service(name, p.Services[name])
 		if err != nil {
 			return nil, fmt.Errorf("services.%s: %w", name, err)
 		}
 		units = append(units, u)
 	}
-	for _, name := range modules {
-		us, err := b.module(name, w.Modules[name])
+	for _, name := range apps {
+		us, err := b.app(name, p.Apps[name])
 		if err != nil {
-			return nil, fmt.Errorf("modules.%s: %w", name, err)
+			return nil, fmt.Errorf("apps.%s: %w", name, err)
 		}
 		units = append(units, us...)
 	}
 	b.plan.Units = order(units)
-	// Install everywhere first, then migrate in dependency order: a module's migrations
-	// may need what another one migrated.
+	// Install everywhere first, then migrate in dependency order: an application's
+	// migrations may need what another one migrated.
 	var installs, migrates []Hook
 	for _, u := range b.plan.Units {
 		if u.Role != RoleModule {
 			continue
 		}
-		m := w.Modules[u.Owner]
-		if m.Hooks == nil {
+		a := p.Apps[u.Owner]
+		if a.Hooks == nil {
 			continue
 		}
-		if m.Hooks.Install != "" {
-			h, err := b.hook(u, "install", m.Hooks.Install, lockHash(env.Sources[u.Owner]))
+		if a.Hooks.Install != "" {
+			h, err := b.hook(u, "install", a.Hooks.Install, lockHash(env.Sources[u.Owner]))
 			if err != nil {
 				return nil, err
 			}
 			installs = append(installs, h)
 		}
-		if m.Hooks.Migrate != "" && !noMigrate[u.Owner] {
-			h, err := b.hook(u, "migrate", m.Hooks.Migrate, env.Heads[u.Owner])
+		if a.Hooks.Migrate != "" && !noMigrate[u.Owner] {
+			h, err := b.hook(u, "migrate", a.Hooks.Migrate, env.Heads[u.Owner])
 			if err != nil {
 				return nil, err
 			}
@@ -236,7 +232,7 @@ func Build(w *workspace.Workspace, env Env) (*Plan, error) {
 	b.plan.Hooks = append(installs, migrates...)
 	for i, d := range b.plan.Data {
 		for _, u := range b.plan.Units {
-			if u.Role == RoleModule && contains(w.Modules[u.Owner].Uses, d.Service) {
+			if u.Role == RoleModule && contains(p.Services[d.Service].Apps, u.Owner) {
 				b.plan.Data[i].Uses = append(b.plan.Data[i].Uses, u.Owner)
 			}
 		}
@@ -253,7 +249,7 @@ func Build(w *workspace.Workspace, env Env) (*Plan, error) {
 }
 
 type builder struct {
-	w       *workspace.Workspace
+	p       *spec.Project
 	env     Env
 	plan    *Plan
 	ips     map[string]netip.Addr
@@ -269,14 +265,14 @@ func (b *builder) labels(role, unit, owner string) map[string]string {
 	return l
 }
 
-func (b *builder) service(name string, s *workspace.Service) (Unit, error) {
+func (b *builder) service(name string, s *spec.Service) (Unit, error) {
 	env, err := b.expandEnv(s.Env)
 	if err != nil {
 		return Unit{}, err
 	}
 	spec := runtime.ContainerSpec{
 		Name:    Prefix(b.env.Project, b.env.ID) + "-" + name,
-		Image:   s.Image,
+		Image:   s.ImageRef(),
 		Env:     env,
 		Labels:  b.labels(RoleService, name, name),
 		Network: b.env.Network,
@@ -316,37 +312,38 @@ func (b *builder) service(name string, s *workspace.Service) (Unit, error) {
 			b.plan.Data = append(b.plan.Data, d)
 		}
 	}
-	b.images[s.Image] = true
+	b.images[s.ImageRef()] = true
 	finish(&spec)
 	return Unit{Name: name, Role: RoleService, Owner: name, Spec: spec, IP: b.ips[name], Port: s.ExposePort(), Expose: s.Expose,
-		Needs: s.Uses, Healthcheck: spec.Health != nil && spec.Health.Test[0] != "NONE"}, nil
+		Needs: b.p.Needs(name), Healthcheck: spec.Health != nil && spec.Health.Test[0] != "NONE"}, nil
 }
 
-func (b *builder) module(name string, m *workspace.Module) ([]Unit, error) {
+func (b *builder) app(name string, a *spec.App) ([]Unit, error) {
 	src := b.env.Sources[name]
 	if src == "" {
 		return nil, fmt.Errorf("no source folder")
 	}
-	image := m.Image
+	image := a.Image
+	_, rt := b.p.Runtime(name)
 	switch {
-	case m.Runtime != "":
-		image = workspace.RuntimeImage(m.Runtime)
-	case m.Build != nil:
-		ctxDir := filepath.Join(b.env.CodeRoot, filepath.FromSlash(m.Build.Context))
-		if m.Repo != "" {
-			ctxDir = filepath.Join(src, filepath.FromSlash(m.Build.Context))
+	case rt != nil:
+		image = rt.ImageRef()
+	case a.Build != nil:
+		ctxDir := filepath.Join(b.env.CodeRoot, filepath.FromSlash(a.Build.Context))
+		if a.Repo != "" {
+			ctxDir = filepath.Join(src, filepath.FromSlash(a.Build.Context))
 		}
-		bs, err := b.build(name, ctxDir, m.Build)
+		bs, err := b.build(name, ctxDir, a.Build)
 		if err != nil {
 			return nil, err
 		}
 		image = bs.Tag
 		b.plan.Builds = append(b.plan.Builds, bs)
 	}
-	if m.Build == nil {
+	if rt != nil || a.Build == nil {
 		b.images[image] = true
 	}
-	env, err := b.expandEnv(m.Env)
+	env, err := b.expandEnv(a.Env)
 	if err != nil {
 		return nil, err
 	}
@@ -356,45 +353,48 @@ func (b *builder) module(name string, m *workspace.Module) ([]Unit, error) {
 		Network: b.env.Network,
 		DNS:     dns(b.env.DNS),
 		Init:    true,
-		Tmpfs:   tmpfs(m.Tmpfs),
-		Ulimits: ulimits(m.Ulimits),
+		Tmpfs:   tmpfs(a.Tmpfs),
+		Ulimits: ulimits(a.Ulimits),
 		Files: []runtime.File{
 			{Path: CAPath, Data: b.env.CA, Mode: 0o644},
 			{Path: BundlePath, Data: b.env.Bundle, Mode: 0o644},
 		},
 	}
-	if mount := m.CodeMount(); mount != "" {
+	if mount := b.p.CodeMount(name); mount != "" {
 		base.Binds = []runtime.Bind{{Source: src, Target: mount}}
 		base.WorkDir = mount
 	}
-	if base.Entrypoint, err = b.command(m.Entrypoint); err != nil {
+	if base.Entrypoint, err = b.command(a.Entrypoint); err != nil {
 		return nil, fmt.Errorf("entrypoint: %w", err)
 	}
-	for _, v := range m.Volumes {
+	for _, v := range a.Volumes {
 		if err := b.mount(&base, v, false); err != nil {
 			return nil, err
 		}
 	}
 
+	needs := b.p.Needs(name)
 	main := clone(base)
 	main.Name = Prefix(b.env.Project, b.env.ID) + "-" + name
 	main.Labels = b.labels(RoleModule, name, name)
 	main.IP = b.ips[name]
 	main.Aliases = []string{name}
-	if main.Cmd, err = b.command(m.Command); err != nil {
+	if main.Cmd, err = b.command(a.Command); err != nil {
 		return nil, fmt.Errorf("command: %w", err)
 	}
-	if main.Health, err = health(m.Healthcheck); err != nil {
+	if main.Health, err = health(a.Healthcheck); err != nil {
 		return nil, err
 	}
 	finish(&main)
-	units := []Unit{{Name: name, Role: RoleModule, Owner: name, Spec: main, IP: main.IP, Port: m.ModulePort(), Routes: m.Routes,
-		Needs: m.Uses, Healthcheck: main.Health != nil && main.Health.Test[0] != "NONE"}}
+	units := []Unit{{Name: name, Role: RoleModule, Owner: name, Spec: main, IP: main.IP, Port: a.AppPort(), Routes: a.Routes,
+		Needs: needs, Healthcheck: main.Health != nil && main.Health.Test[0] != "NONE"}}
 
-	for i, wk := range m.Workers {
+	// Queues run the application's code with their own command, replicas apart.
+	for _, q := range b.p.Processes(name, catalog.Queue) {
+		wk := b.p.Services[q]
 		replicas := max(wk.Replicas, 1)
 		for r := 1; r <= replicas; r++ {
-			unit := fmt.Sprintf("%s-worker-%d", name, i+1)
+			unit := q
 			if replicas > 1 {
 				unit += "-" + strconv.Itoa(r)
 			}
@@ -402,21 +402,21 @@ func (b *builder) module(name string, m *workspace.Module) ([]Unit, error) {
 			s.Name = Prefix(b.env.Project, b.env.ID) + "-" + unit
 			s.Labels = b.labels(RoleWorker, unit, name)
 			if s.Cmd, err = b.command(wk.Command); err != nil {
-				return nil, fmt.Errorf("workers[%d]: %w", i, err)
+				return nil, fmt.Errorf("%s: %w", q, err)
 			}
 			finish(&s)
-			units = append(units, Unit{Name: unit, Role: RoleWorker, Owner: name, Spec: s, Needs: append([]string{name}, m.Uses...)})
+			units = append(units, Unit{Name: unit, Role: RoleWorker, Owner: name, Spec: s, Needs: append([]string{name}, needs...)})
 		}
 	}
 	return units, nil
 }
 
-// hook runs command in a copy of the module's container: same image, code, volumes,
-// network and variables, so it reaches the services the module uses.
+// hook runs command in a copy of the application's container: same image, code,
+// volumes, network and variables, so it reaches the services attached to it.
 func (b *builder) hook(u Unit, name, command, input string) (Hook, error) {
 	cmd, err := b.expand(command)
 	if err != nil {
-		return Hook{}, fmt.Errorf("modules.%s.hooks.%s: %w", u.Owner, name, err)
+		return Hook{}, fmt.Errorf("apps.%s.hooks.%s: %w", u.Owner, name, err)
 	}
 	s := clone(u.Spec)
 	s.Name = u.Spec.Name + "-" + name
@@ -430,7 +430,7 @@ func (b *builder) hook(u Unit, name, command, input string) (Hook, error) {
 
 // build describes the image of a module with build; its tag changes with the
 // Dockerfile and the build options, not with every change of the code.
-func (b *builder) build(name, ctxDir string, bd *workspace.Build) (runtime.BuildSpec, error) {
+func (b *builder) build(name, ctxDir string, bd *spec.Build) (runtime.BuildSpec, error) {
 	args := map[string]string{}
 	for k, v := range bd.Args {
 		e, err := b.expand(v)
@@ -503,15 +503,15 @@ func (b *builder) expandEnv(env map[string]string) ([]string, error) {
 
 // expand resolves ${{ }} for the base environment (specs/workspace-yaml.md).
 func (b *builder) expand(s string) (string, error) {
-	return b.w.Expand(s, func(r workspace.Ref) (string, error) {
+	return b.p.Expand(s, func(r spec.Ref) (string, error) {
 		switch r.Kind {
-		case workspace.RefSecret:
+		case spec.RefSecret:
 			v, ok := b.env.Secrets[r.Name]
 			if !ok {
 				return "", fmt.Errorf("secret %s is not in .env.secrets next to workspace.yaml; add a line %s=value there", r.Name, r.Name)
 			}
 			return v, nil
-		case workspace.RefEnv:
+		case spec.RefEnv:
 			switch r.Attr {
 			case "url":
 				return b.env.URL, nil
@@ -520,8 +520,8 @@ func (b *builder) expand(s string) (string, error) {
 			default:
 				return b.env.ID, nil
 			}
-		case workspace.RefModule:
-			port := b.w.Modules[r.Name].ModulePort()
+		case spec.RefApp:
+			port := b.p.Apps[r.Name].AppPort()
 			switch r.Attr {
 			case "url":
 				return fmt.Sprintf("http://%s:%d", r.Name, port), nil
@@ -530,8 +530,8 @@ func (b *builder) expand(s string) (string, error) {
 			default:
 				return strconv.Itoa(port), nil
 			}
-		case workspace.RefService:
-			s := b.w.Services[r.Name]
+		case spec.RefService:
+			s := b.p.Services[r.Name]
 			switch r.Attr {
 			case "host":
 				return r.Name, nil
@@ -541,7 +541,7 @@ func (b *builder) expand(s string) (string, error) {
 				}
 				return strconv.Itoa(s.Port), nil
 			default:
-				return b.w.DatabaseName(r.Name), nil
+				return b.p.DatabaseName(r.Name), nil
 			}
 		}
 		return "", fmt.Errorf("cannot resolve %s", r.Raw)
@@ -598,7 +598,7 @@ func tmpfs(list []string) map[string]string {
 	return out
 }
 
-func ulimits(m map[string]*workspace.Ulimit) []runtime.Ulimit {
+func ulimits(m map[string]*spec.Ulimit) []runtime.Ulimit {
 	var out []runtime.Ulimit
 	for name, u := range m {
 		if u == nil {
@@ -614,7 +614,7 @@ func ulimits(m map[string]*workspace.Ulimit) []runtime.Ulimit {
 	return out
 }
 
-func health(h *workspace.Healthcheck) (*runtime.Health, error) {
+func health(h *spec.Healthcheck) (*runtime.Health, error) {
 	if h == nil {
 		return nil, nil
 	}

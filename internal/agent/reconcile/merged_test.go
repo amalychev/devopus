@@ -9,7 +9,7 @@ import (
 	"time"
 
 	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
-	"github.com/amalychev/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/importer"
 )
 
 func TestCheckMerged(t *testing.T) {
@@ -29,7 +29,7 @@ func TestCheckMerged(t *testing.T) {
 	wt := filepath.Join(t.TempDir(), "wt")
 	git(repo, "worktree", "add", "-q", "-b", "feature/x", wt)
 
-	res, err := workspace.Parse([]byte("version: 1\nproject: p\ndomain: p.localhost\nmodules:\n  api:\n    path: api\n    runtime: node:22\n    command: node a.js\n"))
+	proj, _, err := importer.Parse([]byte("version: 1\nproject: p\ndomain: p.localhost\nmodules:\n  api:\n    path: api\n    runtime: node:22\n    command: node a.js\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestCheckMerged(t *testing.T) {
 	clock := time.Now()
 	r.now = func() time.Time { return clock }
 	env := &agentv1.EnvironmentSpec{Id: "f1", Kind: agentv1.EnvironmentKind_ENVIRONMENT_KIND_FEATURE, Branch: "feature/x", ForkedModules: []string{"api"}}
-	p := &prepared{env: env, ws: res.Workspace}
+	p := &prepared{env: env, ws: proj}
 	check := func() bool {
 		clock = clock.Add(mergeCheck)
 		r.checkMerged(context.Background(), env, p, map[string]string{"api": wt})

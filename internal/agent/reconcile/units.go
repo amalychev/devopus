@@ -20,7 +20,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/stack"
-	"github.com/amalychev/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // SecretsFile holds the values of ${{ secrets.* }} next to workspace.yaml (stage 1).
@@ -143,7 +143,7 @@ func (r *Reconciler) SourceDir(project, envID, module string) string {
 
 // ensureSources finds the code of every active module: a folder of the repository, or
 // a clone of the module's repository at its base branch, made once.
-func (r *Reconciler) ensureSources(ctx context.Context, env *agentv1.EnvironmentSpec, root string, ws *workspace.Workspace) (map[string]string, map[string]string, string, error) {
+func (r *Reconciler) ensureSources(ctx context.Context, env *agentv1.EnvironmentSpec, root string, ws *spec.Project) (map[string]string, map[string]string, string, error) {
 	modules, _ := stack.Active(ws)
 	sources, heads := map[string]string{}, map[string]string{}
 	var cloned []string
@@ -152,7 +152,7 @@ func (r *Reconciler) ensureSources(ctx context.Context, env *agentv1.Environment
 		rootHead = h
 	}
 	for _, name := range modules {
-		m := ws.Modules[name]
+		m := ws.Apps[name]
 		if m.Path != "" {
 			dir := filepath.Join(root, filepath.FromSlash(m.Path))
 			if st, err := os.Stat(dir); err != nil || !st.IsDir() {
@@ -182,7 +182,7 @@ func (r *Reconciler) ensureSources(ctx context.Context, env *agentv1.Environment
 	}
 	checkouts := map[string]string{}
 	for name, dir := range sources {
-		if ws.Modules[name].Repo != "" {
+		if ws.Apps[name].Repo != "" {
 			checkouts[name] = dir
 		}
 	}

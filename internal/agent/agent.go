@@ -33,7 +33,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/store"
 	"github.com/amalychev/devopus/internal/daemon"
-	"github.com/amalychev/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // Intervals of the reconcile loop: a periodic pass catches changes made behind the
@@ -109,7 +109,7 @@ func (a *Agent) Statuses() []*agentv1.EnvironmentStatus { return a.rec.Statuses(
 func (a *Agent) Version() string                        { return a.opt.Version }
 func (a *Agent) Force(envID string)                     { a.rec.Force(envID) }
 
-func (a *Agent) Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *workspace.Workspace) (map[string]string, error) {
+func (a *Agent) Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *spec.Project) (map[string]string, error) {
 	return a.rec.Unsaved(ctx, env, ws)
 }
 func (a *Agent) Proxy() *agentv1.ProxyStatus { return a.rec.Proxy() }

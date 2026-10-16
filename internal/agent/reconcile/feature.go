@@ -17,7 +17,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/stack"
-	"github.com/amalychev/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // RepoCheckout is the folder of a feature's worktree of the project's own repository,
@@ -46,7 +46,7 @@ func (r *Reconciler) isolate(env *agentv1.EnvironmentSpec, p *prepared, nw runti
 	}
 	sh := &proxy.Shared{IP: proxy.ProxyIP(nw.Subnets[0])}
 	var notes []string
-	for _, name := range iso.SharedModules {
+	for _, name := range iso.SharedApps {
 		u, ok := units[name]
 		if !ok {
 			return "", fmt.Errorf("the base environment does not run %s", name)
@@ -70,7 +70,7 @@ func (r *Reconciler) isolate(env *agentv1.EnvironmentSpec, p *prepared, nw runti
 	}
 	for _, m := range iso.NoMigrate {
 		var on []string
-		for _, u := range p.ws.Modules[m].Uses {
+		for _, u := range p.ws.Needs(m) {
 			if p.ws.Services[u] != nil && contains(iso.SharedServices, u) {
 				on = append(on, u)
 			}
@@ -78,7 +78,7 @@ func (r *Reconciler) isolate(env *agentv1.EnvironmentSpec, p *prepared, nw runti
 		notes = append(notes, fmt.Sprintf("migrations of %s are skipped: they would change %s of the base environment", m, strings.Join(on, ", ")))
 	}
 	p.iso, p.shared, p.notes = iso, sh, notes
-	shared := append(append([]string{}, iso.SharedModules...), iso.SharedServices...)
+	shared := append(append([]string{}, iso.SharedApps...), iso.SharedServices...)
 	r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.Shared, s.Notes = shared, notes })
 
 	msg := "forks " + strings.Join(iso.Forked, ", ")
@@ -110,8 +110,8 @@ func (r *Reconciler) ensureFeatureSources(ctx context.Context, env *agentv1.Envi
 
 	codeRoot = root
 	repoBranch, repoBase, needRepo := "", "", false
-	for _, name := range iso.Modules {
-		if m := ws.Modules[name]; m.Path != "" {
+	for _, name := range iso.Apps {
+		if m := ws.Apps[name]; m.Path != "" {
 			needRepo = true
 			if forked[name] {
 				repoBranch = env.Branch
@@ -143,8 +143,8 @@ func (r *Reconciler) ensureFeatureSources(ctx context.Context, env *agentv1.Envi
 	if needRepo {
 		repoHead, _ = git.Head(ctx, codeRoot)
 	}
-	for _, name := range iso.Modules {
-		m := ws.Modules[name]
+	for _, name := range iso.Apps {
+		m := ws.Apps[name]
 		if m.Path != "" {
 			dir := filepath.Join(codeRoot, filepath.FromSlash(m.Path))
 			if st, err := os.Stat(dir); err != nil || !st.IsDir() {
@@ -191,7 +191,7 @@ func (r *Reconciler) ensureFeatureSources(ctx context.Context, env *agentv1.Envi
 	if needRepo {
 		r.update(env.Id, func(s *agentv1.EnvironmentStatus) { s.CodeRoot = codeRoot })
 	}
-	msg = fmt.Sprintf("%s on %s", plural(len(iso.Modules), "module"), env.Branch)
+	msg = fmt.Sprintf("%s on %s", plural(len(iso.Apps), "module"), env.Branch)
 	if len(made) > 0 {
 		msg += ", new worktrees: " + strings.Join(made, ", ")
 	}
@@ -244,7 +244,7 @@ func (r *Reconciler) setSources(ctx context.Context, envID string, sources, chec
 // Unsaved describes, per worktree of a feature, work that exists nowhere else:
 // uncommitted changes and commits on no remote and not in the base branch. Removing a
 // feature without force refuses while there is any.
-func (r *Reconciler) Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *workspace.Workspace) (map[string]string, error) {
+func (r *Reconciler) Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, ws *spec.Project) (map[string]string, error) {
 	dir := filepath.Join(r.opt.SourcesDir, env.Project, env.Id)
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, os.ErrNotExist) {
@@ -261,7 +261,7 @@ func (r *Reconciler) Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, 
 		}
 		base := ""
 		if ws != nil {
-			if m := ws.Modules[e.Name()]; m != nil {
+			if m := ws.Apps[e.Name()]; m != nil {
 				base = m.BaseBranch()
 			} else if e.Name() == RepoCheckout {
 				base = repoBaseBranch(ws)
@@ -280,9 +280,9 @@ func (r *Reconciler) Unsaved(ctx context.Context, env *agentv1.EnvironmentSpec, 
 
 // repoBaseBranch is the base branch of the project's own repository: that of its
 // modules with path.
-func repoBaseBranch(ws *workspace.Workspace) string {
-	for _, n := range ws.ModuleNames() {
-		if m := ws.Modules[n]; m.Path != "" {
+func repoBaseBranch(ws *spec.Project) string {
+	for _, n := range ws.AppNames() {
+		if m := ws.Apps[n]; m.Path != "" {
 			return m.BaseBranch()
 		}
 	}
@@ -361,7 +361,7 @@ func (r *Reconciler) checkMerged(ctx context.Context, env *agentv1.EnvironmentSp
 			forks[dir], changed = head, true
 			continue
 		}
-		base := p.ws.Modules[m].BaseBranch()
+		base := p.ws.Apps[m].BaseBranch()
 		if git.FetchBranch(ctx, dir, base) == nil && git.HasRef(ctx, dir, "refs/remotes/origin/"+base) {
 			base = "origin/" + base
 		} else if !git.HasRef(ctx, dir, base) {

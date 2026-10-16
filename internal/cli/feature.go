@@ -18,7 +18,8 @@ import (
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/stack"
-	"github.com/amalychev/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/importer"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 func (a *app) featureCmd() *cobra.Command {
@@ -32,7 +33,7 @@ func (a *app) featureCmd() *cobra.Command {
 }
 
 // loadValid reads workspace.yaml for the agent: errors stop the command.
-func (a *app) loadValid(again string) (*workspace.Workspace, string, []byte, error) {
+func (a *app) loadValid(again string) (*spec.Project, string, []byte, error) {
 	res, file, err := a.load()
 	if err != nil {
 		return nil, "", nil, err
@@ -50,7 +51,11 @@ func (a *app) loadValid(again string) (*workspace.Workspace, string, []byte, err
 	if err != nil {
 		return nil, "", nil, err
 	}
-	return res.Workspace, abs, config, nil
+	proj, err := importer.FromV1(res.Workspace)
+	if err != nil {
+		return nil, "", nil, fail(ExitInvalid, "%s: %v", display(file), err)
+	}
+	return proj, abs, config, nil
 }
 
 func splitList(list []string) []string {
@@ -128,16 +133,16 @@ func (a *app) featureCreateCmd() *cobra.Command {
 
 // printIsolation tells what the feature has to itself and what it shares with the
 // base environment, with a hint where shared data may surprise (US-4).
-func (a *app) printIsolation(ws *workspace.Workspace, iso *stack.Isolation, name, branch string) {
+func (a *app) printIsolation(ws *spec.Project, iso *stack.Isolation, name, branch string) {
 	w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "Feature %s of %s\n", name, ws.Project)
+	fmt.Fprintf(w, "Feature %s of %s\n", name, ws.Name)
 	fmt.Fprintf(w, "  forks\t%s (branch %s)\n", strings.Join(iso.Forked, ", "), branch)
 	if d := iso.Dependents(); len(d) > 0 {
 		fmt.Fprintf(w, "  also runs\t%s: they use forked modules, on the base branch\n", strings.Join(d, ", "))
 	}
 	var copies, fresh []string
 	for _, svc := range iso.Services {
-		if stack.Engine(ws.Services[svc].Image) != "" {
+		if stack.Engine(ws.Services[svc].ImageRef()) != "" {
 			copies = append(copies, svc)
 		} else {
 			fresh = append(fresh, svc)
@@ -149,16 +154,16 @@ func (a *app) printIsolation(ws *workspace.Workspace, iso *stack.Isolation, name
 	if len(fresh) > 0 {
 		fmt.Fprintf(w, "  own\t%s: empty, its own instance\n", strings.Join(fresh, ", "))
 	}
-	if shared := append(append([]string{}, iso.SharedModules...), iso.SharedServices...); len(shared) > 0 {
+	if shared := append(append([]string{}, iso.SharedApps...), iso.SharedServices...); len(shared) > 0 {
 		fmt.Fprintf(w, "  shared\t%s from the base environment\n", strings.Join(shared, ", "))
 	}
 	w.Flush()
 	for _, m := range iso.NoMigrate {
 		fmt.Fprintf(a.stdout, "  ! %s writes to data of the base environment; its migrations are skipped (features.database: shared)\n", m)
 	}
-	for _, m := range iso.SharedModules {
+	for _, m := range iso.SharedApps {
 		var data []string
-		for _, u := range ws.Modules[m].Uses {
+		for _, u := range ws.Needs(m) {
 			if ws.Services[u] != nil {
 				data = append(data, u)
 			}
@@ -202,7 +207,7 @@ func (a *app) featureAddCmd() *cobra.Command {
 			}
 			if detach {
 				return a.done(map[string]any{"environment_id": res.Msg.EnvironmentId, "revision": res.Msg.Revision},
-					"Feature %s of %s is changing; 'devopus feature list' shows it.\n", args[0], ws.Project)
+					"Feature %s of %s is changing; 'devopus feature list' shows it.\n", args[0], ws.Name)
 			}
 			return a.awaitRunning(ctx, c, w, res.Msg.EnvironmentId, res.Msg.Revision, "Feature "+args[0])
 		},
