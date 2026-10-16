@@ -27,7 +27,7 @@
 1. **Предложить пилот** подходящим командам ([pilot.md](docs/stage-0/pilot.md)) и **подписать 5 LOI** ([loi.md](docs/stage-0/loi.md)).
 2. **Попросить у пилотных команд compose-файлы** (без секретов).
 3. **Решить по staging/production** — брать ли направление ([roadmap](roadmap.md#кандидаты-по-итогам-интервью)).
-4. **Первый релиз** из `amalychev/devopus`: сделать репозиторий публичным, создать публичный `amalychev/homebrew-tap`, добавить секрет `HOMEBREW_TAP_TOKEN` (токен с правом записи в tap), затем тег `v0.1.0` — CI соберёт черновик релиза, его нужно опубликовать. Остаётся адрес maintainer'а для пакетов.
+4. ~~**Первый релиз**~~ ✅ [v0.1.0](https://github.com/amalychev/devopus/releases/tag/v0.1.0) опубликован 16.10.2026: `brew install amalychev/tap/devopus` и `curl -fsSL https://raw.githubusercontent.com/amalychev/devopus/main/install.sh | sh` работают (проверено на macOS и в Debian). Остаётся адрес maintainer'а для пакетов.
 
 ### Claude — по мере появления данных
 
@@ -38,7 +38,7 @@
 | Пришли compose-файлы команд | Повторить прогон P-8 (`prototypes/p8-compose-import`) на их файлах |
 | 5 LOI подписаны | Этап 0 закрыт формально (разработка этапа 1 уже идёт) |
 | Пришли compose-файлы команд | Прогнать `devopus init` на них (как корпус P-8) |
-| Репозиторий публичный, есть tap | Тег `v0.1.0`, проверить `brew install` и `curl … \| sh` с GitHub, замерить time-to-first-page на чистой macOS |
+| Есть чистая macOS (VM или новый пользователь) | Замерить time-to-first-page с `brew install amalychev/tap/devopus` |
 | Есть Linux-машина | Проверить службу systemd, порты, CA, DNS и сквозные тесты на Linux; включить их в CI |
 
 ### Не блокирует, но нужно до этапа 1–2
@@ -49,7 +49,7 @@
 ## Состояние окружения
 
 - Docker-контекст: `desktop-linux`.
-- Репозиторий: `origin` — git@github.com:amalychev/devopus.git (приватный); старый `amalychev/docklet` — remote `docklet`. Релизы и cask Homebrew — `amalychev/devopus` и `amalychev/homebrew-tap`.
+- Репозиторий: `origin` — git@github.com:amalychev/devopus.git (публичный с 16.10.2026, лицензия Apache 2.0); старый `amalychev/docklet` — remote `docklet`. Релизы и cask Homebrew — `amalychev/devopus` и `amalychev/homebrew-tap`.
 - Colima и OrbStack установлены, VM остановлены (`colima start` / `orb start`, если понадобятся). `colima start` и `orb start` переключают Docker-контекст на себя — после них вернуть `docker context use desktop-linux`. Тесты на них запускать через `DOCKER_HOST` (`~/.colima/default/docker.sock`, `~/.orbstack/run/docker.sock`).
 - На этой машине 80/443 занимает brew-nginx, поэтому прокси Devopus работает на 18080/18443 (fallback).
 - Агента, панели и демо на машине сейчас нет: всё удалено 16.10.2026 для проверки с нуля (`devopus agent install` → `devopus panel open`). Панель — отдельный компонент (`devopus panel …`, [ADR-0012](adr/0012-devopus-cli-control-point.md)); после правок в `web/` — `npm run build` в `web/` и пересобрать бинарник: панель встроена в него.

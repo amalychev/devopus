@@ -181,7 +181,8 @@
 
 ### Открытые вопросы M9
 
-- **Первый релиз.** Релизы — из `amalychev/devopus`, cask — в `amalychev/homebrew-tap` (с 16.10.2026; Go-модуль остаётся `github.com/devopus/devopus`, поэтому `go install …@latest` не работает — только сборка из клона). Нужны публичный репозиторий, tap и секрет `HOMEBREW_TAP_TOKEN`. До этого `brew install devopus/tap/devopus` и `curl … | sh` с GitHub не работают — проверены на локальной сборке.
+- ~~**Первый релиз.**~~ ✅ v0.1.0 опубликован 16.10.2026 из `amalychev/devopus`, cask — в `amalychev/homebrew-tap`; `brew install` и `curl … | sh` проверены на macOS, `curl … | sh` — в Debian. Go-модуль остаётся `github.com/devopus/devopus`, поэтому `go install …@latest` не работает — только сборка из клона.
+- **Homebrew предупреждает, что `postflight` в cask устарел** (так GoReleaser оформляет снятие карантина). Установка работает; уйдёт, когда GoReleaser перейдёт на новый синтаксис или бинарник станет нотаризованным и хук не понадобится.
 - **Нотаризация macOS.** Бинарник не подписан: cask снимает карантин сам, `curl` карантин не ставит. Для `.pkg` и доверия безопасников — Developer ID и нотаризация.
 - **Чистая машина.** Time-to-first-page < 15 мин не замерен: нужна чистая macOS (VM или новый пользователь) и опубликованный релиз.
 - **Linux.** Служба systemd написана и покрыта тестом определения, но на Linux-хосте не запускалась; CA на Linux — вручную (`doctor` печатает команды), `uninstall` тоже печатает команды удаления.
