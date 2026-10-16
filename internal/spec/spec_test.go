@@ -46,3 +46,43 @@ func TestRefs(t *testing.T) {
 		t.Errorf("database %q", p.DatabaseName("db"))
 	}
 }
+
+func TestYAMLRoundTripAndCheck(t *testing.T) {
+	p := &Project{Name: "shop", Domain: "shop.localhost",
+		Apps: map[string]*App{"api": {Repo: "git@github.com:acme/api.git", Routes: []string{"/api"}}},
+		Services: map[string]*Service{
+			"php": {Type: "php", Version: "8.3", Apps: []string{"api"}},
+			"db":  {Type: "postgres", Version: "17", Apps: []string{"api"}},
+		}}
+	if err := p.Check(); err != nil {
+		t.Fatal(err)
+	}
+	b, err := p.YAML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := ParseYAML(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again, _ := back.YAML(); string(again) != string(b) {
+		t.Errorf("round trip:\n%s\n%s", b, again)
+	}
+	if _, err := ParseYAML([]byte("name: x\nnope: 1\n")); err == nil {
+		t.Error("unknown key accepted")
+	}
+
+	bad := p.Clone()
+	bad.Apps["Web"] = &App{}
+	bad.Services["cache"] = &Service{Type: "redis", Version: "latest"}
+	bad.Services["tick"] = &Service{Type: "cronjob", Apps: []string{"api"}, Command: "php artisan schedule:run"}
+	err = bad.Check()
+	for _, want := range []string{"apps.Web: a name is", "apps.Web: where is the code", "services.cache: name the redis version", "services.tick: a cronjob needs a schedule"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("missing %q in %v", want, err)
+		}
+	}
+	if p.Services["cache"] != nil {
+		t.Error("Clone shares maps")
+	}
+}

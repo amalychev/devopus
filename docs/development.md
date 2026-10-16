@@ -147,6 +147,16 @@ devopus project create shop
 devopus invite create lead@acme.dev --role teamlead --project shop
 ```
 
+Демо-воркспейс одной командой — воркспейс `demo` с проектом из [examples/demo](../examples/demo):
+
+```bash
+devopus workspace demo
+devopus project show demo
+devopus service set demo php 8.4          # новая версия настроек
+devopus project config history demo
+devopus project config rollback demo 1    # назад, тоже новой версией
+```
+
 Токены сервер проверяет по ключам Auth (`--auth-url`, по умолчанию `DEVOPUS_AUTH_URL`). CLI ходит на `DEVOPUS_SERVER_URL` (по умолчанию `http://127.0.0.1:7481`); текущий воркспейс — `~/.devopus/workspace.json`, сменить — `devopus workspace use <имя>`. Несколько участников на одной машине — разные `DEVOPUS_HOME`.
 
 ## 4. Разработка

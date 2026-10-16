@@ -89,6 +89,72 @@ service WorkspaceService {
       permission: "workspace.view"
     };
   }
+  // DeleteProject removes a project with its settings and roles: the admin or a
+  // teamlead of the project; a granted project.configure is not enough.
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "project.configure"
+    };
+  }
+
+  // GetProjectConfig is a version of a project's settings: the current one by default.
+  rpc GetProjectConfig(GetProjectConfigRequest) returns (GetProjectConfigResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "workspace.view"
+    };
+  }
+  // ListProjectVersions is the history of a project's settings, newest first.
+  rpc ListProjectVersions(ListProjectVersionsRequest) returns (ListProjectVersionsResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "workspace.view"
+    };
+  }
+  // UpdateProjectSettings changes the domain and the policies of a project.
+  rpc UpdateProjectSettings(UpdateProjectSettingsRequest) returns (UpdateProjectSettingsResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "project.configure"
+    };
+  }
+  // RollbackProject makes an older version current again, as a new version.
+  rpc RollbackProject(RollbackProjectRequest) returns (RollbackProjectResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "project.configure"
+    };
+  }
+  // PutApp adds or replaces an application of a project.
+  rpc PutApp(PutAppRequest) returns (PutAppResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "apps.manage"
+    };
+  }
+  // RemoveApp removes an application; services attached to it are detached, which
+  // needs services.manage too.
+  rpc RemoveApp(RemoveAppRequest) returns (RemoveAppResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "apps.manage"
+    };
+  }
+  // PutService adds or replaces a service of a project, with the applications it is
+  // attached to.
+  rpc PutService(PutServiceRequest) returns (PutServiceResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "services.manage"
+    };
+  }
+  rpc RemoveService(RemoveServiceRequest) returns (RemoveServiceResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "services.manage"
+    };
+  }
 
   // CreateInvite invites an email with a role: the admin invites teamleads and
   // developers, a teamlead invites developers into the projects they lead.
@@ -166,6 +232,26 @@ message Project {
   google.protobuf.Timestamp created_at = 3;
   // The caller's role in it; empty when they have none (the admin has all).
   string role = 4;
+  // The current version of its settings.
+  int32 version = 5;
+}
+
+// ProjectConfig is a version of a project's settings.
+message ProjectConfig {
+  int32 version = 1;
+  // The project in its YAML form: name, domain, apps, services, policies.
+  string yaml = 2;
+  string author = 3;
+  // What changed: "service set php 8.4", "rollback to 3"…
+  string message = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message ProjectVersion {
+  int32 version = 1;
+  string author = 2;
+  string message = 3;
+  google.protobuf.Timestamp created_at = 4;
 }
 
 message ProjectRole {
@@ -270,10 +356,126 @@ message ListAuditResponse {
 message CreateProjectRequest {
   string workspace_id = 1;
   string name = 2;
+  // The domain of its environments; <name>.localhost by default.
+  string domain = 3;
+  // The first version of its settings in YAML (an import of docker-compose.yml);
+  // empty: no applications and services yet. Its name and domain are replaced.
+  string config_yaml = 4;
 }
 
 message CreateProjectResponse {
   Project project = 1;
+  ProjectConfig config = 2;
+}
+
+message DeleteProjectRequest {
+  string workspace_id = 1;
+  string project = 2;
+  // Must repeat the project's name.
+  string confirm_name = 3;
+}
+
+message DeleteProjectResponse {}
+
+message GetProjectConfigRequest {
+  string workspace_id = 1;
+  string project = 2;
+  // 0: the current one.
+  int32 version = 3;
+}
+
+message GetProjectConfigResponse {
+  ProjectConfig config = 1;
+  // The current version, to compare with the one asked for.
+  int32 current_version = 2;
+}
+
+message ListProjectVersionsRequest {
+  string workspace_id = 1;
+  string project = 2;
+  int32 limit = 3;
+}
+
+message ListProjectVersionsResponse {
+  repeated ProjectVersion versions = 1;
+}
+
+// Changes take the version they were made against: if the settings changed since,
+// the change is refused (ABORTED) instead of overwriting someone else's; 0 skips
+// the check.
+message UpdateProjectSettingsRequest {
+  string workspace_id = 1;
+  string project = 2;
+  int32 base_version = 3;
+  // Empty keeps the domain.
+  string domain = 4;
+  // YAML with features, overrides and data: the policies it names are replaced.
+  string policy_yaml = 5;
+}
+
+message UpdateProjectSettingsResponse {
+  ProjectConfig config = 1;
+}
+
+message RollbackProjectRequest {
+  string workspace_id = 1;
+  string project = 2;
+  int32 version = 3;
+}
+
+message RollbackProjectResponse {
+  ProjectConfig config = 1;
+}
+
+message PutAppRequest {
+  string workspace_id = 1;
+  string project = 2;
+  int32 base_version = 3;
+  string name = 4;
+  // The application in YAML: repo, path, branch, routes, port, env, hooks…
+  string app_yaml = 5;
+  // Add: refuse if it exists. Otherwise replace: refuse if it does not.
+  bool create = 6;
+}
+
+message PutAppResponse {
+  ProjectConfig config = 1;
+}
+
+message RemoveAppRequest {
+  string workspace_id = 1;
+  string project = 2;
+  int32 base_version = 3;
+  string name = 4;
+}
+
+message RemoveAppResponse {
+  ProjectConfig config = 1;
+}
+
+message PutServiceRequest {
+  string workspace_id = 1;
+  string project = 2;
+  int32 base_version = 3;
+  string name = 4;
+  // The service in YAML: type, version, apps, port, env…
+  string service_yaml = 5;
+  bool create = 6;
+}
+
+message PutServiceResponse {
+  ProjectConfig config = 1;
+}
+
+message RemoveServiceRequest {
+  string workspace_id = 1;
+  string project = 2;
+  int32 base_version = 3;
+  string name = 4;
+}
+
+message RemoveServiceResponse {
+  ProjectConfig config = 1;
 }
 
 message ListProjectsRequest {

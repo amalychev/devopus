@@ -25,6 +25,7 @@ import (
 	"github.com/amalychev/devopus/internal/authz"
 	"github.com/amalychev/devopus/internal/pgtest"
 	"github.com/amalychev/devopus/internal/server/store"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 func TestMain(m *testing.M) { os.Exit(pgtest.Run(m)) }
@@ -361,4 +362,109 @@ func TestAdminTeamleadDeveloper(t *testing.T) {
 	if n := len(must[workspacev1.ListWorkspacesResponse](t)(e.client.ListWorkspaces(ctx, as(e, admin, &workspacev1.ListWorkspacesRequest{}))).Workspaces); n != 0 {
 		t.Errorf("%d workspaces after delete", n)
 	}
+}
+
+func TestProjectConfig(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	f := e.fixture(t) // shop with a teamlead and a developer
+	cfg := func(r *workspacev1.ProjectConfig) *spec.Project {
+		t.Helper()
+		p, err := spec.ParseYAML([]byte(r.Yaml))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	get := func() *workspacev1.ProjectConfig {
+		t.Helper()
+		return must[workspacev1.GetProjectConfigResponse](t)(e.client.GetProjectConfig(ctx, as(e, f.dev, &workspacev1.GetProjectConfigRequest{WorkspaceId: f.ws, Project: "shop"}))).Config
+	}
+	v1 := get()
+	if v1.Version != 1 || cfg(v1).Domain != "shop.localhost" || v1.Message != "created" {
+		t.Fatalf("first version: %+v", v1)
+	}
+
+	// The teamlead adds an application and its services.
+	putApp := func(who, yaml string, create bool, base int32) (*workspacev1.ProjectConfig, error) {
+		r, err := e.client.PutApp(ctx, as(e, who, &workspacev1.PutAppRequest{WorkspaceId: f.ws, Project: "shop", Name: "api", AppYaml: yaml, Create: create, BaseVersion: base}))
+		if err != nil {
+			return nil, err
+		}
+		return r.Msg.Config, nil
+	}
+	putSvc := func(who, name, yaml string, create bool) (*workspacev1.ProjectConfig, error) {
+		r, err := e.client.PutService(ctx, as(e, who, &workspacev1.PutServiceRequest{WorkspaceId: f.ws, Project: "shop", Name: name, ServiceYaml: yaml, Create: create}))
+		if err != nil {
+			return nil, err
+		}
+		return r.Msg.Config, nil
+	}
+	_, err := putApp(f.lead, "routes: [/api]\n", true, 0)
+	wantCode(t, err, connect.CodeInvalidArgument) // no code to run
+	_, err = putApp(f.lead, "repo: x\nnope: 1\n", true, 0)
+	wantCode(t, err, connect.CodeInvalidArgument) // unknown key
+	v2, err := putApp(f.lead, "repo: git@github.com:acme/api.git\nroutes: [/api]\n", true, 1)
+	if err != nil || v2.Version != 2 || v2.Author != f.lead || v2.Message != "app add api" {
+		t.Fatalf("app add: %+v %v", v2, err)
+	}
+	_, err = putApp(f.lead, "repo: git@github.com:acme/api.git\n", false, 1)
+	wantCode(t, err, connect.CodeAborted) // made against version 1
+	if _, err := putSvc(f.lead, "php", "type: php\nversion: \"8.3\"\napps: [api]\n", true); err != nil {
+		t.Fatal(err)
+	}
+	_, err = putSvc(f.lead, "db", "type: postgresql\napps: [api]\n", true)
+	wantCode(t, err, connect.CodeInvalidArgument) // no version
+	v4, err := putSvc(f.lead, "db", "type: postgresql\nversion: \"17\"\napps: [api]\n", true)
+	if err != nil || cfg(v4).Services["db"].Type != "postgres" {
+		t.Fatalf("service add db: %+v %v", v4, err)
+	}
+
+	// The developer reads but does not change; with services.manage granted, changes
+	// services but not applications.
+	_, err = putSvc(f.dev, "php", "type: php\nversion: \"8.4\"\napps: [api]\n", false)
+	wantCode(t, err, connect.CodePermissionDenied)
+	must[workspacev1.GrantPermissionResponse](t)(e.client.GrantPermission(ctx, as(e, f.lead, &workspacev1.GrantPermissionRequest{WorkspaceId: f.ws, Project: "shop", Email: f.dev, Permission: "services.manage"})))
+	v5, err := putSvc(f.dev, "php", "type: php\nversion: \"8.4\"\napps: [api]\n", false)
+	if err != nil || cfg(v5).Services["php"].Version != "8.4" || v5.Message != "service set php (php 8.4)" {
+		t.Fatalf("developer's service set: %+v %v", v5, err)
+	}
+	_, err = putApp(f.dev, "repo: elsewhere\n", false, 0)
+	wantCode(t, err, connect.CodePermissionDenied)
+	// The same settings again add no version.
+	if again, _ := putSvc(f.dev, "php", "type: php\nversion: \"8.4\"\napps: [api]\n", false); again.Version != 5 {
+		t.Errorf("an empty change made version %d", again.Version)
+	}
+
+	// Rollback: version 4 again, as version 6; the history keeps everything.
+	r := must[workspacev1.RollbackProjectResponse](t)(e.client.RollbackProject(ctx, as(e, f.lead, &workspacev1.RollbackProjectRequest{WorkspaceId: f.ws, Project: "shop", Version: 4}))).Config
+	if r.Version != 6 || r.Message != "rollback to 4" || cfg(r).Services["php"].Version != "8.3" {
+		t.Fatalf("rollback: %+v", r)
+	}
+	hist := must[workspacev1.ListProjectVersionsResponse](t)(e.client.ListProjectVersions(ctx, as(e, f.dev, &workspacev1.ListProjectVersionsRequest{WorkspaceId: f.ws, Project: "shop"}))).Versions
+	if len(hist) != 6 || hist[0].Version != 6 || hist[5].Message != "created" {
+		t.Fatalf("history: %v", hist)
+	}
+	old := must[workspacev1.GetProjectConfigResponse](t)(e.client.GetProjectConfig(ctx, as(e, f.dev, &workspacev1.GetProjectConfigRequest{WorkspaceId: f.ws, Project: "shop", Version: 5})))
+	if old.CurrentVersion != 6 || cfg(old.Config).Services["php"].Version != "8.4" {
+		t.Fatalf("version 5: %+v", old)
+	}
+
+	// Removing an application with attached services needs services.manage too: the
+	// teamlead has it; the services are detached.
+	e.client.RemoveService(ctx, as(e, f.lead, &workspacev1.RemoveServiceRequest{WorkspaceId: f.ws, Project: "shop", Name: "db"}))
+	rm := must[workspacev1.RemoveAppResponse](t)(e.client.RemoveApp(ctx, as(e, f.lead, &workspacev1.RemoveAppRequest{WorkspaceId: f.ws, Project: "shop", Name: "api"}))).Config
+	if p := cfg(rm); len(p.Apps) != 0 || len(p.Services["php"].Apps) != 0 {
+		t.Fatalf("after app rm: %s", rm.Yaml)
+	}
+
+	// A project from an import, and its deletion by the teamlead, not the developer.
+	imported := "apps:\n  web:\n    path: web\n    routes: [/]\nservices:\n  node:\n    type: nodejs\n    version: \"22\"\n    apps: [web]\n"
+	cr := must[workspacev1.CreateProjectResponse](t)(e.client.CreateProject(ctx, as(e, f.lead, &workspacev1.CreateProjectRequest{WorkspaceId: f.ws, Name: "blog", Domain: "blog.test", ConfigYaml: imported})))
+	if p := cfg(cr.Config); p.Name != "blog" || p.Domain != "blog.test" || p.Apps["web"] == nil || cr.Config.Message != "created from an import" {
+		t.Fatalf("import: %s", cr.Config.Yaml)
+	}
+	_, err = e.client.DeleteProject(ctx, as(e, f.dev, &workspacev1.DeleteProjectRequest{WorkspaceId: f.ws, Project: "shop", ConfirmName: "shop"}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	must[workspacev1.DeleteProjectResponse](t)(e.client.DeleteProject(ctx, as(e, f.lead, &workspacev1.DeleteProjectRequest{WorkspaceId: f.ws, Project: "blog", ConfirmName: "blog"})))
 }

@@ -65,6 +65,32 @@ const (
 	// WorkspaceServiceListProjectsProcedure is the fully-qualified name of the WorkspaceService's
 	// ListProjects RPC.
 	WorkspaceServiceListProjectsProcedure = "/devopus.workspace.v1.WorkspaceService/ListProjects"
+	// WorkspaceServiceDeleteProjectProcedure is the fully-qualified name of the WorkspaceService's
+	// DeleteProject RPC.
+	WorkspaceServiceDeleteProjectProcedure = "/devopus.workspace.v1.WorkspaceService/DeleteProject"
+	// WorkspaceServiceGetProjectConfigProcedure is the fully-qualified name of the WorkspaceService's
+	// GetProjectConfig RPC.
+	WorkspaceServiceGetProjectConfigProcedure = "/devopus.workspace.v1.WorkspaceService/GetProjectConfig"
+	// WorkspaceServiceListProjectVersionsProcedure is the fully-qualified name of the
+	// WorkspaceService's ListProjectVersions RPC.
+	WorkspaceServiceListProjectVersionsProcedure = "/devopus.workspace.v1.WorkspaceService/ListProjectVersions"
+	// WorkspaceServiceUpdateProjectSettingsProcedure is the fully-qualified name of the
+	// WorkspaceService's UpdateProjectSettings RPC.
+	WorkspaceServiceUpdateProjectSettingsProcedure = "/devopus.workspace.v1.WorkspaceService/UpdateProjectSettings"
+	// WorkspaceServiceRollbackProjectProcedure is the fully-qualified name of the WorkspaceService's
+	// RollbackProject RPC.
+	WorkspaceServiceRollbackProjectProcedure = "/devopus.workspace.v1.WorkspaceService/RollbackProject"
+	// WorkspaceServicePutAppProcedure is the fully-qualified name of the WorkspaceService's PutApp RPC.
+	WorkspaceServicePutAppProcedure = "/devopus.workspace.v1.WorkspaceService/PutApp"
+	// WorkspaceServiceRemoveAppProcedure is the fully-qualified name of the WorkspaceService's
+	// RemoveApp RPC.
+	WorkspaceServiceRemoveAppProcedure = "/devopus.workspace.v1.WorkspaceService/RemoveApp"
+	// WorkspaceServicePutServiceProcedure is the fully-qualified name of the WorkspaceService's
+	// PutService RPC.
+	WorkspaceServicePutServiceProcedure = "/devopus.workspace.v1.WorkspaceService/PutService"
+	// WorkspaceServiceRemoveServiceProcedure is the fully-qualified name of the WorkspaceService's
+	// RemoveService RPC.
+	WorkspaceServiceRemoveServiceProcedure = "/devopus.workspace.v1.WorkspaceService/RemoveService"
 	// WorkspaceServiceCreateInviteProcedure is the fully-qualified name of the WorkspaceService's
 	// CreateInvite RPC.
 	WorkspaceServiceCreateInviteProcedure = "/devopus.workspace.v1.WorkspaceService/CreateInvite"
@@ -113,6 +139,26 @@ type WorkspaceServiceClient interface {
 	CreateProject(context.Context, *connect.Request[v1.CreateProjectRequest]) (*connect.Response[v1.CreateProjectResponse], error)
 	// ListProjects lists the workspace's projects with the caller's role in each.
 	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
+	// DeleteProject removes a project with its settings and roles: the admin or a
+	// teamlead of the project; a granted project.configure is not enough.
+	DeleteProject(context.Context, *connect.Request[v1.DeleteProjectRequest]) (*connect.Response[v1.DeleteProjectResponse], error)
+	// GetProjectConfig is a version of a project's settings: the current one by default.
+	GetProjectConfig(context.Context, *connect.Request[v1.GetProjectConfigRequest]) (*connect.Response[v1.GetProjectConfigResponse], error)
+	// ListProjectVersions is the history of a project's settings, newest first.
+	ListProjectVersions(context.Context, *connect.Request[v1.ListProjectVersionsRequest]) (*connect.Response[v1.ListProjectVersionsResponse], error)
+	// UpdateProjectSettings changes the domain and the policies of a project.
+	UpdateProjectSettings(context.Context, *connect.Request[v1.UpdateProjectSettingsRequest]) (*connect.Response[v1.UpdateProjectSettingsResponse], error)
+	// RollbackProject makes an older version current again, as a new version.
+	RollbackProject(context.Context, *connect.Request[v1.RollbackProjectRequest]) (*connect.Response[v1.RollbackProjectResponse], error)
+	// PutApp adds or replaces an application of a project.
+	PutApp(context.Context, *connect.Request[v1.PutAppRequest]) (*connect.Response[v1.PutAppResponse], error)
+	// RemoveApp removes an application; services attached to it are detached, which
+	// needs services.manage too.
+	RemoveApp(context.Context, *connect.Request[v1.RemoveAppRequest]) (*connect.Response[v1.RemoveAppResponse], error)
+	// PutService adds or replaces a service of a project, with the applications it is
+	// attached to.
+	PutService(context.Context, *connect.Request[v1.PutServiceRequest]) (*connect.Response[v1.PutServiceResponse], error)
+	RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error)
 	// CreateInvite invites an email with a role: the admin invites teamleads and
 	// developers, a teamlead invites developers into the projects they lead.
 	CreateInvite(context.Context, *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error)
@@ -196,6 +242,60 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workspaceServiceMethods.ByName("ListProjects")),
 			connect.WithClientOptions(opts...),
 		),
+		deleteProject: connect.NewClient[v1.DeleteProjectRequest, v1.DeleteProjectResponse](
+			httpClient,
+			baseURL+WorkspaceServiceDeleteProjectProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("DeleteProject")),
+			connect.WithClientOptions(opts...),
+		),
+		getProjectConfig: connect.NewClient[v1.GetProjectConfigRequest, v1.GetProjectConfigResponse](
+			httpClient,
+			baseURL+WorkspaceServiceGetProjectConfigProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("GetProjectConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		listProjectVersions: connect.NewClient[v1.ListProjectVersionsRequest, v1.ListProjectVersionsResponse](
+			httpClient,
+			baseURL+WorkspaceServiceListProjectVersionsProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("ListProjectVersions")),
+			connect.WithClientOptions(opts...),
+		),
+		updateProjectSettings: connect.NewClient[v1.UpdateProjectSettingsRequest, v1.UpdateProjectSettingsResponse](
+			httpClient,
+			baseURL+WorkspaceServiceUpdateProjectSettingsProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("UpdateProjectSettings")),
+			connect.WithClientOptions(opts...),
+		),
+		rollbackProject: connect.NewClient[v1.RollbackProjectRequest, v1.RollbackProjectResponse](
+			httpClient,
+			baseURL+WorkspaceServiceRollbackProjectProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("RollbackProject")),
+			connect.WithClientOptions(opts...),
+		),
+		putApp: connect.NewClient[v1.PutAppRequest, v1.PutAppResponse](
+			httpClient,
+			baseURL+WorkspaceServicePutAppProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("PutApp")),
+			connect.WithClientOptions(opts...),
+		),
+		removeApp: connect.NewClient[v1.RemoveAppRequest, v1.RemoveAppResponse](
+			httpClient,
+			baseURL+WorkspaceServiceRemoveAppProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("RemoveApp")),
+			connect.WithClientOptions(opts...),
+		),
+		putService: connect.NewClient[v1.PutServiceRequest, v1.PutServiceResponse](
+			httpClient,
+			baseURL+WorkspaceServicePutServiceProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("PutService")),
+			connect.WithClientOptions(opts...),
+		),
+		removeService: connect.NewClient[v1.RemoveServiceRequest, v1.RemoveServiceResponse](
+			httpClient,
+			baseURL+WorkspaceServiceRemoveServiceProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("RemoveService")),
+			connect.WithClientOptions(opts...),
+		),
 		createInvite: connect.NewClient[v1.CreateInviteRequest, v1.CreateInviteResponse](
 			httpClient,
 			baseURL+WorkspaceServiceCreateInviteProcedure,
@@ -255,24 +355,33 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // workspaceServiceClient implements WorkspaceServiceClient.
 type workspaceServiceClient struct {
-	createWorkspace   *connect.Client[v1.CreateWorkspaceRequest, v1.CreateWorkspaceResponse]
-	listWorkspaces    *connect.Client[v1.ListWorkspacesRequest, v1.ListWorkspacesResponse]
-	getWorkspace      *connect.Client[v1.GetWorkspaceRequest, v1.GetWorkspaceResponse]
-	renameWorkspace   *connect.Client[v1.RenameWorkspaceRequest, v1.RenameWorkspaceResponse]
-	transferWorkspace *connect.Client[v1.TransferWorkspaceRequest, v1.TransferWorkspaceResponse]
-	deleteWorkspace   *connect.Client[v1.DeleteWorkspaceRequest, v1.DeleteWorkspaceResponse]
-	listAudit         *connect.Client[v1.ListAuditRequest, v1.ListAuditResponse]
-	createProject     *connect.Client[v1.CreateProjectRequest, v1.CreateProjectResponse]
-	listProjects      *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
-	createInvite      *connect.Client[v1.CreateInviteRequest, v1.CreateInviteResponse]
-	listInvites       *connect.Client[v1.ListInvitesRequest, v1.ListInvitesResponse]
-	revokeInvite      *connect.Client[v1.RevokeInviteRequest, v1.RevokeInviteResponse]
-	acceptInvite      *connect.Client[v1.AcceptInviteRequest, v1.AcceptInviteResponse]
-	listMembers       *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
-	grantPermission   *connect.Client[v1.GrantPermissionRequest, v1.GrantPermissionResponse]
-	revokePermission  *connect.Client[v1.RevokePermissionRequest, v1.RevokePermissionResponse]
-	removeFromProject *connect.Client[v1.RemoveFromProjectRequest, v1.RemoveFromProjectResponse]
-	removeMember      *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
+	createWorkspace       *connect.Client[v1.CreateWorkspaceRequest, v1.CreateWorkspaceResponse]
+	listWorkspaces        *connect.Client[v1.ListWorkspacesRequest, v1.ListWorkspacesResponse]
+	getWorkspace          *connect.Client[v1.GetWorkspaceRequest, v1.GetWorkspaceResponse]
+	renameWorkspace       *connect.Client[v1.RenameWorkspaceRequest, v1.RenameWorkspaceResponse]
+	transferWorkspace     *connect.Client[v1.TransferWorkspaceRequest, v1.TransferWorkspaceResponse]
+	deleteWorkspace       *connect.Client[v1.DeleteWorkspaceRequest, v1.DeleteWorkspaceResponse]
+	listAudit             *connect.Client[v1.ListAuditRequest, v1.ListAuditResponse]
+	createProject         *connect.Client[v1.CreateProjectRequest, v1.CreateProjectResponse]
+	listProjects          *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
+	deleteProject         *connect.Client[v1.DeleteProjectRequest, v1.DeleteProjectResponse]
+	getProjectConfig      *connect.Client[v1.GetProjectConfigRequest, v1.GetProjectConfigResponse]
+	listProjectVersions   *connect.Client[v1.ListProjectVersionsRequest, v1.ListProjectVersionsResponse]
+	updateProjectSettings *connect.Client[v1.UpdateProjectSettingsRequest, v1.UpdateProjectSettingsResponse]
+	rollbackProject       *connect.Client[v1.RollbackProjectRequest, v1.RollbackProjectResponse]
+	putApp                *connect.Client[v1.PutAppRequest, v1.PutAppResponse]
+	removeApp             *connect.Client[v1.RemoveAppRequest, v1.RemoveAppResponse]
+	putService            *connect.Client[v1.PutServiceRequest, v1.PutServiceResponse]
+	removeService         *connect.Client[v1.RemoveServiceRequest, v1.RemoveServiceResponse]
+	createInvite          *connect.Client[v1.CreateInviteRequest, v1.CreateInviteResponse]
+	listInvites           *connect.Client[v1.ListInvitesRequest, v1.ListInvitesResponse]
+	revokeInvite          *connect.Client[v1.RevokeInviteRequest, v1.RevokeInviteResponse]
+	acceptInvite          *connect.Client[v1.AcceptInviteRequest, v1.AcceptInviteResponse]
+	listMembers           *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
+	grantPermission       *connect.Client[v1.GrantPermissionRequest, v1.GrantPermissionResponse]
+	revokePermission      *connect.Client[v1.RevokePermissionRequest, v1.RevokePermissionResponse]
+	removeFromProject     *connect.Client[v1.RemoveFromProjectRequest, v1.RemoveFromProjectResponse]
+	removeMember          *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
 }
 
 // CreateWorkspace calls devopus.workspace.v1.WorkspaceService.CreateWorkspace.
@@ -318,6 +427,51 @@ func (c *workspaceServiceClient) CreateProject(ctx context.Context, req *connect
 // ListProjects calls devopus.workspace.v1.WorkspaceService.ListProjects.
 func (c *workspaceServiceClient) ListProjects(ctx context.Context, req *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error) {
 	return c.listProjects.CallUnary(ctx, req)
+}
+
+// DeleteProject calls devopus.workspace.v1.WorkspaceService.DeleteProject.
+func (c *workspaceServiceClient) DeleteProject(ctx context.Context, req *connect.Request[v1.DeleteProjectRequest]) (*connect.Response[v1.DeleteProjectResponse], error) {
+	return c.deleteProject.CallUnary(ctx, req)
+}
+
+// GetProjectConfig calls devopus.workspace.v1.WorkspaceService.GetProjectConfig.
+func (c *workspaceServiceClient) GetProjectConfig(ctx context.Context, req *connect.Request[v1.GetProjectConfigRequest]) (*connect.Response[v1.GetProjectConfigResponse], error) {
+	return c.getProjectConfig.CallUnary(ctx, req)
+}
+
+// ListProjectVersions calls devopus.workspace.v1.WorkspaceService.ListProjectVersions.
+func (c *workspaceServiceClient) ListProjectVersions(ctx context.Context, req *connect.Request[v1.ListProjectVersionsRequest]) (*connect.Response[v1.ListProjectVersionsResponse], error) {
+	return c.listProjectVersions.CallUnary(ctx, req)
+}
+
+// UpdateProjectSettings calls devopus.workspace.v1.WorkspaceService.UpdateProjectSettings.
+func (c *workspaceServiceClient) UpdateProjectSettings(ctx context.Context, req *connect.Request[v1.UpdateProjectSettingsRequest]) (*connect.Response[v1.UpdateProjectSettingsResponse], error) {
+	return c.updateProjectSettings.CallUnary(ctx, req)
+}
+
+// RollbackProject calls devopus.workspace.v1.WorkspaceService.RollbackProject.
+func (c *workspaceServiceClient) RollbackProject(ctx context.Context, req *connect.Request[v1.RollbackProjectRequest]) (*connect.Response[v1.RollbackProjectResponse], error) {
+	return c.rollbackProject.CallUnary(ctx, req)
+}
+
+// PutApp calls devopus.workspace.v1.WorkspaceService.PutApp.
+func (c *workspaceServiceClient) PutApp(ctx context.Context, req *connect.Request[v1.PutAppRequest]) (*connect.Response[v1.PutAppResponse], error) {
+	return c.putApp.CallUnary(ctx, req)
+}
+
+// RemoveApp calls devopus.workspace.v1.WorkspaceService.RemoveApp.
+func (c *workspaceServiceClient) RemoveApp(ctx context.Context, req *connect.Request[v1.RemoveAppRequest]) (*connect.Response[v1.RemoveAppResponse], error) {
+	return c.removeApp.CallUnary(ctx, req)
+}
+
+// PutService calls devopus.workspace.v1.WorkspaceService.PutService.
+func (c *workspaceServiceClient) PutService(ctx context.Context, req *connect.Request[v1.PutServiceRequest]) (*connect.Response[v1.PutServiceResponse], error) {
+	return c.putService.CallUnary(ctx, req)
+}
+
+// RemoveService calls devopus.workspace.v1.WorkspaceService.RemoveService.
+func (c *workspaceServiceClient) RemoveService(ctx context.Context, req *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error) {
+	return c.removeService.CallUnary(ctx, req)
 }
 
 // CreateInvite calls devopus.workspace.v1.WorkspaceService.CreateInvite.
@@ -385,6 +539,26 @@ type WorkspaceServiceHandler interface {
 	CreateProject(context.Context, *connect.Request[v1.CreateProjectRequest]) (*connect.Response[v1.CreateProjectResponse], error)
 	// ListProjects lists the workspace's projects with the caller's role in each.
 	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
+	// DeleteProject removes a project with its settings and roles: the admin or a
+	// teamlead of the project; a granted project.configure is not enough.
+	DeleteProject(context.Context, *connect.Request[v1.DeleteProjectRequest]) (*connect.Response[v1.DeleteProjectResponse], error)
+	// GetProjectConfig is a version of a project's settings: the current one by default.
+	GetProjectConfig(context.Context, *connect.Request[v1.GetProjectConfigRequest]) (*connect.Response[v1.GetProjectConfigResponse], error)
+	// ListProjectVersions is the history of a project's settings, newest first.
+	ListProjectVersions(context.Context, *connect.Request[v1.ListProjectVersionsRequest]) (*connect.Response[v1.ListProjectVersionsResponse], error)
+	// UpdateProjectSettings changes the domain and the policies of a project.
+	UpdateProjectSettings(context.Context, *connect.Request[v1.UpdateProjectSettingsRequest]) (*connect.Response[v1.UpdateProjectSettingsResponse], error)
+	// RollbackProject makes an older version current again, as a new version.
+	RollbackProject(context.Context, *connect.Request[v1.RollbackProjectRequest]) (*connect.Response[v1.RollbackProjectResponse], error)
+	// PutApp adds or replaces an application of a project.
+	PutApp(context.Context, *connect.Request[v1.PutAppRequest]) (*connect.Response[v1.PutAppResponse], error)
+	// RemoveApp removes an application; services attached to it are detached, which
+	// needs services.manage too.
+	RemoveApp(context.Context, *connect.Request[v1.RemoveAppRequest]) (*connect.Response[v1.RemoveAppResponse], error)
+	// PutService adds or replaces a service of a project, with the applications it is
+	// attached to.
+	PutService(context.Context, *connect.Request[v1.PutServiceRequest]) (*connect.Response[v1.PutServiceResponse], error)
+	RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error)
 	// CreateInvite invites an email with a role: the admin invites teamleads and
 	// developers, a teamlead invites developers into the projects they lead.
 	CreateInvite(context.Context, *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error)
@@ -464,6 +638,60 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 		connect.WithSchema(workspaceServiceMethods.ByName("ListProjects")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workspaceServiceDeleteProjectHandler := connect.NewUnaryHandler(
+		WorkspaceServiceDeleteProjectProcedure,
+		svc.DeleteProject,
+		connect.WithSchema(workspaceServiceMethods.ByName("DeleteProject")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceGetProjectConfigHandler := connect.NewUnaryHandler(
+		WorkspaceServiceGetProjectConfigProcedure,
+		svc.GetProjectConfig,
+		connect.WithSchema(workspaceServiceMethods.ByName("GetProjectConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceListProjectVersionsHandler := connect.NewUnaryHandler(
+		WorkspaceServiceListProjectVersionsProcedure,
+		svc.ListProjectVersions,
+		connect.WithSchema(workspaceServiceMethods.ByName("ListProjectVersions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceUpdateProjectSettingsHandler := connect.NewUnaryHandler(
+		WorkspaceServiceUpdateProjectSettingsProcedure,
+		svc.UpdateProjectSettings,
+		connect.WithSchema(workspaceServiceMethods.ByName("UpdateProjectSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceRollbackProjectHandler := connect.NewUnaryHandler(
+		WorkspaceServiceRollbackProjectProcedure,
+		svc.RollbackProject,
+		connect.WithSchema(workspaceServiceMethods.ByName("RollbackProject")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServicePutAppHandler := connect.NewUnaryHandler(
+		WorkspaceServicePutAppProcedure,
+		svc.PutApp,
+		connect.WithSchema(workspaceServiceMethods.ByName("PutApp")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceRemoveAppHandler := connect.NewUnaryHandler(
+		WorkspaceServiceRemoveAppProcedure,
+		svc.RemoveApp,
+		connect.WithSchema(workspaceServiceMethods.ByName("RemoveApp")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServicePutServiceHandler := connect.NewUnaryHandler(
+		WorkspaceServicePutServiceProcedure,
+		svc.PutService,
+		connect.WithSchema(workspaceServiceMethods.ByName("PutService")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceRemoveServiceHandler := connect.NewUnaryHandler(
+		WorkspaceServiceRemoveServiceProcedure,
+		svc.RemoveService,
+		connect.WithSchema(workspaceServiceMethods.ByName("RemoveService")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workspaceServiceCreateInviteHandler := connect.NewUnaryHandler(
 		WorkspaceServiceCreateInviteProcedure,
 		svc.CreateInvite,
@@ -538,6 +766,24 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 			workspaceServiceCreateProjectHandler.ServeHTTP(w, r)
 		case WorkspaceServiceListProjectsProcedure:
 			workspaceServiceListProjectsHandler.ServeHTTP(w, r)
+		case WorkspaceServiceDeleteProjectProcedure:
+			workspaceServiceDeleteProjectHandler.ServeHTTP(w, r)
+		case WorkspaceServiceGetProjectConfigProcedure:
+			workspaceServiceGetProjectConfigHandler.ServeHTTP(w, r)
+		case WorkspaceServiceListProjectVersionsProcedure:
+			workspaceServiceListProjectVersionsHandler.ServeHTTP(w, r)
+		case WorkspaceServiceUpdateProjectSettingsProcedure:
+			workspaceServiceUpdateProjectSettingsHandler.ServeHTTP(w, r)
+		case WorkspaceServiceRollbackProjectProcedure:
+			workspaceServiceRollbackProjectHandler.ServeHTTP(w, r)
+		case WorkspaceServicePutAppProcedure:
+			workspaceServicePutAppHandler.ServeHTTP(w, r)
+		case WorkspaceServiceRemoveAppProcedure:
+			workspaceServiceRemoveAppHandler.ServeHTTP(w, r)
+		case WorkspaceServicePutServiceProcedure:
+			workspaceServicePutServiceHandler.ServeHTTP(w, r)
+		case WorkspaceServiceRemoveServiceProcedure:
+			workspaceServiceRemoveServiceHandler.ServeHTTP(w, r)
 		case WorkspaceServiceCreateInviteProcedure:
 			workspaceServiceCreateInviteHandler.ServeHTTP(w, r)
 		case WorkspaceServiceListInvitesProcedure:
@@ -599,6 +845,42 @@ func (UnimplementedWorkspaceServiceHandler) CreateProject(context.Context, *conn
 
 func (UnimplementedWorkspaceServiceHandler) ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.ListProjects is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) DeleteProject(context.Context, *connect.Request[v1.DeleteProjectRequest]) (*connect.Response[v1.DeleteProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.DeleteProject is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) GetProjectConfig(context.Context, *connect.Request[v1.GetProjectConfigRequest]) (*connect.Response[v1.GetProjectConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.GetProjectConfig is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) ListProjectVersions(context.Context, *connect.Request[v1.ListProjectVersionsRequest]) (*connect.Response[v1.ListProjectVersionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.ListProjectVersions is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) UpdateProjectSettings(context.Context, *connect.Request[v1.UpdateProjectSettingsRequest]) (*connect.Response[v1.UpdateProjectSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.UpdateProjectSettings is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) RollbackProject(context.Context, *connect.Request[v1.RollbackProjectRequest]) (*connect.Response[v1.RollbackProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RollbackProject is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) PutApp(context.Context, *connect.Request[v1.PutAppRequest]) (*connect.Response[v1.PutAppResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.PutApp is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) RemoveApp(context.Context, *connect.Request[v1.RemoveAppRequest]) (*connect.Response[v1.RemoveAppResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RemoveApp is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) PutService(context.Context, *connect.Request[v1.PutServiceRequest]) (*connect.Response[v1.PutServiceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.PutService is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RemoveService is not implemented"))
 }
 
 func (UnimplementedWorkspaceServiceHandler) CreateInvite(context.Context, *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error) {

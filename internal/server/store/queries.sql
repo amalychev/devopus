@@ -116,3 +116,26 @@ SELECT a.*, coalesce(u.email, a.actor_id)::text AS actor FROM audit a LEFT JOIN 
 WHERE a.workspace_id = $1
 ORDER BY a.id DESC
 LIMIT $2;
+
+-- name: ProjectByNameForUpdate :one
+SELECT * FROM projects WHERE workspace_id = $1 AND name = $2 FOR UPDATE;
+
+-- name: SetProjectVersion :exec
+UPDATE projects SET version = $2 WHERE id = $1;
+
+-- name: DeleteProject :exec
+DELETE FROM projects WHERE id = $1;
+
+-- name: AddProjectVersion :exec
+INSERT INTO project_versions (workspace_id, project_id, version, config, author_id, message, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7);
+
+-- name: ProjectVersion :one
+SELECT v.*, u.email AS author FROM project_versions v JOIN users u ON u.id = v.author_id
+WHERE v.project_id = $1 AND v.version = $2;
+
+-- name: ProjectVersions :many
+SELECT v.version, v.message, v.created_at, u.email AS author FROM project_versions v JOIN users u ON u.id = v.author_id
+WHERE v.project_id = $1
+ORDER BY v.version DESC
+LIMIT $2;

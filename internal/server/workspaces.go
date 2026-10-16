@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -21,9 +20,6 @@ func workspaceName(n string) (string, error) {
 	}
 	return n, nil
 }
-
-// projectNameRe: names go into URLs and domains later (pay-1.shop.localhost).
-var projectNameRe = regexp.MustCompile(`^[a-z][a-z0-9-]{0,39}$`)
 
 func (s *Service) workspaceInfo(ctx context.Context, q *store.Queries, w store.Workspace, role string) (*workspacev1.Workspace, error) {
 	admin, err := q.WorkspaceAdmin(ctx, w.ID)
@@ -198,40 +194,6 @@ func (s *Service) ListAudit(ctx context.Context, req *connect.Request[workspacev
 	return connect.NewResponse(resp), nil
 }
 
-func (s *Service) CreateProject(ctx context.Context, req *connect.Request[workspacev1.CreateProjectRequest]) (*connect.Response[workspacev1.CreateProjectResponse], error) {
-	name := strings.TrimSpace(req.Msg.Name)
-	if !projectNameRe.MatchString(name) {
-		return nil, invalid("project name %q: lowercase letters, digits and dashes, starting with a letter, up to 40", name)
-	}
-	c := callerOf(ctx)
-	var p store.Project
-	role := ""
-	err := s.tx(ctx, func(q *store.Queries) error {
-		_, err := q.ProjectByName(ctx, store.ProjectByNameParams{WorkspaceID: c.workspace, Name: name})
-		if err == nil {
-			return connect.NewError(connect.CodeAlreadyExists, errorf("project %q exists", name))
-		}
-		if !noRows(err) {
-			return internal(err)
-		}
-		if p, err = q.CreateProject(ctx, store.CreateProjectParams{ID: newID("prj"), WorkspaceID: c.workspace, Name: name, CreatedBy: c.userID, CreatedAt: s.now()}); err != nil {
-			return internal(err)
-		}
-		// A teamlead who creates a project leads it; the admin has every project anyway.
-		if c.subject.Role != authz.Admin {
-			role = string(authz.Teamlead)
-			if err := q.SetProjectRole(ctx, store.SetProjectRoleParams{WorkspaceID: c.workspace, ProjectID: p.ID, UserID: c.userID, Role: role}); err != nil {
-				return internal(err)
-			}
-		}
-		return s.audit(ctx, q, c.workspace, "project.created", name, "")
-	})
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&workspacev1.CreateProjectResponse{Project: &workspacev1.Project{Id: p.ID, Name: p.Name, CreatedAt: timestamppb.New(p.CreatedAt), Role: role}}), nil
-}
-
 // ListProjects shows the admin every project and others the projects they have a role in.
 func (s *Service) ListProjects(ctx context.Context, _ *connect.Request[workspacev1.ListProjectsRequest]) (*connect.Response[workspacev1.ListProjectsResponse], error) {
 	c := callerOf(ctx)
@@ -245,7 +207,7 @@ func (s *Service) ListProjects(ctx context.Context, _ *connect.Request[workspace
 		if !ok && c.subject.Role != authz.Admin {
 			continue
 		}
-		resp.Projects = append(resp.Projects, &workspacev1.Project{Id: p.ID, Name: p.Name, CreatedAt: timestamppb.New(p.CreatedAt), Role: string(role)})
+		resp.Projects = append(resp.Projects, projectInfo(p, role))
 	}
 	return connect.NewResponse(resp), nil
 }

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"net/http/httptest"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/amalychev/devopus/internal/pgtest"
 	"github.com/amalychev/devopus/internal/server"
 	"github.com/amalychev/devopus/internal/server/store"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 var inviteCodeRe = regexp.MustCompile(`devopus invite accept (dvi_\S+)`)
@@ -18,7 +20,9 @@ var inviteCodeRe = regexp.MustCompile(`devopus invite accept (dvi_\S+)`)
 // TestTeam is R5's scenario through the CLI against a real Auth and workspace server:
 // the admin creates a workspace and invites a teamlead, the teamlead a developer; the
 // developer without the permission is refused.
-func TestTeam(t *testing.T) {
+// startTeam runs a real Auth and workspace server for the CLI.
+func startTeam(t *testing.T) *authtest.Server {
+	t.Helper()
 	a := authtest.Start(t)
 	pool := pgtest.Pool(t)
 	if err := store.Migrate(t.Context(), pool); err != nil {
@@ -33,6 +37,32 @@ func TestTeam(t *testing.T) {
 	t.Cleanup(srv.Close)
 	t.Setenv("DEVOPUS_AUTH_URL", a.URL)
 	t.Setenv("DEVOPUS_SERVER_URL", srv.URL)
+	return a
+}
+
+// signUp registers an email on a device of its own (a data directory).
+func signUp(t *testing.T, a *authtest.Server, email string) {
+	t.Helper()
+	t.Setenv("DEVOPUS_HOME", t.TempDir())
+	ty := newTyping()
+	run := start(ty.r, nil, "register", "--email", email)
+	ty.line(a.Inbox.Code(t, email, a.Inbox.Count(email)+1))
+	if code, out, errOut := run.wait(t); code != ExitOK {
+		t.Fatalf("register %s: %d\n%s\n%s", email, code, out, errOut)
+	}
+}
+
+func ok(t *testing.T, args ...string) string {
+	t.Helper()
+	code, out, errOut := cli(t, "", args...)
+	if code != ExitOK {
+		t.Fatalf("devopus %s: exit %d\n%s\n%s", strings.Join(args, " "), code, out, errOut)
+	}
+	return out
+}
+
+func TestTeam(t *testing.T) {
+	a := startTeam(t)
 
 	// Each person has a device of their own: a data directory.
 	homes := map[string]string{}
@@ -136,4 +166,86 @@ func TestTeam(t *testing.T) {
 	if code, _, errOut := cli(t, "", "workspace", "show"); code != ExitInvalid || !strings.Contains(errOut, "no workspace") {
 		t.Errorf("current workspace after removal: %d %s", code, errOut)
 	}
+}
+
+// TestProjects is R6's scenario: the demo workspace in one command, its settings
+// shown, changed, and rolled back; a project imported from docker-compose.yml.
+func TestProjects(t *testing.T) {
+	a := startTeam(t)
+	signUp(t, a, "admin@acme.dev")
+
+	if out := ok(t, "workspace", "demo"); !strings.Contains(out, "Workspace demo with project demo: 3 applications, 5 services") {
+		t.Fatalf("demo:\n%s", out)
+	}
+	out := ok(t, "project", "show", "demo")
+	for _, want := range []string{"version 1 · https://demo.localhost", "admin ./admin main /admin php", "php php 8.3 runtime admin", "db postgres 17.6 container api"} {
+		if !strings.Contains(squash(out), want) {
+			t.Errorf("show lacks %q:\n%s", want, out)
+		}
+	}
+
+	ok(t, "service", "set", "demo", "php", "8.4")
+	ok(t, "app", "set", "demo", "admin", "--route", "/admin", "--route", "/backoffice")
+	ok(t, "service", "add", "demo", "redis", "7.4", "--name", "cache", "--apps", "api")
+	ok(t, "service", "link", "demo", "cache", "web")
+	if code, _, errOut := cli(t, "", "service", "add", "demo", "redis", "--name", "cache2"); code != ExitInvalid || !strings.Contains(errOut, "name the redis version") {
+		t.Errorf("unpinned service: %d %s", code, errOut)
+	}
+	if code, _, errOut := cli(t, "", "app", "add", "demo", "worker"); code != ExitInvalid || !strings.Contains(errOut, "where is the code") {
+		t.Errorf("app without code: %d %s", code, errOut)
+	}
+	yamlOut := ok(t, "project", "config", "show", "demo", "-o", "yaml")
+	cfg, err := spec.ParseYAML([]byte(yamlOut))
+	if err != nil {
+		t.Fatalf("config -o yaml: %v\n%s", err, yamlOut)
+	}
+	if cfg.Services["php"].Version != "8.4" || len(cfg.Services["cache"].Apps) != 2 || len(cfg.Apps["admin"].Routes) != 2 {
+		t.Fatalf("after the changes:\n%s", yamlOut)
+	}
+	hist := ok(t, "project", "config", "history", "demo")
+	for _, want := range []string{"5  ", "service set cache (redis 7.4)", "service add cache (redis 7.4)", "app set admin", "service set php (php 8.4)", "1  ", "created from an import", "admin@acme.dev"} {
+		if !strings.Contains(hist, want) {
+			t.Errorf("history lacks %q:\n%s", want, hist)
+		}
+	}
+
+	// Back to the demo as it was created: the rollback is version 6.
+	if out := ok(t, "project", "config", "rollback", "demo", "1"); !strings.Contains(out, "back to version 1 (settings version 6)") {
+		t.Errorf("rollback:\n%s", out)
+	}
+	if out := ok(t, "project", "config", "show", "demo"); !strings.Contains(out, "version 6") || strings.Contains(out, "cache") || !strings.Contains(squash(out), "php php 8.3") {
+		t.Errorf("after rollback:\n%s", out)
+	}
+	if out := ok(t, "project", "config", "show", "demo", "--version", "5"); !strings.Contains(out, "cache") || !strings.Contains(out, "the current one is 6") {
+		t.Errorf("version 5:\n%s", out)
+	}
+	ok(t, "app", "rm", "demo", "admin")
+	if out := ok(t, "service", "list", "demo"); strings.Contains(out, "admin") {
+		t.Errorf("services still attached to a removed app:\n%s", out)
+	}
+
+	// A project from docker-compose.yml: no secret values leave the machine.
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "docker-compose.yml"), composeFile)
+	write(t, filepath.Join(dir, "web", "Dockerfile"), "FROM scratch\n")
+	code, out, errOut := cli(t, "", "project", "create", "shop", "--from-compose", filepath.Join(dir, "docker-compose.yml"), "--no-pin")
+	if code != ExitOK || !strings.Contains(out, "Project shop created") || !strings.Contains(errOut, "Secrets are not sent to the server: POSTGRES_PASSWORD, SESSION_SECRET") {
+		t.Fatalf("import: %d\n%s\n%s", code, out, errOut)
+	}
+	if y := ok(t, "project", "config", "show", "shop", "-o", "yaml"); strings.Contains(y, "devpass") || strings.Contains(y, "s3cr3t") || !strings.Contains(y, "${{ secrets.POSTGRES_PASSWORD }}") {
+		t.Errorf("imported settings:\n%s", y)
+	}
+	ok(t, "project", "rm", "shop", "--yes")
+	if out := ok(t, "project", "list"); strings.Contains(out, "shop") {
+		t.Errorf("deleted project listed:\n%s", out)
+	}
+}
+
+// squash collapses the spaces of tables.
+func squash(s string) string {
+	var lines []string
+	for _, l := range strings.Split(s, "\n") {
+		lines = append(lines, strings.Join(strings.Fields(l), " "))
+	}
+	return strings.Join(lines, "\n")
 }

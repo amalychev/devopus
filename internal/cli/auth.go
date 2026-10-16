@@ -519,6 +519,10 @@ func day(t time.Time) string { return t.Local().Format("2 Jan 2006") }
 // rpcErr turns an error of Auth or the workspace server into a CLI failure with its
 // message. A missing permission exits with 5, like a missing sign-in.
 func rpcErr(err error) error {
+	var ee *exitError
+	if errors.As(err, &ee) {
+		return err
+	}
 	var ce *connect.Error
 	if !errors.As(err, &ce) {
 		return fail(ExitError, "%v", err)

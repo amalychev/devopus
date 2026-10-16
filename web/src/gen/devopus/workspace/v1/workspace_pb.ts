@@ -17,7 +17,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file devopus/workspace/v1/workspace.proto.
  */
 export const file_devopus_workspace_v1_workspace: GenFile = /*@__PURE__*/
-  fileDesc("CiRkZXZvcHVzL3dvcmtzcGFjZS92MS93b3Jrc3BhY2UucHJvdG8SFGRldm9wdXMud29ya3NwYWNlLnYxIkgKBkFjY2VzcxIqCgVzY29wZRgBIAEoDjIbLmRldm9wdXMud29ya3NwYWNlLnYxLlNjb3BlEhIKCnBlcm1pc3Npb24YAiABKAkieAoJV29ya3NwYWNlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLYWRtaW5fZW1haWwYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEcm9sZRgFIAEoCSJhCgdQcm9qZWN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSLgoKY3JlYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEcm9sZRgEIAEoCSI8CgtQcm9qZWN0Um9sZRIPCgdwcm9qZWN0GAEgASgJEgwKBHJvbGUYAiABKAkSDgoGZ3JhbnRzGAMgAygJIpoBCgZNZW1iZXISDwoHdXNlcl9pZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIMCgRyb2xlGAMgASgJEjMKCHByb2plY3RzGAQgAygLMiEuZGV2b3B1cy53b3Jrc3BhY2UudjEuUHJvamVjdFJvbGUSLQoJam9pbmVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK3AQoGSW52aXRlEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEgwKBHJvbGUYAyABKAkSEAoIcHJvamVjdHMYBCADKAkSEgoKaW52aXRlZF9ieRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJzCgpBdWRpdEV2ZW50Eg0KBWFjdG9yGAEgASgJEg4KBmFjdGlvbhgCIAEoCRIOCgZ0YXJnZXQYAyABKAkSDgoGZGV0YWlsGAQgASgJEiYKAmF0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCImChZDcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0EgwKBG5hbWUYASABKAkiTQoXQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USMgoJd29ya3NwYWNlGAEgASgLMh8uZGV2b3B1cy53b3Jrc3BhY2UudjEuV29ya3NwYWNlIhcKFUxpc3RXb3Jrc3BhY2VzUmVxdWVzdCJNChZMaXN0V29ya3NwYWNlc1Jlc3BvbnNlEjMKCndvcmtzcGFjZXMYASADKAsyHy5kZXZvcHVzLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UiKwoTR2V0V29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkiOgoSUHJvamVjdFBlcm1pc3Npb25zEg8KB3Byb2plY3QYASABKAkSEwoLcGVybWlzc2lvbnMYAiADKAkimwEKFEdldFdvcmtzcGFjZVJlc3BvbnNlEjIKCXdvcmtzcGFjZRgBIAEoCzIfLmRldm9wdXMud29ya3NwYWNlLnYxLldvcmtzcGFjZRITCgtwZXJtaXNzaW9ucxgCIAMoCRI6Cghwcm9qZWN0cxgDIAMoCzIoLmRldm9wdXMud29ya3NwYWNlLnYxLlByb2plY3RQZXJtaXNzaW9ucyI8ChZSZW5hbWVXb3Jrc3BhY2VSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJIk0KF1JlbmFtZVdvcmtzcGFjZVJlc3BvbnNlEjIKCXdvcmtzcGFjZRgBIAEoCzIfLmRldm9wdXMud29ya3NwYWNlLnYxLldvcmtzcGFjZSI/ChhUcmFuc2ZlcldvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg0KBWVtYWlsGAIgASgJIhsKGVRyYW5zZmVyV29ya3NwYWNlUmVzcG9uc2UiRAoWRGVsZXRlV29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFAoMY29uZmlybV9uYW1lGAIgASgJIhkKF0RlbGV0ZVdvcmtzcGFjZVJlc3BvbnNlIjcKEExpc3RBdWRpdFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg0KBWxpbWl0GAIgASgFIkUKEUxpc3RBdWRpdFJlc3BvbnNlEjAKBmV2ZW50cxgBIAMoCzIgLmRldm9wdXMud29ya3NwYWNlLnYxLkF1ZGl0RXZlbnQiOgoUQ3JlYXRlUHJvamVjdFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkiRwoVQ3JlYXRlUHJvamVjdFJlc3BvbnNlEi4KB3Byb2plY3QYASABKAsyHS5kZXZvcHVzLndvcmtzcGFjZS52MS5Qcm9qZWN0IisKE0xpc3RQcm9qZWN0c1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJIkcKFExpc3RQcm9qZWN0c1Jlc3BvbnNlEi8KCHByb2plY3RzGAEgAygLMh0uZGV2b3B1cy53b3Jrc3BhY2UudjEuUHJvamVjdCJaChNDcmVhdGVJbnZpdGVSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIMCgRyb2xlGAMgASgJEhAKCHByb2plY3RzGAQgAygJIlIKFENyZWF0ZUludml0ZVJlc3BvbnNlEiwKBmludml0ZRgBIAEoCzIcLmRldm9wdXMud29ya3NwYWNlLnYxLkludml0ZRIMCgRjb2RlGAIgASgJIioKEkxpc3RJbnZpdGVzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkiRAoTTGlzdEludml0ZXNSZXNwb25zZRItCgdpbnZpdGVzGAEgAygLMhwuZGV2b3B1cy53b3Jrc3BhY2UudjEuSW52aXRlIj4KE1Jldm9rZUludml0ZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhEKCWludml0ZV9pZBgCIAEoCSIWChRSZXZva2VJbnZpdGVSZXNwb25zZSIjChNBY2NlcHRJbnZpdGVSZXF1ZXN0EgwKBGNvZGUYASABKAkiSgoUQWNjZXB0SW52aXRlUmVzcG9uc2USMgoJd29ya3NwYWNlGAEgASgLMh8uZGV2b3B1cy53b3Jrc3BhY2UudjEuV29ya3NwYWNlIioKEkxpc3RNZW1iZXJzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkiRAoTTGlzdE1lbWJlcnNSZXNwb25zZRItCgdtZW1iZXJzGAEgAygLMhwuZGV2b3B1cy53b3Jrc3BhY2UudjEuTWVtYmVyImIKFkdyYW50UGVybWlzc2lvblJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSDQoFZW1haWwYAyABKAkSEgoKcGVybWlzc2lvbhgEIAEoCSIZChdHcmFudFBlcm1pc3Npb25SZXNwb25zZSJjChdSZXZva2VQZXJtaXNzaW9uUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDwoHcHJvamVjdBgCIAEoCRINCgVlbWFpbBgDIAEoCRISCgpwZXJtaXNzaW9uGAQgASgJIhoKGFJldm9rZVBlcm1pc3Npb25SZXNwb25zZSJQChhSZW1vdmVGcm9tUHJvamVjdFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSDQoFZW1haWwYAyABKAkiGwoZUmVtb3ZlRnJvbVByb2plY3RSZXNwb25zZSI6ChNSZW1vdmVNZW1iZXJSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRINCgVlbWFpbBgCIAEoCSIWChRSZW1vdmVNZW1iZXJSZXNwb25zZSpbCgVTY29wZRIVChFTQ09QRV9VTlNQRUNJRklFRBAAEhMKD1NDT1BFX1NJR05FRF9JThABEhMKD1NDT1BFX1dPUktTUEFDRRACEhEKDVNDT1BFX1BST0pFQ1QQAzKnEgoQV29ya3NwYWNlU2VydmljZRJ2Cg9DcmVhdGVXb3Jrc3BhY2USLC5kZXZvcHVzLndvcmtzcGFjZS52MS5DcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0Gi0uZGV2b3B1cy53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2UiBsLzGAIIARJzCg5MaXN0V29ya3NwYWNlcxIrLmRldm9wdXMud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VzUmVxdWVzdBosLmRldm9wdXMud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VzUmVzcG9uc2UiBsLzGAIIARJ9CgxHZXRXb3Jrc3BhY2USKS5kZXZvcHVzLndvcmtzcGFjZS52MS5HZXRXb3Jrc3BhY2VSZXF1ZXN0GiouZGV2b3B1cy53b3Jrc3BhY2UudjEuR2V0V29ya3NwYWNlUmVzcG9uc2UiFsLzGBIIAhIOd29ya3NwYWNlLnZpZXcSiAEKD1JlbmFtZVdvcmtzcGFjZRIsLmRldm9wdXMud29ya3NwYWNlLnYxLlJlbmFtZVdvcmtzcGFjZVJlcXVlc3QaLS5kZXZvcHVzLndvcmtzcGFjZS52MS5SZW5hbWVXb3Jrc3BhY2VSZXNwb25zZSIYwvMYFAgCEhB3b3Jrc3BhY2UubWFuYWdlEo4BChFUcmFuc2ZlcldvcmtzcGFjZRIuLmRldm9wdXMud29ya3NwYWNlLnYxLlRyYW5zZmVyV29ya3NwYWNlUmVxdWVzdBovLmRldm9wdXMud29ya3NwYWNlLnYxLlRyYW5zZmVyV29ya3NwYWNlUmVzcG9uc2UiGMLzGBQIAhIQd29ya3NwYWNlLm1hbmFnZRKIAQoPRGVsZXRlV29ya3NwYWNlEiwuZGV2b3B1cy53b3Jrc3BhY2UudjEuRGVsZXRlV29ya3NwYWNlUmVxdWVzdBotLmRldm9wdXMud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlc3BvbnNlIhjC8xgUCAISEHdvcmtzcGFjZS5tYW5hZ2USdgoJTGlzdEF1ZGl0EiYuZGV2b3B1cy53b3Jrc3BhY2UudjEuTGlzdEF1ZGl0UmVxdWVzdBonLmRldm9wdXMud29ya3NwYWNlLnYxLkxpc3RBdWRpdFJlc3BvbnNlIhjC8xgUCAISEHdvcmtzcGFjZS5tYW5hZ2USgAEKDUNyZWF0ZVByb2plY3QSKi5kZXZvcHVzLndvcmtzcGFjZS52MS5DcmVhdGVQcm9qZWN0UmVxdWVzdBorLmRldm9wdXMud29ya3NwYWNlLnYxLkNyZWF0ZVByb2plY3RSZXNwb25zZSIWwvMYEggCEg5wcm9qZWN0LmNyZWF0ZRJ9CgxMaXN0UHJvamVjdHMSKS5kZXZvcHVzLndvcmtzcGFjZS52MS5MaXN0UHJvamVjdHNSZXF1ZXN0GiouZGV2b3B1cy53b3Jrc3BhY2UudjEuTGlzdFByb2plY3RzUmVzcG9uc2UiFsLzGBIIAhIOd29ya3NwYWNlLnZpZXcSfQoMQ3JlYXRlSW52aXRlEikuZGV2b3B1cy53b3Jrc3BhY2UudjEuQ3JlYXRlSW52aXRlUmVxdWVzdBoqLmRldm9wdXMud29ya3NwYWNlLnYxLkNyZWF0ZUludml0ZVJlc3BvbnNlIhbC8xgSCAISDm1lbWJlcnMuaW52aXRlEnoKC0xpc3RJbnZpdGVzEiguZGV2b3B1cy53b3Jrc3BhY2UudjEuTGlzdEludml0ZXNSZXF1ZXN0GikuZGV2b3B1cy53b3Jrc3BhY2UudjEuTGlzdEludml0ZXNSZXNwb25zZSIWwvMYEggCEg5tZW1iZXJzLmludml0ZRJ9CgxSZXZva2VJbnZpdGUSKS5kZXZvcHVzLndvcmtzcGFjZS52MS5SZXZva2VJbnZpdGVSZXF1ZXN0GiouZGV2b3B1cy53b3Jrc3BhY2UudjEuUmV2b2tlSW52aXRlUmVzcG9uc2UiFsLzGBIIAhIObWVtYmVycy5pbnZpdGUSbQoMQWNjZXB0SW52aXRlEikuZGV2b3B1cy53b3Jrc3BhY2UudjEuQWNjZXB0SW52aXRlUmVxdWVzdBoqLmRldm9wdXMud29ya3NwYWNlLnYxLkFjY2VwdEludml0ZVJlc3BvbnNlIgbC8xgCCAESegoLTGlzdE1lbWJlcnMSKC5kZXZvcHVzLndvcmtzcGFjZS52MS5MaXN0TWVtYmVyc1JlcXVlc3QaKS5kZXZvcHVzLndvcmtzcGFjZS52MS5MaXN0TWVtYmVyc1Jlc3BvbnNlIhbC8xgSCAISDndvcmtzcGFjZS52aWV3EoYBCg9HcmFudFBlcm1pc3Npb24SLC5kZXZvcHVzLndvcmtzcGFjZS52MS5HcmFudFBlcm1pc3Npb25SZXF1ZXN0Gi0uZGV2b3B1cy53b3Jrc3BhY2UudjEuR3JhbnRQZXJtaXNzaW9uUmVzcG9uc2UiFsLzGBIIAxIObWVtYmVycy5tYW5hZ2USiQEKEFJldm9rZVBlcm1pc3Npb24SLS5kZXZvcHVzLndvcmtzcGFjZS52MS5SZXZva2VQZXJtaXNzaW9uUmVxdWVzdBouLmRldm9wdXMud29ya3NwYWNlLnYxLlJldm9rZVBlcm1pc3Npb25SZXNwb25zZSIWwvMYEggDEg5tZW1iZXJzLm1hbmFnZRKMAQoRUmVtb3ZlRnJvbVByb2plY3QSLi5kZXZvcHVzLndvcmtzcGFjZS52MS5SZW1vdmVGcm9tUHJvamVjdFJlcXVlc3QaLy5kZXZvcHVzLndvcmtzcGFjZS52MS5SZW1vdmVGcm9tUHJvamVjdFJlc3BvbnNlIhbC8xgSCAMSDm1lbWJlcnMubWFuYWdlEn0KDFJlbW92ZU1lbWJlchIpLmRldm9wdXMud29ya3NwYWNlLnYxLlJlbW92ZU1lbWJlclJlcXVlc3QaKi5kZXZvcHVzLndvcmtzcGFjZS52MS5SZW1vdmVNZW1iZXJSZXNwb25zZSIWwvMYEggCEg5tZW1iZXJzLm1hbmFnZTpWCgZhY2Nlc3MSHi5nb29nbGUucHJvdG9idWYuTWV0aG9kT3B0aW9ucxi4jgMgASgLMhwuZGV2b3B1cy53b3Jrc3BhY2UudjEuQWNjZXNzUgZhY2Nlc3NiBnByb3RvMw", [file_google_protobuf_descriptor, file_google_protobuf_timestamp]);
+  fileDesc("CiRkZXZvcHVzL3dvcmtzcGFjZS92MS93b3Jrc3BhY2UucHJvdG8SFGRldm9wdXMud29ya3NwYWNlLnYxIkgKBkFjY2VzcxIqCgVzY29wZRgBIAEoDjIbLmRldm9wdXMud29ya3NwYWNlLnYxLlNjb3BlEhIKCnBlcm1pc3Npb24YAiABKAkieAoJV29ya3NwYWNlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLYWRtaW5fZW1haWwYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEcm9sZRgFIAEoCSJyCgdQcm9qZWN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSLgoKY3JlYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEcm9sZRgEIAEoCRIPCgd2ZXJzaW9uGAUgASgFIn8KDVByb2plY3RDb25maWcSDwoHdmVyc2lvbhgBIAEoBRIMCgR5YW1sGAIgASgJEg4KBmF1dGhvchgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInIKDlByb2plY3RWZXJzaW9uEg8KB3ZlcnNpb24YASABKAUSDgoGYXV0aG9yGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiPAoLUHJvamVjdFJvbGUSDwoHcHJvamVjdBgBIAEoCRIMCgRyb2xlGAIgASgJEg4KBmdyYW50cxgDIAMoCSKaAQoGTWVtYmVyEg8KB3VzZXJfaWQYASABKAkSDQoFZW1haWwYAiABKAkSDAoEcm9sZRgDIAEoCRIzCghwcm9qZWN0cxgEIAMoCzIhLmRldm9wdXMud29ya3NwYWNlLnYxLlByb2plY3RSb2xlEi0KCWpvaW5lZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAitwEKBkludml0ZRIKCgJpZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIMCgRyb2xlGAMgASgJEhAKCHByb2plY3RzGAQgAygJEhIKCmludml0ZWRfYnkYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKZXhwaXJlc19hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAicwoKQXVkaXRFdmVudBINCgVhY3RvchgBIAEoCRIOCgZhY3Rpb24YAiABKAkSDgoGdGFyZ2V0GAMgASgJEg4KBmRldGFpbBgEIAEoCRImCgJhdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiJgoWQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBIMCgRuYW1lGAEgASgJIk0KF0NyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlEjIKCXdvcmtzcGFjZRgBIAEoCzIfLmRldm9wdXMud29ya3NwYWNlLnYxLldvcmtzcGFjZSIXChVMaXN0V29ya3NwYWNlc1JlcXVlc3QiTQoWTGlzdFdvcmtzcGFjZXNSZXNwb25zZRIzCgp3b3Jrc3BhY2VzGAEgAygLMh8uZGV2b3B1cy53b3Jrc3BhY2UudjEuV29ya3NwYWNlIisKE0dldFdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJIjoKElByb2plY3RQZXJtaXNzaW9ucxIPCgdwcm9qZWN0GAEgASgJEhMKC3Blcm1pc3Npb25zGAIgAygJIpsBChRHZXRXb3Jrc3BhY2VSZXNwb25zZRIyCgl3b3Jrc3BhY2UYASABKAsyHy5kZXZvcHVzLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2USEwoLcGVybWlzc2lvbnMYAiADKAkSOgoIcHJvamVjdHMYAyADKAsyKC5kZXZvcHVzLndvcmtzcGFjZS52MS5Qcm9qZWN0UGVybWlzc2lvbnMiPAoWUmVuYW1lV29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDAoEbmFtZRgCIAEoCSJNChdSZW5hbWVXb3Jrc3BhY2VSZXNwb25zZRIyCgl3b3Jrc3BhY2UYASABKAsyHy5kZXZvcHVzLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UiPwoYVHJhbnNmZXJXb3Jrc3BhY2VSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRINCgVlbWFpbBgCIAEoCSIbChlUcmFuc2ZlcldvcmtzcGFjZVJlc3BvbnNlIkQKFkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhQKDGNvbmZpcm1fbmFtZRgCIAEoCSIZChdEZWxldGVXb3Jrc3BhY2VSZXNwb25zZSI3ChBMaXN0QXVkaXRSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRINCgVsaW1pdBgCIAEoBSJFChFMaXN0QXVkaXRSZXNwb25zZRIwCgZldmVudHMYASADKAsyIC5kZXZvcHVzLndvcmtzcGFjZS52MS5BdWRpdEV2ZW50Il8KFENyZWF0ZVByb2plY3RSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBmRvbWFpbhgDIAEoCRITCgtjb25maWdfeWFtbBgEIAEoCSJ8ChVDcmVhdGVQcm9qZWN0UmVzcG9uc2USLgoHcHJvamVjdBgBIAEoCzIdLmRldm9wdXMud29ya3NwYWNlLnYxLlByb2plY3QSMwoGY29uZmlnGAIgASgLMiMuZGV2b3B1cy53b3Jrc3BhY2UudjEuUHJvamVjdENvbmZpZyJTChREZWxldGVQcm9qZWN0UmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDwoHcHJvamVjdBgCIAEoCRIUCgxjb25maXJtX25hbWUYAyABKAkiFwoVRGVsZXRlUHJvamVjdFJlc3BvbnNlIlEKF0dldFByb2plY3RDb25maWdSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEg8KB3ZlcnNpb24YAyABKAUiaAoYR2V0UHJvamVjdENvbmZpZ1Jlc3BvbnNlEjMKBmNvbmZpZxgBIAEoCzIjLmRldm9wdXMud29ya3NwYWNlLnYxLlByb2plY3RDb25maWcSFwoPY3VycmVudF92ZXJzaW9uGAIgASgFIlIKGkxpc3RQcm9qZWN0VmVyc2lvbnNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEg0KBWxpbWl0GAMgASgFIlUKG0xpc3RQcm9qZWN0VmVyc2lvbnNSZXNwb25zZRI2Cgh2ZXJzaW9ucxgBIAMoCzIkLmRldm9wdXMud29ya3NwYWNlLnYxLlByb2plY3RWZXJzaW9uIoABChxVcGRhdGVQcm9qZWN0U2V0dGluZ3NSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEhQKDGJhc2VfdmVyc2lvbhgDIAEoBRIOCgZkb21haW4YBCABKAkSEwoLcG9saWN5X3lhbWwYBSABKAkiVAodVXBkYXRlUHJvamVjdFNldHRpbmdzUmVzcG9uc2USMwoGY29uZmlnGAEgASgLMiMuZGV2b3B1cy53b3Jrc3BhY2UudjEuUHJvamVjdENvbmZpZyJQChZSb2xsYmFja1Byb2plY3RSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEg8KB3ZlcnNpb24YAyABKAUiTgoXUm9sbGJhY2tQcm9qZWN0UmVzcG9uc2USMwoGY29uZmlnGAEgASgLMiMuZGV2b3B1cy53b3Jrc3BhY2UudjEuUHJvamVjdENvbmZpZyJ8Cg1QdXRBcHBSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEhQKDGJhc2VfdmVyc2lvbhgDIAEoBRIMCgRuYW1lGAQgASgJEhAKCGFwcF95YW1sGAUgASgJEg4KBmNyZWF0ZRgGIAEoCCJFCg5QdXRBcHBSZXNwb25zZRIzCgZjb25maWcYASABKAsyIy5kZXZvcHVzLndvcmtzcGFjZS52MS5Qcm9qZWN0Q29uZmlnIl0KEFJlbW92ZUFwcFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSFAoMYmFzZV92ZXJzaW9uGAMgASgFEgwKBG5hbWUYBCABKAkiSAoRUmVtb3ZlQXBwUmVzcG9uc2USMwoGY29uZmlnGAEgASgLMiMuZGV2b3B1cy53b3Jrc3BhY2UudjEuUHJvamVjdENvbmZpZyKEAQoRUHV0U2VydmljZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSFAoMYmFzZV92ZXJzaW9uGAMgASgFEgwKBG5hbWUYBCABKAkSFAoMc2VydmljZV95YW1sGAUgASgJEg4KBmNyZWF0ZRgGIAEoCCJJChJQdXRTZXJ2aWNlUmVzcG9uc2USMwoGY29uZmlnGAEgASgLMiMuZGV2b3B1cy53b3Jrc3BhY2UudjEuUHJvamVjdENvbmZpZyJhChRSZW1vdmVTZXJ2aWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDwoHcHJvamVjdBgCIAEoCRIUCgxiYXNlX3ZlcnNpb24YAyABKAUSDAoEbmFtZRgEIAEoCSJMChVSZW1vdmVTZXJ2aWNlUmVzcG9uc2USMwoGY29uZmlnGAEgASgLMiMuZGV2b3B1cy53b3Jrc3BhY2UudjEuUHJvamVjdENvbmZpZyIrChNMaXN0UHJvamVjdHNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCSJHChRMaXN0UHJvamVjdHNSZXNwb25zZRIvCghwcm9qZWN0cxgBIAMoCzIdLmRldm9wdXMud29ya3NwYWNlLnYxLlByb2plY3QiWgoTQ3JlYXRlSW52aXRlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDQoFZW1haWwYAiABKAkSDAoEcm9sZRgDIAEoCRIQCghwcm9qZWN0cxgEIAMoCSJSChRDcmVhdGVJbnZpdGVSZXNwb25zZRIsCgZpbnZpdGUYASABKAsyHC5kZXZvcHVzLndvcmtzcGFjZS52MS5JbnZpdGUSDAoEY29kZRgCIAEoCSIqChJMaXN0SW52aXRlc1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJIkQKE0xpc3RJbnZpdGVzUmVzcG9uc2USLQoHaW52aXRlcxgBIAMoCzIcLmRldm9wdXMud29ya3NwYWNlLnYxLkludml0ZSI+ChNSZXZva2VJbnZpdGVSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIRCglpbnZpdGVfaWQYAiABKAkiFgoUUmV2b2tlSW52aXRlUmVzcG9uc2UiIwoTQWNjZXB0SW52aXRlUmVxdWVzdBIMCgRjb2RlGAEgASgJIkoKFEFjY2VwdEludml0ZVJlc3BvbnNlEjIKCXdvcmtzcGFjZRgBIAEoCzIfLmRldm9wdXMud29ya3NwYWNlLnYxLldvcmtzcGFjZSIqChJMaXN0TWVtYmVyc1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJIkQKE0xpc3RNZW1iZXJzUmVzcG9uc2USLQoHbWVtYmVycxgBIAMoCzIcLmRldm9wdXMud29ya3NwYWNlLnYxLk1lbWJlciJiChZHcmFudFBlcm1pc3Npb25SZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEg0KBWVtYWlsGAMgASgJEhIKCnBlcm1pc3Npb24YBCABKAkiGQoXR3JhbnRQZXJtaXNzaW9uUmVzcG9uc2UiYwoXUmV2b2tlUGVybWlzc2lvblJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3Byb2plY3QYAiABKAkSDQoFZW1haWwYAyABKAkSEgoKcGVybWlzc2lvbhgEIAEoCSIaChhSZXZva2VQZXJtaXNzaW9uUmVzcG9uc2UiUAoYUmVtb3ZlRnJvbVByb2plY3RSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgdwcm9qZWN0GAIgASgJEg0KBWVtYWlsGAMgASgJIhsKGVJlbW92ZUZyb21Qcm9qZWN0UmVzcG9uc2UiOgoTUmVtb3ZlTWVtYmVyUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDQoFZW1haWwYAiABKAkiFgoUUmVtb3ZlTWVtYmVyUmVzcG9uc2UqWwoFU2NvcGUSFQoRU0NPUEVfVU5TUEVDSUZJRUQQABITCg9TQ09QRV9TSUdORURfSU4QARITCg9TQ09QRV9XT1JLU1BBQ0UQAhIRCg1TQ09QRV9QUk9KRUNUEAMy0xsKEFdvcmtzcGFjZVNlcnZpY2USdgoPQ3JlYXRlV29ya3NwYWNlEiwuZGV2b3B1cy53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBotLmRldm9wdXMud29ya3NwYWNlLnYxLkNyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlIgbC8xgCCAEScwoOTGlzdFdvcmtzcGFjZXMSKy5kZXZvcHVzLndvcmtzcGFjZS52MS5MaXN0V29ya3NwYWNlc1JlcXVlc3QaLC5kZXZvcHVzLndvcmtzcGFjZS52MS5MaXN0V29ya3NwYWNlc1Jlc3BvbnNlIgbC8xgCCAESfQoMR2V0V29ya3NwYWNlEikuZGV2b3B1cy53b3Jrc3BhY2UudjEuR2V0V29ya3NwYWNlUmVxdWVzdBoqLmRldm9wdXMud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlc3BvbnNlIhbC8xgSCAISDndvcmtzcGFjZS52aWV3EogBCg9SZW5hbWVXb3Jrc3BhY2USLC5kZXZvcHVzLndvcmtzcGFjZS52MS5SZW5hbWVXb3Jrc3BhY2VSZXF1ZXN0Gi0uZGV2b3B1cy53b3Jrc3BhY2UudjEuUmVuYW1lV29ya3NwYWNlUmVzcG9uc2UiGMLzGBQIAhIQd29ya3NwYWNlLm1hbmFnZRKOAQoRVHJhbnNmZXJXb3Jrc3BhY2USLi5kZXZvcHVzLndvcmtzcGFjZS52MS5UcmFuc2ZlcldvcmtzcGFjZVJlcXVlc3QaLy5kZXZvcHVzLndvcmtzcGFjZS52MS5UcmFuc2ZlcldvcmtzcGFjZVJlc3BvbnNlIhjC8xgUCAISEHdvcmtzcGFjZS5tYW5hZ2USiAEKD0RlbGV0ZVdvcmtzcGFjZRIsLmRldm9wdXMud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QaLS5kZXZvcHVzLndvcmtzcGFjZS52MS5EZWxldGVXb3Jrc3BhY2VSZXNwb25zZSIYwvMYFAgCEhB3b3Jrc3BhY2UubWFuYWdlEnYKCUxpc3RBdWRpdBImLmRldm9wdXMud29ya3NwYWNlLnYxLkxpc3RBdWRpdFJlcXVlc3QaJy5kZXZvcHVzLndvcmtzcGFjZS52MS5MaXN0QXVkaXRSZXNwb25zZSIYwvMYFAgCEhB3b3Jrc3BhY2UubWFuYWdlEoABCg1DcmVhdGVQcm9qZWN0EiouZGV2b3B1cy53b3Jrc3BhY2UudjEuQ3JlYXRlUHJvamVjdFJlcXVlc3QaKy5kZXZvcHVzLndvcmtzcGFjZS52MS5DcmVhdGVQcm9qZWN0UmVzcG9uc2UiFsLzGBIIAhIOcHJvamVjdC5jcmVhdGUSfQoMTGlzdFByb2plY3RzEikuZGV2b3B1cy53b3Jrc3BhY2UudjEuTGlzdFByb2plY3RzUmVxdWVzdBoqLmRldm9wdXMud29ya3NwYWNlLnYxLkxpc3RQcm9qZWN0c1Jlc3BvbnNlIhbC8xgSCAISDndvcmtzcGFjZS52aWV3EoMBCg1EZWxldGVQcm9qZWN0EiouZGV2b3B1cy53b3Jrc3BhY2UudjEuRGVsZXRlUHJvamVjdFJlcXVlc3QaKy5kZXZvcHVzLndvcmtzcGFjZS52MS5EZWxldGVQcm9qZWN0UmVzcG9uc2UiGcLzGBUIAxIRcHJvamVjdC5jb25maWd1cmUSiQEKEEdldFByb2plY3RDb25maWcSLS5kZXZvcHVzLndvcmtzcGFjZS52MS5HZXRQcm9qZWN0Q29uZmlnUmVxdWVzdBouLmRldm9wdXMud29ya3NwYWNlLnYxLkdldFByb2plY3RDb25maWdSZXNwb25zZSIWwvMYEggDEg53b3Jrc3BhY2UudmlldxKSAQoTTGlzdFByb2plY3RWZXJzaW9ucxIwLmRldm9wdXMud29ya3NwYWNlLnYxLkxpc3RQcm9qZWN0VmVyc2lvbnNSZXF1ZXN0GjEuZGV2b3B1cy53b3Jrc3BhY2UudjEuTGlzdFByb2plY3RWZXJzaW9uc1Jlc3BvbnNlIhbC8xgSCAMSDndvcmtzcGFjZS52aWV3EpsBChVVcGRhdGVQcm9qZWN0U2V0dGluZ3MSMi5kZXZvcHVzLndvcmtzcGFjZS52MS5VcGRhdGVQcm9qZWN0U2V0dGluZ3NSZXF1ZXN0GjMuZGV2b3B1cy53b3Jrc3BhY2UudjEuVXBkYXRlUHJvamVjdFNldHRpbmdzUmVzcG9uc2UiGcLzGBUIAxIRcHJvamVjdC5jb25maWd1cmUSiQEKD1JvbGxiYWNrUHJvamVjdBIsLmRldm9wdXMud29ya3NwYWNlLnYxLlJvbGxiYWNrUHJvamVjdFJlcXVlc3QaLS5kZXZvcHVzLndvcmtzcGFjZS52MS5Sb2xsYmFja1Byb2plY3RSZXNwb25zZSIZwvMYFQgDEhFwcm9qZWN0LmNvbmZpZ3VyZRJoCgZQdXRBcHASIy5kZXZvcHVzLndvcmtzcGFjZS52MS5QdXRBcHBSZXF1ZXN0GiQuZGV2b3B1cy53b3Jrc3BhY2UudjEuUHV0QXBwUmVzcG9uc2UiE8LzGA8IAxILYXBwcy5tYW5hZ2UScQoJUmVtb3ZlQXBwEiYuZGV2b3B1cy53b3Jrc3BhY2UudjEuUmVtb3ZlQXBwUmVxdWVzdBonLmRldm9wdXMud29ya3NwYWNlLnYxLlJlbW92ZUFwcFJlc3BvbnNlIhPC8xgPCAMSC2FwcHMubWFuYWdlEngKClB1dFNlcnZpY2USJy5kZXZvcHVzLndvcmtzcGFjZS52MS5QdXRTZXJ2aWNlUmVxdWVzdBooLmRldm9wdXMud29ya3NwYWNlLnYxLlB1dFNlcnZpY2VSZXNwb25zZSIXwvMYEwgDEg9zZXJ2aWNlcy5tYW5hZ2USgQEKDVJlbW92ZVNlcnZpY2USKi5kZXZvcHVzLndvcmtzcGFjZS52MS5SZW1vdmVTZXJ2aWNlUmVxdWVzdBorLmRldm9wdXMud29ya3NwYWNlLnYxLlJlbW92ZVNlcnZpY2VSZXNwb25zZSIXwvMYEwgDEg9zZXJ2aWNlcy5tYW5hZ2USfQoMQ3JlYXRlSW52aXRlEikuZGV2b3B1cy53b3Jrc3BhY2UudjEuQ3JlYXRlSW52aXRlUmVxdWVzdBoqLmRldm9wdXMud29ya3NwYWNlLnYxLkNyZWF0ZUludml0ZVJlc3BvbnNlIhbC8xgSCAISDm1lbWJlcnMuaW52aXRlEnoKC0xpc3RJbnZpdGVzEiguZGV2b3B1cy53b3Jrc3BhY2UudjEuTGlzdEludml0ZXNSZXF1ZXN0GikuZGV2b3B1cy53b3Jrc3BhY2UudjEuTGlzdEludml0ZXNSZXNwb25zZSIWwvMYEggCEg5tZW1iZXJzLmludml0ZRJ9CgxSZXZva2VJbnZpdGUSKS5kZXZvcHVzLndvcmtzcGFjZS52MS5SZXZva2VJbnZpdGVSZXF1ZXN0GiouZGV2b3B1cy53b3Jrc3BhY2UudjEuUmV2b2tlSW52aXRlUmVzcG9uc2UiFsLzGBIIAhIObWVtYmVycy5pbnZpdGUSbQoMQWNjZXB0SW52aXRlEikuZGV2b3B1cy53b3Jrc3BhY2UudjEuQWNjZXB0SW52aXRlUmVxdWVzdBoqLmRldm9wdXMud29ya3NwYWNlLnYxLkFjY2VwdEludml0ZVJlc3BvbnNlIgbC8xgCCAESegoLTGlzdE1lbWJlcnMSKC5kZXZvcHVzLndvcmtzcGFjZS52MS5MaXN0TWVtYmVyc1JlcXVlc3QaKS5kZXZvcHVzLndvcmtzcGFjZS52MS5MaXN0TWVtYmVyc1Jlc3BvbnNlIhbC8xgSCAISDndvcmtzcGFjZS52aWV3EoYBCg9HcmFudFBlcm1pc3Npb24SLC5kZXZvcHVzLndvcmtzcGFjZS52MS5HcmFudFBlcm1pc3Npb25SZXF1ZXN0Gi0uZGV2b3B1cy53b3Jrc3BhY2UudjEuR3JhbnRQZXJtaXNzaW9uUmVzcG9uc2UiFsLzGBIIAxIObWVtYmVycy5tYW5hZ2USiQEKEFJldm9rZVBlcm1pc3Npb24SLS5kZXZvcHVzLndvcmtzcGFjZS52MS5SZXZva2VQZXJtaXNzaW9uUmVxdWVzdBouLmRldm9wdXMud29ya3NwYWNlLnYxLlJldm9rZVBlcm1pc3Npb25SZXNwb25zZSIWwvMYEggDEg5tZW1iZXJzLm1hbmFnZRKMAQoRUmVtb3ZlRnJvbVByb2plY3QSLi5kZXZvcHVzLndvcmtzcGFjZS52MS5SZW1vdmVGcm9tUHJvamVjdFJlcXVlc3QaLy5kZXZvcHVzLndvcmtzcGFjZS52MS5SZW1vdmVGcm9tUHJvamVjdFJlc3BvbnNlIhbC8xgSCAMSDm1lbWJlcnMubWFuYWdlEn0KDFJlbW92ZU1lbWJlchIpLmRldm9wdXMud29ya3NwYWNlLnYxLlJlbW92ZU1lbWJlclJlcXVlc3QaKi5kZXZvcHVzLndvcmtzcGFjZS52MS5SZW1vdmVNZW1iZXJSZXNwb25zZSIWwvMYEggCEg5tZW1iZXJzLm1hbmFnZTpWCgZhY2Nlc3MSHi5nb29nbGUucHJvdG9idWYuTWV0aG9kT3B0aW9ucxi4jgMgASgLMhwuZGV2b3B1cy53b3Jrc3BhY2UudjEuQWNjZXNzUgZhY2Nlc3NiBnByb3RvMw", [file_google_protobuf_descriptor, file_google_protobuf_timestamp]);
 
 /**
  * Access is what a call needs.
@@ -109,6 +109,13 @@ export type Project = Message<"devopus.workspace.v1.Project"> & {
    * @generated from field: string role = 4;
    */
   role: string;
+
+  /**
+   * The current version of its settings.
+   *
+   * @generated from field: int32 version = 5;
+   */
+  version: number;
 };
 
 /**
@@ -117,6 +124,81 @@ export type Project = Message<"devopus.workspace.v1.Project"> & {
  */
 export const ProjectSchema: GenMessage<Project> = /*@__PURE__*/
   messageDesc(file_devopus_workspace_v1_workspace, 2);
+
+/**
+ * ProjectConfig is a version of a project's settings.
+ *
+ * @generated from message devopus.workspace.v1.ProjectConfig
+ */
+export type ProjectConfig = Message<"devopus.workspace.v1.ProjectConfig"> & {
+  /**
+   * @generated from field: int32 version = 1;
+   */
+  version: number;
+
+  /**
+   * The project in its YAML form: name, domain, apps, services, policies.
+   *
+   * @generated from field: string yaml = 2;
+   */
+  yaml: string;
+
+  /**
+   * @generated from field: string author = 3;
+   */
+  author: string;
+
+  /**
+   * What changed: "service set php 8.4", "rollback to 3"…
+   *
+   * @generated from field: string message = 4;
+   */
+  message: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 5;
+   */
+  createdAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.ProjectConfig.
+ * Use `create(ProjectConfigSchema)` to create a new message.
+ */
+export const ProjectConfigSchema: GenMessage<ProjectConfig> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 3);
+
+/**
+ * @generated from message devopus.workspace.v1.ProjectVersion
+ */
+export type ProjectVersion = Message<"devopus.workspace.v1.ProjectVersion"> & {
+  /**
+   * @generated from field: int32 version = 1;
+   */
+  version: number;
+
+  /**
+   * @generated from field: string author = 2;
+   */
+  author: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 4;
+   */
+  createdAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.ProjectVersion.
+ * Use `create(ProjectVersionSchema)` to create a new message.
+ */
+export const ProjectVersionSchema: GenMessage<ProjectVersion> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 4);
 
 /**
  * @generated from message devopus.workspace.v1.ProjectRole
@@ -147,7 +229,7 @@ export type ProjectRole = Message<"devopus.workspace.v1.ProjectRole"> & {
  * Use `create(ProjectRoleSchema)` to create a new message.
  */
 export const ProjectRoleSchema: GenMessage<ProjectRole> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 3);
+  messageDesc(file_devopus_workspace_v1_workspace, 5);
 
 /**
  * @generated from message devopus.workspace.v1.Member
@@ -186,7 +268,7 @@ export type Member = Message<"devopus.workspace.v1.Member"> & {
  * Use `create(MemberSchema)` to create a new message.
  */
 export const MemberSchema: GenMessage<Member> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 4);
+  messageDesc(file_devopus_workspace_v1_workspace, 6);
 
 /**
  * @generated from message devopus.workspace.v1.Invite
@@ -233,7 +315,7 @@ export type Invite = Message<"devopus.workspace.v1.Invite"> & {
  * Use `create(InviteSchema)` to create a new message.
  */
 export const InviteSchema: GenMessage<Invite> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 5);
+  messageDesc(file_devopus_workspace_v1_workspace, 7);
 
 /**
  * @generated from message devopus.workspace.v1.AuditEvent
@@ -272,7 +354,7 @@ export type AuditEvent = Message<"devopus.workspace.v1.AuditEvent"> & {
  * Use `create(AuditEventSchema)` to create a new message.
  */
 export const AuditEventSchema: GenMessage<AuditEvent> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 6);
+  messageDesc(file_devopus_workspace_v1_workspace, 8);
 
 /**
  * @generated from message devopus.workspace.v1.CreateWorkspaceRequest
@@ -289,7 +371,7 @@ export type CreateWorkspaceRequest = Message<"devopus.workspace.v1.CreateWorkspa
  * Use `create(CreateWorkspaceRequestSchema)` to create a new message.
  */
 export const CreateWorkspaceRequestSchema: GenMessage<CreateWorkspaceRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 7);
+  messageDesc(file_devopus_workspace_v1_workspace, 9);
 
 /**
  * @generated from message devopus.workspace.v1.CreateWorkspaceResponse
@@ -306,7 +388,7 @@ export type CreateWorkspaceResponse = Message<"devopus.workspace.v1.CreateWorksp
  * Use `create(CreateWorkspaceResponseSchema)` to create a new message.
  */
 export const CreateWorkspaceResponseSchema: GenMessage<CreateWorkspaceResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 8);
+  messageDesc(file_devopus_workspace_v1_workspace, 10);
 
 /**
  * @generated from message devopus.workspace.v1.ListWorkspacesRequest
@@ -319,7 +401,7 @@ export type ListWorkspacesRequest = Message<"devopus.workspace.v1.ListWorkspaces
  * Use `create(ListWorkspacesRequestSchema)` to create a new message.
  */
 export const ListWorkspacesRequestSchema: GenMessage<ListWorkspacesRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 9);
+  messageDesc(file_devopus_workspace_v1_workspace, 11);
 
 /**
  * @generated from message devopus.workspace.v1.ListWorkspacesResponse
@@ -336,7 +418,7 @@ export type ListWorkspacesResponse = Message<"devopus.workspace.v1.ListWorkspace
  * Use `create(ListWorkspacesResponseSchema)` to create a new message.
  */
 export const ListWorkspacesResponseSchema: GenMessage<ListWorkspacesResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 10);
+  messageDesc(file_devopus_workspace_v1_workspace, 12);
 
 /**
  * @generated from message devopus.workspace.v1.GetWorkspaceRequest
@@ -353,7 +435,7 @@ export type GetWorkspaceRequest = Message<"devopus.workspace.v1.GetWorkspaceRequ
  * Use `create(GetWorkspaceRequestSchema)` to create a new message.
  */
 export const GetWorkspaceRequestSchema: GenMessage<GetWorkspaceRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 11);
+  messageDesc(file_devopus_workspace_v1_workspace, 13);
 
 /**
  * @generated from message devopus.workspace.v1.ProjectPermissions
@@ -375,7 +457,7 @@ export type ProjectPermissions = Message<"devopus.workspace.v1.ProjectPermission
  * Use `create(ProjectPermissionsSchema)` to create a new message.
  */
 export const ProjectPermissionsSchema: GenMessage<ProjectPermissions> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 12);
+  messageDesc(file_devopus_workspace_v1_workspace, 14);
 
 /**
  * @generated from message devopus.workspace.v1.GetWorkspaceResponse
@@ -404,7 +486,7 @@ export type GetWorkspaceResponse = Message<"devopus.workspace.v1.GetWorkspaceRes
  * Use `create(GetWorkspaceResponseSchema)` to create a new message.
  */
 export const GetWorkspaceResponseSchema: GenMessage<GetWorkspaceResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 13);
+  messageDesc(file_devopus_workspace_v1_workspace, 15);
 
 /**
  * @generated from message devopus.workspace.v1.RenameWorkspaceRequest
@@ -426,7 +508,7 @@ export type RenameWorkspaceRequest = Message<"devopus.workspace.v1.RenameWorkspa
  * Use `create(RenameWorkspaceRequestSchema)` to create a new message.
  */
 export const RenameWorkspaceRequestSchema: GenMessage<RenameWorkspaceRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 14);
+  messageDesc(file_devopus_workspace_v1_workspace, 16);
 
 /**
  * @generated from message devopus.workspace.v1.RenameWorkspaceResponse
@@ -443,7 +525,7 @@ export type RenameWorkspaceResponse = Message<"devopus.workspace.v1.RenameWorksp
  * Use `create(RenameWorkspaceResponseSchema)` to create a new message.
  */
 export const RenameWorkspaceResponseSchema: GenMessage<RenameWorkspaceResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 15);
+  messageDesc(file_devopus_workspace_v1_workspace, 17);
 
 /**
  * @generated from message devopus.workspace.v1.TransferWorkspaceRequest
@@ -465,7 +547,7 @@ export type TransferWorkspaceRequest = Message<"devopus.workspace.v1.TransferWor
  * Use `create(TransferWorkspaceRequestSchema)` to create a new message.
  */
 export const TransferWorkspaceRequestSchema: GenMessage<TransferWorkspaceRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 16);
+  messageDesc(file_devopus_workspace_v1_workspace, 18);
 
 /**
  * @generated from message devopus.workspace.v1.TransferWorkspaceResponse
@@ -478,7 +560,7 @@ export type TransferWorkspaceResponse = Message<"devopus.workspace.v1.TransferWo
  * Use `create(TransferWorkspaceResponseSchema)` to create a new message.
  */
 export const TransferWorkspaceResponseSchema: GenMessage<TransferWorkspaceResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 17);
+  messageDesc(file_devopus_workspace_v1_workspace, 19);
 
 /**
  * @generated from message devopus.workspace.v1.DeleteWorkspaceRequest
@@ -502,7 +584,7 @@ export type DeleteWorkspaceRequest = Message<"devopus.workspace.v1.DeleteWorkspa
  * Use `create(DeleteWorkspaceRequestSchema)` to create a new message.
  */
 export const DeleteWorkspaceRequestSchema: GenMessage<DeleteWorkspaceRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 18);
+  messageDesc(file_devopus_workspace_v1_workspace, 20);
 
 /**
  * @generated from message devopus.workspace.v1.DeleteWorkspaceResponse
@@ -515,7 +597,7 @@ export type DeleteWorkspaceResponse = Message<"devopus.workspace.v1.DeleteWorksp
  * Use `create(DeleteWorkspaceResponseSchema)` to create a new message.
  */
 export const DeleteWorkspaceResponseSchema: GenMessage<DeleteWorkspaceResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 19);
+  messageDesc(file_devopus_workspace_v1_workspace, 21);
 
 /**
  * @generated from message devopus.workspace.v1.ListAuditRequest
@@ -537,7 +619,7 @@ export type ListAuditRequest = Message<"devopus.workspace.v1.ListAuditRequest"> 
  * Use `create(ListAuditRequestSchema)` to create a new message.
  */
 export const ListAuditRequestSchema: GenMessage<ListAuditRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 20);
+  messageDesc(file_devopus_workspace_v1_workspace, 22);
 
 /**
  * @generated from message devopus.workspace.v1.ListAuditResponse
@@ -554,7 +636,7 @@ export type ListAuditResponse = Message<"devopus.workspace.v1.ListAuditResponse"
  * Use `create(ListAuditResponseSchema)` to create a new message.
  */
 export const ListAuditResponseSchema: GenMessage<ListAuditResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 21);
+  messageDesc(file_devopus_workspace_v1_workspace, 23);
 
 /**
  * @generated from message devopus.workspace.v1.CreateProjectRequest
@@ -569,6 +651,21 @@ export type CreateProjectRequest = Message<"devopus.workspace.v1.CreateProjectRe
    * @generated from field: string name = 2;
    */
   name: string;
+
+  /**
+   * The domain of its environments; <name>.localhost by default.
+   *
+   * @generated from field: string domain = 3;
+   */
+  domain: string;
+
+  /**
+   * The first version of its settings in YAML (an import of docker-compose.yml);
+   * empty: no applications and services yet. Its name and domain are replaced.
+   *
+   * @generated from field: string config_yaml = 4;
+   */
+  configYaml: string;
 };
 
 /**
@@ -576,7 +673,7 @@ export type CreateProjectRequest = Message<"devopus.workspace.v1.CreateProjectRe
  * Use `create(CreateProjectRequestSchema)` to create a new message.
  */
 export const CreateProjectRequestSchema: GenMessage<CreateProjectRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 22);
+  messageDesc(file_devopus_workspace_v1_workspace, 24);
 
 /**
  * @generated from message devopus.workspace.v1.CreateProjectResponse
@@ -586,6 +683,11 @@ export type CreateProjectResponse = Message<"devopus.workspace.v1.CreateProjectR
    * @generated from field: devopus.workspace.v1.Project project = 1;
    */
   project?: Project | undefined;
+
+  /**
+   * @generated from field: devopus.workspace.v1.ProjectConfig config = 2;
+   */
+  config?: ProjectConfig | undefined;
 };
 
 /**
@@ -593,7 +695,474 @@ export type CreateProjectResponse = Message<"devopus.workspace.v1.CreateProjectR
  * Use `create(CreateProjectResponseSchema)` to create a new message.
  */
 export const CreateProjectResponseSchema: GenMessage<CreateProjectResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 23);
+  messageDesc(file_devopus_workspace_v1_workspace, 25);
+
+/**
+ * @generated from message devopus.workspace.v1.DeleteProjectRequest
+ */
+export type DeleteProjectRequest = Message<"devopus.workspace.v1.DeleteProjectRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string project = 2;
+   */
+  project: string;
+
+  /**
+   * Must repeat the project's name.
+   *
+   * @generated from field: string confirm_name = 3;
+   */
+  confirmName: string;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.DeleteProjectRequest.
+ * Use `create(DeleteProjectRequestSchema)` to create a new message.
+ */
+export const DeleteProjectRequestSchema: GenMessage<DeleteProjectRequest> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 26);
+
+/**
+ * @generated from message devopus.workspace.v1.DeleteProjectResponse
+ */
+export type DeleteProjectResponse = Message<"devopus.workspace.v1.DeleteProjectResponse"> & {
+};
+
+/**
+ * Describes the message devopus.workspace.v1.DeleteProjectResponse.
+ * Use `create(DeleteProjectResponseSchema)` to create a new message.
+ */
+export const DeleteProjectResponseSchema: GenMessage<DeleteProjectResponse> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 27);
+
+/**
+ * @generated from message devopus.workspace.v1.GetProjectConfigRequest
+ */
+export type GetProjectConfigRequest = Message<"devopus.workspace.v1.GetProjectConfigRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string project = 2;
+   */
+  project: string;
+
+  /**
+   * 0: the current one.
+   *
+   * @generated from field: int32 version = 3;
+   */
+  version: number;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.GetProjectConfigRequest.
+ * Use `create(GetProjectConfigRequestSchema)` to create a new message.
+ */
+export const GetProjectConfigRequestSchema: GenMessage<GetProjectConfigRequest> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 28);
+
+/**
+ * @generated from message devopus.workspace.v1.GetProjectConfigResponse
+ */
+export type GetProjectConfigResponse = Message<"devopus.workspace.v1.GetProjectConfigResponse"> & {
+  /**
+   * @generated from field: devopus.workspace.v1.ProjectConfig config = 1;
+   */
+  config?: ProjectConfig | undefined;
+
+  /**
+   * The current version, to compare with the one asked for.
+   *
+   * @generated from field: int32 current_version = 2;
+   */
+  currentVersion: number;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.GetProjectConfigResponse.
+ * Use `create(GetProjectConfigResponseSchema)` to create a new message.
+ */
+export const GetProjectConfigResponseSchema: GenMessage<GetProjectConfigResponse> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 29);
+
+/**
+ * @generated from message devopus.workspace.v1.ListProjectVersionsRequest
+ */
+export type ListProjectVersionsRequest = Message<"devopus.workspace.v1.ListProjectVersionsRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string project = 2;
+   */
+  project: string;
+
+  /**
+   * @generated from field: int32 limit = 3;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.ListProjectVersionsRequest.
+ * Use `create(ListProjectVersionsRequestSchema)` to create a new message.
+ */
+export const ListProjectVersionsRequestSchema: GenMessage<ListProjectVersionsRequest> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 30);
+
+/**
+ * @generated from message devopus.workspace.v1.ListProjectVersionsResponse
+ */
+export type ListProjectVersionsResponse = Message<"devopus.workspace.v1.ListProjectVersionsResponse"> & {
+  /**
+   * @generated from field: repeated devopus.workspace.v1.ProjectVersion versions = 1;
+   */
+  versions: ProjectVersion[];
+};
+
+/**
+ * Describes the message devopus.workspace.v1.ListProjectVersionsResponse.
+ * Use `create(ListProjectVersionsResponseSchema)` to create a new message.
+ */
+export const ListProjectVersionsResponseSchema: GenMessage<ListProjectVersionsResponse> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 31);
+
+/**
+ * Changes take the version they were made against: if the settings changed since,
+ * the change is refused (ABORTED) instead of overwriting someone else's; 0 skips
+ * the check.
+ *
+ * @generated from message devopus.workspace.v1.UpdateProjectSettingsRequest
+ */
+export type UpdateProjectSettingsRequest = Message<"devopus.workspace.v1.UpdateProjectSettingsRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string project = 2;
+   */
+  project: string;
+
+  /**
+   * @generated from field: int32 base_version = 3;
+   */
+  baseVersion: number;
+
+  /**
+   * Empty keeps the domain.
+   *
+   * @generated from field: string domain = 4;
+   */
+  domain: string;
+
+  /**
+   * YAML with features, overrides and data: the policies it names are replaced.
+   *
+   * @generated from field: string policy_yaml = 5;
+   */
+  policyYaml: string;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.UpdateProjectSettingsRequest.
+ * Use `create(UpdateProjectSettingsRequestSchema)` to create a new message.
+ */
+export const UpdateProjectSettingsRequestSchema: GenMessage<UpdateProjectSettingsRequest> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 32);
+
+/**
+ * @generated from message devopus.workspace.v1.UpdateProjectSettingsResponse
+ */
+export type UpdateProjectSettingsResponse = Message<"devopus.workspace.v1.UpdateProjectSettingsResponse"> & {
+  /**
+   * @generated from field: devopus.workspace.v1.ProjectConfig config = 1;
+   */
+  config?: ProjectConfig | undefined;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.UpdateProjectSettingsResponse.
+ * Use `create(UpdateProjectSettingsResponseSchema)` to create a new message.
+ */
+export const UpdateProjectSettingsResponseSchema: GenMessage<UpdateProjectSettingsResponse> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 33);
+
+/**
+ * @generated from message devopus.workspace.v1.RollbackProjectRequest
+ */
+export type RollbackProjectRequest = Message<"devopus.workspace.v1.RollbackProjectRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string project = 2;
+   */
+  project: string;
+
+  /**
+   * @generated from field: int32 version = 3;
+   */
+  version: number;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.RollbackProjectRequest.
+ * Use `create(RollbackProjectRequestSchema)` to create a new message.
+ */
+export const RollbackProjectRequestSchema: GenMessage<RollbackProjectRequest> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 34);
+
+/**
+ * @generated from message devopus.workspace.v1.RollbackProjectResponse
+ */
+export type RollbackProjectResponse = Message<"devopus.workspace.v1.RollbackProjectResponse"> & {
+  /**
+   * @generated from field: devopus.workspace.v1.ProjectConfig config = 1;
+   */
+  config?: ProjectConfig | undefined;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.RollbackProjectResponse.
+ * Use `create(RollbackProjectResponseSchema)` to create a new message.
+ */
+export const RollbackProjectResponseSchema: GenMessage<RollbackProjectResponse> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 35);
+
+/**
+ * @generated from message devopus.workspace.v1.PutAppRequest
+ */
+export type PutAppRequest = Message<"devopus.workspace.v1.PutAppRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string project = 2;
+   */
+  project: string;
+
+  /**
+   * @generated from field: int32 base_version = 3;
+   */
+  baseVersion: number;
+
+  /**
+   * @generated from field: string name = 4;
+   */
+  name: string;
+
+  /**
+   * The application in YAML: repo, path, branch, routes, port, env, hooks…
+   *
+   * @generated from field: string app_yaml = 5;
+   */
+  appYaml: string;
+
+  /**
+   * Add: refuse if it exists. Otherwise replace: refuse if it does not.
+   *
+   * @generated from field: bool create = 6;
+   */
+  create: boolean;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.PutAppRequest.
+ * Use `create(PutAppRequestSchema)` to create a new message.
+ */
+export const PutAppRequestSchema: GenMessage<PutAppRequest> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 36);
+
+/**
+ * @generated from message devopus.workspace.v1.PutAppResponse
+ */
+export type PutAppResponse = Message<"devopus.workspace.v1.PutAppResponse"> & {
+  /**
+   * @generated from field: devopus.workspace.v1.ProjectConfig config = 1;
+   */
+  config?: ProjectConfig | undefined;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.PutAppResponse.
+ * Use `create(PutAppResponseSchema)` to create a new message.
+ */
+export const PutAppResponseSchema: GenMessage<PutAppResponse> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 37);
+
+/**
+ * @generated from message devopus.workspace.v1.RemoveAppRequest
+ */
+export type RemoveAppRequest = Message<"devopus.workspace.v1.RemoveAppRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string project = 2;
+   */
+  project: string;
+
+  /**
+   * @generated from field: int32 base_version = 3;
+   */
+  baseVersion: number;
+
+  /**
+   * @generated from field: string name = 4;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.RemoveAppRequest.
+ * Use `create(RemoveAppRequestSchema)` to create a new message.
+ */
+export const RemoveAppRequestSchema: GenMessage<RemoveAppRequest> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 38);
+
+/**
+ * @generated from message devopus.workspace.v1.RemoveAppResponse
+ */
+export type RemoveAppResponse = Message<"devopus.workspace.v1.RemoveAppResponse"> & {
+  /**
+   * @generated from field: devopus.workspace.v1.ProjectConfig config = 1;
+   */
+  config?: ProjectConfig | undefined;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.RemoveAppResponse.
+ * Use `create(RemoveAppResponseSchema)` to create a new message.
+ */
+export const RemoveAppResponseSchema: GenMessage<RemoveAppResponse> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 39);
+
+/**
+ * @generated from message devopus.workspace.v1.PutServiceRequest
+ */
+export type PutServiceRequest = Message<"devopus.workspace.v1.PutServiceRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string project = 2;
+   */
+  project: string;
+
+  /**
+   * @generated from field: int32 base_version = 3;
+   */
+  baseVersion: number;
+
+  /**
+   * @generated from field: string name = 4;
+   */
+  name: string;
+
+  /**
+   * The service in YAML: type, version, apps, port, env…
+   *
+   * @generated from field: string service_yaml = 5;
+   */
+  serviceYaml: string;
+
+  /**
+   * @generated from field: bool create = 6;
+   */
+  create: boolean;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.PutServiceRequest.
+ * Use `create(PutServiceRequestSchema)` to create a new message.
+ */
+export const PutServiceRequestSchema: GenMessage<PutServiceRequest> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 40);
+
+/**
+ * @generated from message devopus.workspace.v1.PutServiceResponse
+ */
+export type PutServiceResponse = Message<"devopus.workspace.v1.PutServiceResponse"> & {
+  /**
+   * @generated from field: devopus.workspace.v1.ProjectConfig config = 1;
+   */
+  config?: ProjectConfig | undefined;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.PutServiceResponse.
+ * Use `create(PutServiceResponseSchema)` to create a new message.
+ */
+export const PutServiceResponseSchema: GenMessage<PutServiceResponse> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 41);
+
+/**
+ * @generated from message devopus.workspace.v1.RemoveServiceRequest
+ */
+export type RemoveServiceRequest = Message<"devopus.workspace.v1.RemoveServiceRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string project = 2;
+   */
+  project: string;
+
+  /**
+   * @generated from field: int32 base_version = 3;
+   */
+  baseVersion: number;
+
+  /**
+   * @generated from field: string name = 4;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.RemoveServiceRequest.
+ * Use `create(RemoveServiceRequestSchema)` to create a new message.
+ */
+export const RemoveServiceRequestSchema: GenMessage<RemoveServiceRequest> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 42);
+
+/**
+ * @generated from message devopus.workspace.v1.RemoveServiceResponse
+ */
+export type RemoveServiceResponse = Message<"devopus.workspace.v1.RemoveServiceResponse"> & {
+  /**
+   * @generated from field: devopus.workspace.v1.ProjectConfig config = 1;
+   */
+  config?: ProjectConfig | undefined;
+};
+
+/**
+ * Describes the message devopus.workspace.v1.RemoveServiceResponse.
+ * Use `create(RemoveServiceResponseSchema)` to create a new message.
+ */
+export const RemoveServiceResponseSchema: GenMessage<RemoveServiceResponse> = /*@__PURE__*/
+  messageDesc(file_devopus_workspace_v1_workspace, 43);
 
 /**
  * @generated from message devopus.workspace.v1.ListProjectsRequest
@@ -610,7 +1179,7 @@ export type ListProjectsRequest = Message<"devopus.workspace.v1.ListProjectsRequ
  * Use `create(ListProjectsRequestSchema)` to create a new message.
  */
 export const ListProjectsRequestSchema: GenMessage<ListProjectsRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 24);
+  messageDesc(file_devopus_workspace_v1_workspace, 44);
 
 /**
  * @generated from message devopus.workspace.v1.ListProjectsResponse
@@ -627,7 +1196,7 @@ export type ListProjectsResponse = Message<"devopus.workspace.v1.ListProjectsRes
  * Use `create(ListProjectsResponseSchema)` to create a new message.
  */
 export const ListProjectsResponseSchema: GenMessage<ListProjectsResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 25);
+  messageDesc(file_devopus_workspace_v1_workspace, 45);
 
 /**
  * @generated from message devopus.workspace.v1.CreateInviteRequest
@@ -663,7 +1232,7 @@ export type CreateInviteRequest = Message<"devopus.workspace.v1.CreateInviteRequ
  * Use `create(CreateInviteRequestSchema)` to create a new message.
  */
 export const CreateInviteRequestSchema: GenMessage<CreateInviteRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 26);
+  messageDesc(file_devopus_workspace_v1_workspace, 46);
 
 /**
  * @generated from message devopus.workspace.v1.CreateInviteResponse
@@ -687,7 +1256,7 @@ export type CreateInviteResponse = Message<"devopus.workspace.v1.CreateInviteRes
  * Use `create(CreateInviteResponseSchema)` to create a new message.
  */
 export const CreateInviteResponseSchema: GenMessage<CreateInviteResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 27);
+  messageDesc(file_devopus_workspace_v1_workspace, 47);
 
 /**
  * @generated from message devopus.workspace.v1.ListInvitesRequest
@@ -704,7 +1273,7 @@ export type ListInvitesRequest = Message<"devopus.workspace.v1.ListInvitesReques
  * Use `create(ListInvitesRequestSchema)` to create a new message.
  */
 export const ListInvitesRequestSchema: GenMessage<ListInvitesRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 28);
+  messageDesc(file_devopus_workspace_v1_workspace, 48);
 
 /**
  * @generated from message devopus.workspace.v1.ListInvitesResponse
@@ -721,7 +1290,7 @@ export type ListInvitesResponse = Message<"devopus.workspace.v1.ListInvitesRespo
  * Use `create(ListInvitesResponseSchema)` to create a new message.
  */
 export const ListInvitesResponseSchema: GenMessage<ListInvitesResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 29);
+  messageDesc(file_devopus_workspace_v1_workspace, 49);
 
 /**
  * @generated from message devopus.workspace.v1.RevokeInviteRequest
@@ -743,7 +1312,7 @@ export type RevokeInviteRequest = Message<"devopus.workspace.v1.RevokeInviteRequ
  * Use `create(RevokeInviteRequestSchema)` to create a new message.
  */
 export const RevokeInviteRequestSchema: GenMessage<RevokeInviteRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 30);
+  messageDesc(file_devopus_workspace_v1_workspace, 50);
 
 /**
  * @generated from message devopus.workspace.v1.RevokeInviteResponse
@@ -756,7 +1325,7 @@ export type RevokeInviteResponse = Message<"devopus.workspace.v1.RevokeInviteRes
  * Use `create(RevokeInviteResponseSchema)` to create a new message.
  */
 export const RevokeInviteResponseSchema: GenMessage<RevokeInviteResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 31);
+  messageDesc(file_devopus_workspace_v1_workspace, 51);
 
 /**
  * @generated from message devopus.workspace.v1.AcceptInviteRequest
@@ -773,7 +1342,7 @@ export type AcceptInviteRequest = Message<"devopus.workspace.v1.AcceptInviteRequ
  * Use `create(AcceptInviteRequestSchema)` to create a new message.
  */
 export const AcceptInviteRequestSchema: GenMessage<AcceptInviteRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 32);
+  messageDesc(file_devopus_workspace_v1_workspace, 52);
 
 /**
  * @generated from message devopus.workspace.v1.AcceptInviteResponse
@@ -790,7 +1359,7 @@ export type AcceptInviteResponse = Message<"devopus.workspace.v1.AcceptInviteRes
  * Use `create(AcceptInviteResponseSchema)` to create a new message.
  */
 export const AcceptInviteResponseSchema: GenMessage<AcceptInviteResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 33);
+  messageDesc(file_devopus_workspace_v1_workspace, 53);
 
 /**
  * @generated from message devopus.workspace.v1.ListMembersRequest
@@ -807,7 +1376,7 @@ export type ListMembersRequest = Message<"devopus.workspace.v1.ListMembersReques
  * Use `create(ListMembersRequestSchema)` to create a new message.
  */
 export const ListMembersRequestSchema: GenMessage<ListMembersRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 34);
+  messageDesc(file_devopus_workspace_v1_workspace, 54);
 
 /**
  * @generated from message devopus.workspace.v1.ListMembersResponse
@@ -824,7 +1393,7 @@ export type ListMembersResponse = Message<"devopus.workspace.v1.ListMembersRespo
  * Use `create(ListMembersResponseSchema)` to create a new message.
  */
 export const ListMembersResponseSchema: GenMessage<ListMembersResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 35);
+  messageDesc(file_devopus_workspace_v1_workspace, 55);
 
 /**
  * @generated from message devopus.workspace.v1.GrantPermissionRequest
@@ -856,7 +1425,7 @@ export type GrantPermissionRequest = Message<"devopus.workspace.v1.GrantPermissi
  * Use `create(GrantPermissionRequestSchema)` to create a new message.
  */
 export const GrantPermissionRequestSchema: GenMessage<GrantPermissionRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 36);
+  messageDesc(file_devopus_workspace_v1_workspace, 56);
 
 /**
  * @generated from message devopus.workspace.v1.GrantPermissionResponse
@@ -869,7 +1438,7 @@ export type GrantPermissionResponse = Message<"devopus.workspace.v1.GrantPermiss
  * Use `create(GrantPermissionResponseSchema)` to create a new message.
  */
 export const GrantPermissionResponseSchema: GenMessage<GrantPermissionResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 37);
+  messageDesc(file_devopus_workspace_v1_workspace, 57);
 
 /**
  * @generated from message devopus.workspace.v1.RevokePermissionRequest
@@ -901,7 +1470,7 @@ export type RevokePermissionRequest = Message<"devopus.workspace.v1.RevokePermis
  * Use `create(RevokePermissionRequestSchema)` to create a new message.
  */
 export const RevokePermissionRequestSchema: GenMessage<RevokePermissionRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 38);
+  messageDesc(file_devopus_workspace_v1_workspace, 58);
 
 /**
  * @generated from message devopus.workspace.v1.RevokePermissionResponse
@@ -914,7 +1483,7 @@ export type RevokePermissionResponse = Message<"devopus.workspace.v1.RevokePermi
  * Use `create(RevokePermissionResponseSchema)` to create a new message.
  */
 export const RevokePermissionResponseSchema: GenMessage<RevokePermissionResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 39);
+  messageDesc(file_devopus_workspace_v1_workspace, 59);
 
 /**
  * @generated from message devopus.workspace.v1.RemoveFromProjectRequest
@@ -941,7 +1510,7 @@ export type RemoveFromProjectRequest = Message<"devopus.workspace.v1.RemoveFromP
  * Use `create(RemoveFromProjectRequestSchema)` to create a new message.
  */
 export const RemoveFromProjectRequestSchema: GenMessage<RemoveFromProjectRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 40);
+  messageDesc(file_devopus_workspace_v1_workspace, 60);
 
 /**
  * @generated from message devopus.workspace.v1.RemoveFromProjectResponse
@@ -954,7 +1523,7 @@ export type RemoveFromProjectResponse = Message<"devopus.workspace.v1.RemoveFrom
  * Use `create(RemoveFromProjectResponseSchema)` to create a new message.
  */
 export const RemoveFromProjectResponseSchema: GenMessage<RemoveFromProjectResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 41);
+  messageDesc(file_devopus_workspace_v1_workspace, 61);
 
 /**
  * @generated from message devopus.workspace.v1.RemoveMemberRequest
@@ -976,7 +1545,7 @@ export type RemoveMemberRequest = Message<"devopus.workspace.v1.RemoveMemberRequ
  * Use `create(RemoveMemberRequestSchema)` to create a new message.
  */
 export const RemoveMemberRequestSchema: GenMessage<RemoveMemberRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 42);
+  messageDesc(file_devopus_workspace_v1_workspace, 62);
 
 /**
  * @generated from message devopus.workspace.v1.RemoveMemberResponse
@@ -989,7 +1558,7 @@ export type RemoveMemberResponse = Message<"devopus.workspace.v1.RemoveMemberRes
  * Use `create(RemoveMemberResponseSchema)` to create a new message.
  */
 export const RemoveMemberResponseSchema: GenMessage<RemoveMemberResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_workspace_v1_workspace, 43);
+  messageDesc(file_devopus_workspace_v1_workspace, 63);
 
 /**
  * Scope says where a call's permission is checked.
@@ -1121,6 +1690,97 @@ export const WorkspaceService: GenService<{
     methodKind: "unary";
     input: typeof ListProjectsRequestSchema;
     output: typeof ListProjectsResponseSchema;
+  },
+  /**
+   * DeleteProject removes a project with its settings and roles: the admin or a
+   * teamlead of the project; a granted project.configure is not enough.
+   *
+   * @generated from rpc devopus.workspace.v1.WorkspaceService.DeleteProject
+   */
+  deleteProject: {
+    methodKind: "unary";
+    input: typeof DeleteProjectRequestSchema;
+    output: typeof DeleteProjectResponseSchema;
+  },
+  /**
+   * GetProjectConfig is a version of a project's settings: the current one by default.
+   *
+   * @generated from rpc devopus.workspace.v1.WorkspaceService.GetProjectConfig
+   */
+  getProjectConfig: {
+    methodKind: "unary";
+    input: typeof GetProjectConfigRequestSchema;
+    output: typeof GetProjectConfigResponseSchema;
+  },
+  /**
+   * ListProjectVersions is the history of a project's settings, newest first.
+   *
+   * @generated from rpc devopus.workspace.v1.WorkspaceService.ListProjectVersions
+   */
+  listProjectVersions: {
+    methodKind: "unary";
+    input: typeof ListProjectVersionsRequestSchema;
+    output: typeof ListProjectVersionsResponseSchema;
+  },
+  /**
+   * UpdateProjectSettings changes the domain and the policies of a project.
+   *
+   * @generated from rpc devopus.workspace.v1.WorkspaceService.UpdateProjectSettings
+   */
+  updateProjectSettings: {
+    methodKind: "unary";
+    input: typeof UpdateProjectSettingsRequestSchema;
+    output: typeof UpdateProjectSettingsResponseSchema;
+  },
+  /**
+   * RollbackProject makes an older version current again, as a new version.
+   *
+   * @generated from rpc devopus.workspace.v1.WorkspaceService.RollbackProject
+   */
+  rollbackProject: {
+    methodKind: "unary";
+    input: typeof RollbackProjectRequestSchema;
+    output: typeof RollbackProjectResponseSchema;
+  },
+  /**
+   * PutApp adds or replaces an application of a project.
+   *
+   * @generated from rpc devopus.workspace.v1.WorkspaceService.PutApp
+   */
+  putApp: {
+    methodKind: "unary";
+    input: typeof PutAppRequestSchema;
+    output: typeof PutAppResponseSchema;
+  },
+  /**
+   * RemoveApp removes an application; services attached to it are detached, which
+   * needs services.manage too.
+   *
+   * @generated from rpc devopus.workspace.v1.WorkspaceService.RemoveApp
+   */
+  removeApp: {
+    methodKind: "unary";
+    input: typeof RemoveAppRequestSchema;
+    output: typeof RemoveAppResponseSchema;
+  },
+  /**
+   * PutService adds or replaces a service of a project, with the applications it is
+   * attached to.
+   *
+   * @generated from rpc devopus.workspace.v1.WorkspaceService.PutService
+   */
+  putService: {
+    methodKind: "unary";
+    input: typeof PutServiceRequestSchema;
+    output: typeof PutServiceResponseSchema;
+  },
+  /**
+   * @generated from rpc devopus.workspace.v1.WorkspaceService.RemoveService
+   */
+  removeService: {
+    methodKind: "unary";
+    input: typeof RemoveServiceRequestSchema;
+    output: typeof RemoveServiceResponseSchema;
   },
   /**
    * CreateInvite invites an email with a role: the admin invites teamleads and

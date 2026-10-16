@@ -55,6 +55,7 @@ type Project struct {
 	Name        string
 	CreatedBy   string
 	CreatedAt   time.Time
+	Version     int32
 }
 
 type ProjectMember struct {
@@ -62,6 +63,16 @@ type ProjectMember struct {
 	ProjectID   string
 	UserID      string
 	Role        string
+}
+
+type ProjectVersion struct {
+	WorkspaceID string
+	ProjectID   string
+	Version     int32
+	Config      string
+	AuthorID    string
+	Message     string
+	CreatedAt   time.Time
 }
 
 type User struct {

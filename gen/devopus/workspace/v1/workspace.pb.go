@@ -221,7 +221,9 @@ type Project struct {
 	Name      string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// The caller's role in it; empty when they have none (the admin has all).
-	Role          string `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	Role string `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	// The current version of its settings.
+	Version       int32 `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -284,6 +286,160 @@ func (x *Project) GetRole() string {
 	return ""
 }
 
+func (x *Project) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+// ProjectConfig is a version of a project's settings.
+type ProjectConfig struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Version int32                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	// The project in its YAML form: name, domain, apps, services, policies.
+	Yaml   string `protobuf:"bytes,2,opt,name=yaml,proto3" json:"yaml,omitempty"`
+	Author string `protobuf:"bytes,3,opt,name=author,proto3" json:"author,omitempty"`
+	// What changed: "service set php 8.4", "rollback to 3"…
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectConfig) Reset() {
+	*x = ProjectConfig{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectConfig) ProtoMessage() {}
+
+func (x *ProjectConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectConfig.ProtoReflect.Descriptor instead.
+func (*ProjectConfig) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ProjectConfig) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *ProjectConfig) GetYaml() string {
+	if x != nil {
+		return x.Yaml
+	}
+	return ""
+}
+
+func (x *ProjectConfig) GetAuthor() string {
+	if x != nil {
+		return x.Author
+	}
+	return ""
+}
+
+func (x *ProjectConfig) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ProjectConfig) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ProjectVersion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       int32                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	Author        string                 `protobuf:"bytes,2,opt,name=author,proto3" json:"author,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectVersion) Reset() {
+	*x = ProjectVersion{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectVersion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectVersion) ProtoMessage() {}
+
+func (x *ProjectVersion) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectVersion.ProtoReflect.Descriptor instead.
+func (*ProjectVersion) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ProjectVersion) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *ProjectVersion) GetAuthor() string {
+	if x != nil {
+		return x.Author
+	}
+	return ""
+}
+
+func (x *ProjectVersion) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ProjectVersion) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
 type ProjectRole struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
@@ -297,7 +453,7 @@ type ProjectRole struct {
 
 func (x *ProjectRole) Reset() {
 	*x = ProjectRole{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[3]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -309,7 +465,7 @@ func (x *ProjectRole) String() string {
 func (*ProjectRole) ProtoMessage() {}
 
 func (x *ProjectRole) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[3]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -322,7 +478,7 @@ func (x *ProjectRole) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectRole.ProtoReflect.Descriptor instead.
 func (*ProjectRole) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{3}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ProjectRole) GetProject() string {
@@ -360,7 +516,7 @@ type Member struct {
 
 func (x *Member) Reset() {
 	*x = Member{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[4]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -372,7 +528,7 @@ func (x *Member) String() string {
 func (*Member) ProtoMessage() {}
 
 func (x *Member) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[4]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -385,7 +541,7 @@ func (x *Member) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Member.ProtoReflect.Descriptor instead.
 func (*Member) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{4}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Member) GetUserId() string {
@@ -438,7 +594,7 @@ type Invite struct {
 
 func (x *Invite) Reset() {
 	*x = Invite{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[5]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -450,7 +606,7 @@ func (x *Invite) String() string {
 func (*Invite) ProtoMessage() {}
 
 func (x *Invite) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[5]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -463,7 +619,7 @@ func (x *Invite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Invite.ProtoReflect.Descriptor instead.
 func (*Invite) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{5}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Invite) GetId() string {
@@ -529,7 +685,7 @@ type AuditEvent struct {
 
 func (x *AuditEvent) Reset() {
 	*x = AuditEvent{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[6]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -541,7 +697,7 @@ func (x *AuditEvent) String() string {
 func (*AuditEvent) ProtoMessage() {}
 
 func (x *AuditEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[6]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -554,7 +710,7 @@ func (x *AuditEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditEvent.ProtoReflect.Descriptor instead.
 func (*AuditEvent) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{6}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AuditEvent) GetActor() string {
@@ -601,7 +757,7 @@ type CreateWorkspaceRequest struct {
 
 func (x *CreateWorkspaceRequest) Reset() {
 	*x = CreateWorkspaceRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[7]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -613,7 +769,7 @@ func (x *CreateWorkspaceRequest) String() string {
 func (*CreateWorkspaceRequest) ProtoMessage() {}
 
 func (x *CreateWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[7]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -626,7 +782,7 @@ func (x *CreateWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*CreateWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{7}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CreateWorkspaceRequest) GetName() string {
@@ -645,7 +801,7 @@ type CreateWorkspaceResponse struct {
 
 func (x *CreateWorkspaceResponse) Reset() {
 	*x = CreateWorkspaceResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[8]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -657,7 +813,7 @@ func (x *CreateWorkspaceResponse) String() string {
 func (*CreateWorkspaceResponse) ProtoMessage() {}
 
 func (x *CreateWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[8]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -670,7 +826,7 @@ func (x *CreateWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*CreateWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{8}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateWorkspaceResponse) GetWorkspace() *Workspace {
@@ -688,7 +844,7 @@ type ListWorkspacesRequest struct {
 
 func (x *ListWorkspacesRequest) Reset() {
 	*x = ListWorkspacesRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[9]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +856,7 @@ func (x *ListWorkspacesRequest) String() string {
 func (*ListWorkspacesRequest) ProtoMessage() {}
 
 func (x *ListWorkspacesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[9]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +869,7 @@ func (x *ListWorkspacesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkspacesRequest.ProtoReflect.Descriptor instead.
 func (*ListWorkspacesRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{9}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{11}
 }
 
 type ListWorkspacesResponse struct {
@@ -725,7 +881,7 @@ type ListWorkspacesResponse struct {
 
 func (x *ListWorkspacesResponse) Reset() {
 	*x = ListWorkspacesResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[10]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -737,7 +893,7 @@ func (x *ListWorkspacesResponse) String() string {
 func (*ListWorkspacesResponse) ProtoMessage() {}
 
 func (x *ListWorkspacesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[10]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -750,7 +906,7 @@ func (x *ListWorkspacesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkspacesResponse.ProtoReflect.Descriptor instead.
 func (*ListWorkspacesResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{10}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListWorkspacesResponse) GetWorkspaces() []*Workspace {
@@ -769,7 +925,7 @@ type GetWorkspaceRequest struct {
 
 func (x *GetWorkspaceRequest) Reset() {
 	*x = GetWorkspaceRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[11]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -781,7 +937,7 @@ func (x *GetWorkspaceRequest) String() string {
 func (*GetWorkspaceRequest) ProtoMessage() {}
 
 func (x *GetWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[11]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -794,7 +950,7 @@ func (x *GetWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*GetWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{11}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetWorkspaceRequest) GetWorkspaceId() string {
@@ -814,7 +970,7 @@ type ProjectPermissions struct {
 
 func (x *ProjectPermissions) Reset() {
 	*x = ProjectPermissions{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[12]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -826,7 +982,7 @@ func (x *ProjectPermissions) String() string {
 func (*ProjectPermissions) ProtoMessage() {}
 
 func (x *ProjectPermissions) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[12]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -839,7 +995,7 @@ func (x *ProjectPermissions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectPermissions.ProtoReflect.Descriptor instead.
 func (*ProjectPermissions) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{12}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ProjectPermissions) GetProject() string {
@@ -868,7 +1024,7 @@ type GetWorkspaceResponse struct {
 
 func (x *GetWorkspaceResponse) Reset() {
 	*x = GetWorkspaceResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[13]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -880,7 +1036,7 @@ func (x *GetWorkspaceResponse) String() string {
 func (*GetWorkspaceResponse) ProtoMessage() {}
 
 func (x *GetWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[13]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -893,7 +1049,7 @@ func (x *GetWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*GetWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{13}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetWorkspaceResponse) GetWorkspace() *Workspace {
@@ -927,7 +1083,7 @@ type RenameWorkspaceRequest struct {
 
 func (x *RenameWorkspaceRequest) Reset() {
 	*x = RenameWorkspaceRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[14]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -939,7 +1095,7 @@ func (x *RenameWorkspaceRequest) String() string {
 func (*RenameWorkspaceRequest) ProtoMessage() {}
 
 func (x *RenameWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[14]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -952,7 +1108,7 @@ func (x *RenameWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*RenameWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{14}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RenameWorkspaceRequest) GetWorkspaceId() string {
@@ -978,7 +1134,7 @@ type RenameWorkspaceResponse struct {
 
 func (x *RenameWorkspaceResponse) Reset() {
 	*x = RenameWorkspaceResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[15]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -990,7 +1146,7 @@ func (x *RenameWorkspaceResponse) String() string {
 func (*RenameWorkspaceResponse) ProtoMessage() {}
 
 func (x *RenameWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[15]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1003,7 +1159,7 @@ func (x *RenameWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*RenameWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{15}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RenameWorkspaceResponse) GetWorkspace() *Workspace {
@@ -1023,7 +1179,7 @@ type TransferWorkspaceRequest struct {
 
 func (x *TransferWorkspaceRequest) Reset() {
 	*x = TransferWorkspaceRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[16]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1035,7 +1191,7 @@ func (x *TransferWorkspaceRequest) String() string {
 func (*TransferWorkspaceRequest) ProtoMessage() {}
 
 func (x *TransferWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[16]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1048,7 +1204,7 @@ func (x *TransferWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*TransferWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{16}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TransferWorkspaceRequest) GetWorkspaceId() string {
@@ -1073,7 +1229,7 @@ type TransferWorkspaceResponse struct {
 
 func (x *TransferWorkspaceResponse) Reset() {
 	*x = TransferWorkspaceResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[17]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1085,7 +1241,7 @@ func (x *TransferWorkspaceResponse) String() string {
 func (*TransferWorkspaceResponse) ProtoMessage() {}
 
 func (x *TransferWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[17]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1098,7 +1254,7 @@ func (x *TransferWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*TransferWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{17}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{19}
 }
 
 type DeleteWorkspaceRequest struct {
@@ -1112,7 +1268,7 @@ type DeleteWorkspaceRequest struct {
 
 func (x *DeleteWorkspaceRequest) Reset() {
 	*x = DeleteWorkspaceRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[18]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1124,7 +1280,7 @@ func (x *DeleteWorkspaceRequest) String() string {
 func (*DeleteWorkspaceRequest) ProtoMessage() {}
 
 func (x *DeleteWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[18]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1137,7 +1293,7 @@ func (x *DeleteWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*DeleteWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{18}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DeleteWorkspaceRequest) GetWorkspaceId() string {
@@ -1162,7 +1318,7 @@ type DeleteWorkspaceResponse struct {
 
 func (x *DeleteWorkspaceResponse) Reset() {
 	*x = DeleteWorkspaceResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[19]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1174,7 +1330,7 @@ func (x *DeleteWorkspaceResponse) String() string {
 func (*DeleteWorkspaceResponse) ProtoMessage() {}
 
 func (x *DeleteWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[19]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1187,7 +1343,7 @@ func (x *DeleteWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*DeleteWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{19}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{21}
 }
 
 type ListAuditRequest struct {
@@ -1200,7 +1356,7 @@ type ListAuditRequest struct {
 
 func (x *ListAuditRequest) Reset() {
 	*x = ListAuditRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[20]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1212,7 +1368,7 @@ func (x *ListAuditRequest) String() string {
 func (*ListAuditRequest) ProtoMessage() {}
 
 func (x *ListAuditRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[20]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1225,7 +1381,7 @@ func (x *ListAuditRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuditRequest.ProtoReflect.Descriptor instead.
 func (*ListAuditRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{20}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListAuditRequest) GetWorkspaceId() string {
@@ -1251,7 +1407,7 @@ type ListAuditResponse struct {
 
 func (x *ListAuditResponse) Reset() {
 	*x = ListAuditResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[21]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +1419,7 @@ func (x *ListAuditResponse) String() string {
 func (*ListAuditResponse) ProtoMessage() {}
 
 func (x *ListAuditResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[21]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +1432,7 @@ func (x *ListAuditResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuditResponse.ProtoReflect.Descriptor instead.
 func (*ListAuditResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{21}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ListAuditResponse) GetEvents() []*AuditEvent {
@@ -1287,16 +1443,21 @@ func (x *ListAuditResponse) GetEvents() []*AuditEvent {
 }
 
 type CreateProjectRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// The domain of its environments; <name>.localhost by default.
+	Domain string `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
+	// The first version of its settings in YAML (an import of docker-compose.yml);
+	// empty: no applications and services yet. Its name and domain are replaced.
+	ConfigYaml    string `protobuf:"bytes,4,opt,name=config_yaml,json=configYaml,proto3" json:"config_yaml,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateProjectRequest) Reset() {
 	*x = CreateProjectRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[22]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1308,7 +1469,7 @@ func (x *CreateProjectRequest) String() string {
 func (*CreateProjectRequest) ProtoMessage() {}
 
 func (x *CreateProjectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[22]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1321,7 +1482,7 @@ func (x *CreateProjectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateProjectRequest.ProtoReflect.Descriptor instead.
 func (*CreateProjectRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{22}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CreateProjectRequest) GetWorkspaceId() string {
@@ -1338,16 +1499,31 @@ func (x *CreateProjectRequest) GetName() string {
 	return ""
 }
 
+func (x *CreateProjectRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *CreateProjectRequest) GetConfigYaml() string {
+	if x != nil {
+		return x.ConfigYaml
+	}
+	return ""
+}
+
 type CreateProjectResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Config        *ProjectConfig         `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateProjectResponse) Reset() {
 	*x = CreateProjectResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[23]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1359,7 +1535,7 @@ func (x *CreateProjectResponse) String() string {
 func (*CreateProjectResponse) ProtoMessage() {}
 
 func (x *CreateProjectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[23]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1372,12 +1548,1046 @@ func (x *CreateProjectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateProjectResponse.ProtoReflect.Descriptor instead.
 func (*CreateProjectResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{23}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CreateProjectResponse) GetProject() *Project {
 	if x != nil {
 		return x.Project
+	}
+	return nil
+}
+
+func (x *CreateProjectResponse) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type DeleteProjectRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Project     string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	// Must repeat the project's name.
+	ConfirmName   string `protobuf:"bytes,3,opt,name=confirm_name,json=confirmName,proto3" json:"confirm_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteProjectRequest) Reset() {
+	*x = DeleteProjectRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteProjectRequest) ProtoMessage() {}
+
+func (x *DeleteProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteProjectRequest.ProtoReflect.Descriptor instead.
+func (*DeleteProjectRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *DeleteProjectRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *DeleteProjectRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *DeleteProjectRequest) GetConfirmName() string {
+	if x != nil {
+		return x.ConfirmName
+	}
+	return ""
+}
+
+type DeleteProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteProjectResponse) Reset() {
+	*x = DeleteProjectResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteProjectResponse) ProtoMessage() {}
+
+func (x *DeleteProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteProjectResponse.ProtoReflect.Descriptor instead.
+func (*DeleteProjectResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{27}
+}
+
+type GetProjectConfigRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Project     string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	// 0: the current one.
+	Version       int32 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProjectConfigRequest) Reset() {
+	*x = GetProjectConfigRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectConfigRequest) ProtoMessage() {}
+
+func (x *GetProjectConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetProjectConfigRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GetProjectConfigRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *GetProjectConfigRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *GetProjectConfigRequest) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type GetProjectConfigResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Config *ProjectConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	// The current version, to compare with the one asked for.
+	CurrentVersion int32 `protobuf:"varint,2,opt,name=current_version,json=currentVersion,proto3" json:"current_version,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetProjectConfigResponse) Reset() {
+	*x = GetProjectConfigResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectConfigResponse) ProtoMessage() {}
+
+func (x *GetProjectConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetProjectConfigResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *GetProjectConfigResponse) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *GetProjectConfigResponse) GetCurrentVersion() int32 {
+	if x != nil {
+		return x.CurrentVersion
+	}
+	return 0
+}
+
+type ListProjectVersionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Project       string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProjectVersionsRequest) Reset() {
+	*x = ListProjectVersionsRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProjectVersionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProjectVersionsRequest) ProtoMessage() {}
+
+func (x *ListProjectVersionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProjectVersionsRequest.ProtoReflect.Descriptor instead.
+func (*ListProjectVersionsRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *ListProjectVersionsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *ListProjectVersionsRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *ListProjectVersionsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListProjectVersionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Versions      []*ProjectVersion      `protobuf:"bytes,1,rep,name=versions,proto3" json:"versions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProjectVersionsResponse) Reset() {
+	*x = ListProjectVersionsResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProjectVersionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProjectVersionsResponse) ProtoMessage() {}
+
+func (x *ListProjectVersionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProjectVersionsResponse.ProtoReflect.Descriptor instead.
+func (*ListProjectVersionsResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *ListProjectVersionsResponse) GetVersions() []*ProjectVersion {
+	if x != nil {
+		return x.Versions
+	}
+	return nil
+}
+
+// Changes take the version they were made against: if the settings changed since,
+// the change is refused (ABORTED) instead of overwriting someone else's; 0 skips
+// the check.
+type UpdateProjectSettingsRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Project     string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	BaseVersion int32                  `protobuf:"varint,3,opt,name=base_version,json=baseVersion,proto3" json:"base_version,omitempty"`
+	// Empty keeps the domain.
+	Domain string `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
+	// YAML with features, overrides and data: the policies it names are replaced.
+	PolicyYaml    string `protobuf:"bytes,5,opt,name=policy_yaml,json=policyYaml,proto3" json:"policy_yaml,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateProjectSettingsRequest) Reset() {
+	*x = UpdateProjectSettingsRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProjectSettingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProjectSettingsRequest) ProtoMessage() {}
+
+func (x *UpdateProjectSettingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProjectSettingsRequest.ProtoReflect.Descriptor instead.
+func (*UpdateProjectSettingsRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *UpdateProjectSettingsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *UpdateProjectSettingsRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *UpdateProjectSettingsRequest) GetBaseVersion() int32 {
+	if x != nil {
+		return x.BaseVersion
+	}
+	return 0
+}
+
+func (x *UpdateProjectSettingsRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *UpdateProjectSettingsRequest) GetPolicyYaml() string {
+	if x != nil {
+		return x.PolicyYaml
+	}
+	return ""
+}
+
+type UpdateProjectSettingsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *ProjectConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateProjectSettingsResponse) Reset() {
+	*x = UpdateProjectSettingsResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProjectSettingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProjectSettingsResponse) ProtoMessage() {}
+
+func (x *UpdateProjectSettingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProjectSettingsResponse.ProtoReflect.Descriptor instead.
+func (*UpdateProjectSettingsResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *UpdateProjectSettingsResponse) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type RollbackProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Project       string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	Version       int32                  `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RollbackProjectRequest) Reset() {
+	*x = RollbackProjectRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RollbackProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RollbackProjectRequest) ProtoMessage() {}
+
+func (x *RollbackProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RollbackProjectRequest.ProtoReflect.Descriptor instead.
+func (*RollbackProjectRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *RollbackProjectRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *RollbackProjectRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *RollbackProjectRequest) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type RollbackProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *ProjectConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RollbackProjectResponse) Reset() {
+	*x = RollbackProjectResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RollbackProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RollbackProjectResponse) ProtoMessage() {}
+
+func (x *RollbackProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RollbackProjectResponse.ProtoReflect.Descriptor instead.
+func (*RollbackProjectResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *RollbackProjectResponse) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type PutAppRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Project     string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	BaseVersion int32                  `protobuf:"varint,3,opt,name=base_version,json=baseVersion,proto3" json:"base_version,omitempty"`
+	Name        string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	// The application in YAML: repo, path, branch, routes, port, env, hooks…
+	AppYaml string `protobuf:"bytes,5,opt,name=app_yaml,json=appYaml,proto3" json:"app_yaml,omitempty"`
+	// Add: refuse if it exists. Otherwise replace: refuse if it does not.
+	Create        bool `protobuf:"varint,6,opt,name=create,proto3" json:"create,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PutAppRequest) Reset() {
+	*x = PutAppRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PutAppRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutAppRequest) ProtoMessage() {}
+
+func (x *PutAppRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutAppRequest.ProtoReflect.Descriptor instead.
+func (*PutAppRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *PutAppRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *PutAppRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *PutAppRequest) GetBaseVersion() int32 {
+	if x != nil {
+		return x.BaseVersion
+	}
+	return 0
+}
+
+func (x *PutAppRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PutAppRequest) GetAppYaml() string {
+	if x != nil {
+		return x.AppYaml
+	}
+	return ""
+}
+
+func (x *PutAppRequest) GetCreate() bool {
+	if x != nil {
+		return x.Create
+	}
+	return false
+}
+
+type PutAppResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *ProjectConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PutAppResponse) Reset() {
+	*x = PutAppResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PutAppResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutAppResponse) ProtoMessage() {}
+
+func (x *PutAppResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutAppResponse.ProtoReflect.Descriptor instead.
+func (*PutAppResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *PutAppResponse) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type RemoveAppRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Project       string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	BaseVersion   int32                  `protobuf:"varint,3,opt,name=base_version,json=baseVersion,proto3" json:"base_version,omitempty"`
+	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveAppRequest) Reset() {
+	*x = RemoveAppRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveAppRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveAppRequest) ProtoMessage() {}
+
+func (x *RemoveAppRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveAppRequest.ProtoReflect.Descriptor instead.
+func (*RemoveAppRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *RemoveAppRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *RemoveAppRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *RemoveAppRequest) GetBaseVersion() int32 {
+	if x != nil {
+		return x.BaseVersion
+	}
+	return 0
+}
+
+func (x *RemoveAppRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RemoveAppResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *ProjectConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveAppResponse) Reset() {
+	*x = RemoveAppResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveAppResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveAppResponse) ProtoMessage() {}
+
+func (x *RemoveAppResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveAppResponse.ProtoReflect.Descriptor instead.
+func (*RemoveAppResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *RemoveAppResponse) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type PutServiceRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Project     string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	BaseVersion int32                  `protobuf:"varint,3,opt,name=base_version,json=baseVersion,proto3" json:"base_version,omitempty"`
+	Name        string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	// The service in YAML: type, version, apps, port, env…
+	ServiceYaml   string `protobuf:"bytes,5,opt,name=service_yaml,json=serviceYaml,proto3" json:"service_yaml,omitempty"`
+	Create        bool   `protobuf:"varint,6,opt,name=create,proto3" json:"create,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PutServiceRequest) Reset() {
+	*x = PutServiceRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PutServiceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutServiceRequest) ProtoMessage() {}
+
+func (x *PutServiceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutServiceRequest.ProtoReflect.Descriptor instead.
+func (*PutServiceRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *PutServiceRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *PutServiceRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *PutServiceRequest) GetBaseVersion() int32 {
+	if x != nil {
+		return x.BaseVersion
+	}
+	return 0
+}
+
+func (x *PutServiceRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PutServiceRequest) GetServiceYaml() string {
+	if x != nil {
+		return x.ServiceYaml
+	}
+	return ""
+}
+
+func (x *PutServiceRequest) GetCreate() bool {
+	if x != nil {
+		return x.Create
+	}
+	return false
+}
+
+type PutServiceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *ProjectConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PutServiceResponse) Reset() {
+	*x = PutServiceResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PutServiceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutServiceResponse) ProtoMessage() {}
+
+func (x *PutServiceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutServiceResponse.ProtoReflect.Descriptor instead.
+func (*PutServiceResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *PutServiceResponse) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type RemoveServiceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Project       string                 `protobuf:"bytes,2,opt,name=project,proto3" json:"project,omitempty"`
+	BaseVersion   int32                  `protobuf:"varint,3,opt,name=base_version,json=baseVersion,proto3" json:"base_version,omitempty"`
+	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveServiceRequest) Reset() {
+	*x = RemoveServiceRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveServiceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveServiceRequest) ProtoMessage() {}
+
+func (x *RemoveServiceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveServiceRequest.ProtoReflect.Descriptor instead.
+func (*RemoveServiceRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *RemoveServiceRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *RemoveServiceRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *RemoveServiceRequest) GetBaseVersion() int32 {
+	if x != nil {
+		return x.BaseVersion
+	}
+	return 0
+}
+
+func (x *RemoveServiceRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RemoveServiceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *ProjectConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveServiceResponse) Reset() {
+	*x = RemoveServiceResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveServiceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveServiceResponse) ProtoMessage() {}
+
+func (x *RemoveServiceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveServiceResponse.ProtoReflect.Descriptor instead.
+func (*RemoveServiceResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *RemoveServiceResponse) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
 	}
 	return nil
 }
@@ -1391,7 +2601,7 @@ type ListProjectsRequest struct {
 
 func (x *ListProjectsRequest) Reset() {
 	*x = ListProjectsRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[24]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1403,7 +2613,7 @@ func (x *ListProjectsRequest) String() string {
 func (*ListProjectsRequest) ProtoMessage() {}
 
 func (x *ListProjectsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[24]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1416,7 +2626,7 @@ func (x *ListProjectsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProjectsRequest.ProtoReflect.Descriptor instead.
 func (*ListProjectsRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{24}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *ListProjectsRequest) GetWorkspaceId() string {
@@ -1435,7 +2645,7 @@ type ListProjectsResponse struct {
 
 func (x *ListProjectsResponse) Reset() {
 	*x = ListProjectsResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[25]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1447,7 +2657,7 @@ func (x *ListProjectsResponse) String() string {
 func (*ListProjectsResponse) ProtoMessage() {}
 
 func (x *ListProjectsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[25]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1460,7 +2670,7 @@ func (x *ListProjectsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProjectsResponse.ProtoReflect.Descriptor instead.
 func (*ListProjectsResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{25}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ListProjectsResponse) GetProjects() []*Project {
@@ -1484,7 +2694,7 @@ type CreateInviteRequest struct {
 
 func (x *CreateInviteRequest) Reset() {
 	*x = CreateInviteRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[26]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1496,7 +2706,7 @@ func (x *CreateInviteRequest) String() string {
 func (*CreateInviteRequest) ProtoMessage() {}
 
 func (x *CreateInviteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[26]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1509,7 +2719,7 @@ func (x *CreateInviteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInviteRequest.ProtoReflect.Descriptor instead.
 func (*CreateInviteRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{26}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *CreateInviteRequest) GetWorkspaceId() string {
@@ -1551,7 +2761,7 @@ type CreateInviteResponse struct {
 
 func (x *CreateInviteResponse) Reset() {
 	*x = CreateInviteResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[27]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1563,7 +2773,7 @@ func (x *CreateInviteResponse) String() string {
 func (*CreateInviteResponse) ProtoMessage() {}
 
 func (x *CreateInviteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[27]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1576,7 +2786,7 @@ func (x *CreateInviteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInviteResponse.ProtoReflect.Descriptor instead.
 func (*CreateInviteResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{27}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *CreateInviteResponse) GetInvite() *Invite {
@@ -1602,7 +2812,7 @@ type ListInvitesRequest struct {
 
 func (x *ListInvitesRequest) Reset() {
 	*x = ListInvitesRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[28]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1614,7 +2824,7 @@ func (x *ListInvitesRequest) String() string {
 func (*ListInvitesRequest) ProtoMessage() {}
 
 func (x *ListInvitesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[28]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1627,7 +2837,7 @@ func (x *ListInvitesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInvitesRequest.ProtoReflect.Descriptor instead.
 func (*ListInvitesRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{28}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ListInvitesRequest) GetWorkspaceId() string {
@@ -1646,7 +2856,7 @@ type ListInvitesResponse struct {
 
 func (x *ListInvitesResponse) Reset() {
 	*x = ListInvitesResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[29]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1658,7 +2868,7 @@ func (x *ListInvitesResponse) String() string {
 func (*ListInvitesResponse) ProtoMessage() {}
 
 func (x *ListInvitesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[29]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1671,7 +2881,7 @@ func (x *ListInvitesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInvitesResponse.ProtoReflect.Descriptor instead.
 func (*ListInvitesResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{29}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ListInvitesResponse) GetInvites() []*Invite {
@@ -1691,7 +2901,7 @@ type RevokeInviteRequest struct {
 
 func (x *RevokeInviteRequest) Reset() {
 	*x = RevokeInviteRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[30]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1703,7 +2913,7 @@ func (x *RevokeInviteRequest) String() string {
 func (*RevokeInviteRequest) ProtoMessage() {}
 
 func (x *RevokeInviteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[30]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1716,7 +2926,7 @@ func (x *RevokeInviteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeInviteRequest.ProtoReflect.Descriptor instead.
 func (*RevokeInviteRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{30}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *RevokeInviteRequest) GetWorkspaceId() string {
@@ -1741,7 +2951,7 @@ type RevokeInviteResponse struct {
 
 func (x *RevokeInviteResponse) Reset() {
 	*x = RevokeInviteResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[31]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1753,7 +2963,7 @@ func (x *RevokeInviteResponse) String() string {
 func (*RevokeInviteResponse) ProtoMessage() {}
 
 func (x *RevokeInviteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[31]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1766,7 +2976,7 @@ func (x *RevokeInviteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeInviteResponse.ProtoReflect.Descriptor instead.
 func (*RevokeInviteResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{31}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{51}
 }
 
 type AcceptInviteRequest struct {
@@ -1778,7 +2988,7 @@ type AcceptInviteRequest struct {
 
 func (x *AcceptInviteRequest) Reset() {
 	*x = AcceptInviteRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[32]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1790,7 +3000,7 @@ func (x *AcceptInviteRequest) String() string {
 func (*AcceptInviteRequest) ProtoMessage() {}
 
 func (x *AcceptInviteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[32]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1803,7 +3013,7 @@ func (x *AcceptInviteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptInviteRequest.ProtoReflect.Descriptor instead.
 func (*AcceptInviteRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{32}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *AcceptInviteRequest) GetCode() string {
@@ -1822,7 +3032,7 @@ type AcceptInviteResponse struct {
 
 func (x *AcceptInviteResponse) Reset() {
 	*x = AcceptInviteResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[33]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1834,7 +3044,7 @@ func (x *AcceptInviteResponse) String() string {
 func (*AcceptInviteResponse) ProtoMessage() {}
 
 func (x *AcceptInviteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[33]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1847,7 +3057,7 @@ func (x *AcceptInviteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptInviteResponse.ProtoReflect.Descriptor instead.
 func (*AcceptInviteResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{33}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *AcceptInviteResponse) GetWorkspace() *Workspace {
@@ -1866,7 +3076,7 @@ type ListMembersRequest struct {
 
 func (x *ListMembersRequest) Reset() {
 	*x = ListMembersRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[34]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1878,7 +3088,7 @@ func (x *ListMembersRequest) String() string {
 func (*ListMembersRequest) ProtoMessage() {}
 
 func (x *ListMembersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[34]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1891,7 +3101,7 @@ func (x *ListMembersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMembersRequest.ProtoReflect.Descriptor instead.
 func (*ListMembersRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{34}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ListMembersRequest) GetWorkspaceId() string {
@@ -1910,7 +3120,7 @@ type ListMembersResponse struct {
 
 func (x *ListMembersResponse) Reset() {
 	*x = ListMembersResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[35]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1922,7 +3132,7 @@ func (x *ListMembersResponse) String() string {
 func (*ListMembersResponse) ProtoMessage() {}
 
 func (x *ListMembersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[35]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1935,7 +3145,7 @@ func (x *ListMembersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMembersResponse.ProtoReflect.Descriptor instead.
 func (*ListMembersResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{35}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ListMembersResponse) GetMembers() []*Member {
@@ -1957,7 +3167,7 @@ type GrantPermissionRequest struct {
 
 func (x *GrantPermissionRequest) Reset() {
 	*x = GrantPermissionRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[36]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1969,7 +3179,7 @@ func (x *GrantPermissionRequest) String() string {
 func (*GrantPermissionRequest) ProtoMessage() {}
 
 func (x *GrantPermissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[36]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1982,7 +3192,7 @@ func (x *GrantPermissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrantPermissionRequest.ProtoReflect.Descriptor instead.
 func (*GrantPermissionRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{36}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *GrantPermissionRequest) GetWorkspaceId() string {
@@ -2021,7 +3231,7 @@ type GrantPermissionResponse struct {
 
 func (x *GrantPermissionResponse) Reset() {
 	*x = GrantPermissionResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[37]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2033,7 +3243,7 @@ func (x *GrantPermissionResponse) String() string {
 func (*GrantPermissionResponse) ProtoMessage() {}
 
 func (x *GrantPermissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[37]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2046,7 +3256,7 @@ func (x *GrantPermissionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrantPermissionResponse.ProtoReflect.Descriptor instead.
 func (*GrantPermissionResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{37}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{57}
 }
 
 type RevokePermissionRequest struct {
@@ -2061,7 +3271,7 @@ type RevokePermissionRequest struct {
 
 func (x *RevokePermissionRequest) Reset() {
 	*x = RevokePermissionRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[38]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2073,7 +3283,7 @@ func (x *RevokePermissionRequest) String() string {
 func (*RevokePermissionRequest) ProtoMessage() {}
 
 func (x *RevokePermissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[38]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2086,7 +3296,7 @@ func (x *RevokePermissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokePermissionRequest.ProtoReflect.Descriptor instead.
 func (*RevokePermissionRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{38}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *RevokePermissionRequest) GetWorkspaceId() string {
@@ -2125,7 +3335,7 @@ type RevokePermissionResponse struct {
 
 func (x *RevokePermissionResponse) Reset() {
 	*x = RevokePermissionResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[39]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2137,7 +3347,7 @@ func (x *RevokePermissionResponse) String() string {
 func (*RevokePermissionResponse) ProtoMessage() {}
 
 func (x *RevokePermissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[39]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2150,7 +3360,7 @@ func (x *RevokePermissionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokePermissionResponse.ProtoReflect.Descriptor instead.
 func (*RevokePermissionResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{39}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{59}
 }
 
 type RemoveFromProjectRequest struct {
@@ -2164,7 +3374,7 @@ type RemoveFromProjectRequest struct {
 
 func (x *RemoveFromProjectRequest) Reset() {
 	*x = RemoveFromProjectRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[40]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2176,7 +3386,7 @@ func (x *RemoveFromProjectRequest) String() string {
 func (*RemoveFromProjectRequest) ProtoMessage() {}
 
 func (x *RemoveFromProjectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[40]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2189,7 +3399,7 @@ func (x *RemoveFromProjectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveFromProjectRequest.ProtoReflect.Descriptor instead.
 func (*RemoveFromProjectRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{40}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *RemoveFromProjectRequest) GetWorkspaceId() string {
@@ -2221,7 +3431,7 @@ type RemoveFromProjectResponse struct {
 
 func (x *RemoveFromProjectResponse) Reset() {
 	*x = RemoveFromProjectResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[41]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2233,7 +3443,7 @@ func (x *RemoveFromProjectResponse) String() string {
 func (*RemoveFromProjectResponse) ProtoMessage() {}
 
 func (x *RemoveFromProjectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[41]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2246,7 +3456,7 @@ func (x *RemoveFromProjectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveFromProjectResponse.ProtoReflect.Descriptor instead.
 func (*RemoveFromProjectResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{41}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{61}
 }
 
 type RemoveMemberRequest struct {
@@ -2259,7 +3469,7 @@ type RemoveMemberRequest struct {
 
 func (x *RemoveMemberRequest) Reset() {
 	*x = RemoveMemberRequest{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[42]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2271,7 +3481,7 @@ func (x *RemoveMemberRequest) String() string {
 func (*RemoveMemberRequest) ProtoMessage() {}
 
 func (x *RemoveMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[42]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2284,7 +3494,7 @@ func (x *RemoveMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveMemberRequest.ProtoReflect.Descriptor instead.
 func (*RemoveMemberRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{42}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *RemoveMemberRequest) GetWorkspaceId() string {
@@ -2309,7 +3519,7 @@ type RemoveMemberResponse struct {
 
 func (x *RemoveMemberResponse) Reset() {
 	*x = RemoveMemberResponse{}
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[43]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2321,7 +3531,7 @@ func (x *RemoveMemberResponse) String() string {
 func (*RemoveMemberResponse) ProtoMessage() {}
 
 func (x *RemoveMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[43]
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2334,7 +3544,7 @@ func (x *RemoveMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveMemberResponse.ProtoReflect.Descriptor instead.
 func (*RemoveMemberResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{43}
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{63}
 }
 
 var file_devopus_workspace_v1_workspace_proto_extTypes = []protoimpl.ExtensionInfo{
@@ -2371,13 +3581,27 @@ const file_devopus_workspace_v1_workspace_proto_rawDesc = "" +
 	"adminEmail\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x12\n" +
-	"\x04role\x18\x05 \x01(\tR\x04role\"|\n" +
+	"\x04role\x18\x05 \x01(\tR\x04role\"\x96\x01\n" +
 	"\aProject\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x129\n" +
 	"\n" +
 	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x12\n" +
-	"\x04role\x18\x04 \x01(\tR\x04role\"S\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\x05R\aversion\"\xaa\x01\n" +
+	"\rProjectConfig\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x05R\aversion\x12\x12\n" +
+	"\x04yaml\x18\x02 \x01(\tR\x04yaml\x12\x16\n" +
+	"\x06author\x18\x03 \x01(\tR\x06author\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x97\x01\n" +
+	"\x0eProjectVersion\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x05R\aversion\x12\x16\n" +
+	"\x06author\x18\x02 \x01(\tR\x06author\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"S\n" +
 	"\vProjectRole\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x12\x16\n" +
@@ -2441,12 +3665,81 @@ const file_devopus_workspace_v1_workspace_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"M\n" +
 	"\x11ListAuditResponse\x128\n" +
-	"\x06events\x18\x01 \x03(\v2 .devopus.workspace.v1.AuditEventR\x06events\"M\n" +
+	"\x06events\x18\x01 \x03(\v2 .devopus.workspace.v1.AuditEventR\x06events\"\x86\x01\n" +
 	"\x14CreateProjectRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"P\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
+	"\x06domain\x18\x03 \x01(\tR\x06domain\x12\x1f\n" +
+	"\vconfig_yaml\x18\x04 \x01(\tR\n" +
+	"configYaml\"\x8d\x01\n" +
 	"\x15CreateProjectResponse\x127\n" +
-	"\aproject\x18\x01 \x01(\v2\x1d.devopus.workspace.v1.ProjectR\aproject\"8\n" +
+	"\aproject\x18\x01 \x01(\v2\x1d.devopus.workspace.v1.ProjectR\aproject\x12;\n" +
+	"\x06config\x18\x02 \x01(\v2#.devopus.workspace.v1.ProjectConfigR\x06config\"v\n" +
+	"\x14DeleteProjectRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12!\n" +
+	"\fconfirm_name\x18\x03 \x01(\tR\vconfirmName\"\x17\n" +
+	"\x15DeleteProjectResponse\"p\n" +
+	"\x17GetProjectConfigRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x05R\aversion\"\x80\x01\n" +
+	"\x18GetProjectConfigResponse\x12;\n" +
+	"\x06config\x18\x01 \x01(\v2#.devopus.workspace.v1.ProjectConfigR\x06config\x12'\n" +
+	"\x0fcurrent_version\x18\x02 \x01(\x05R\x0ecurrentVersion\"o\n" +
+	"\x1aListProjectVersionsRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"_\n" +
+	"\x1bListProjectVersionsResponse\x12@\n" +
+	"\bversions\x18\x01 \x03(\v2$.devopus.workspace.v1.ProjectVersionR\bversions\"\xb7\x01\n" +
+	"\x1cUpdateProjectSettingsRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12!\n" +
+	"\fbase_version\x18\x03 \x01(\x05R\vbaseVersion\x12\x16\n" +
+	"\x06domain\x18\x04 \x01(\tR\x06domain\x12\x1f\n" +
+	"\vpolicy_yaml\x18\x05 \x01(\tR\n" +
+	"policyYaml\"\\\n" +
+	"\x1dUpdateProjectSettingsResponse\x12;\n" +
+	"\x06config\x18\x01 \x01(\v2#.devopus.workspace.v1.ProjectConfigR\x06config\"o\n" +
+	"\x16RollbackProjectRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x05R\aversion\"V\n" +
+	"\x17RollbackProjectResponse\x12;\n" +
+	"\x06config\x18\x01 \x01(\v2#.devopus.workspace.v1.ProjectConfigR\x06config\"\xb6\x01\n" +
+	"\rPutAppRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12!\n" +
+	"\fbase_version\x18\x03 \x01(\x05R\vbaseVersion\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12\x19\n" +
+	"\bapp_yaml\x18\x05 \x01(\tR\aappYaml\x12\x16\n" +
+	"\x06create\x18\x06 \x01(\bR\x06create\"M\n" +
+	"\x0ePutAppResponse\x12;\n" +
+	"\x06config\x18\x01 \x01(\v2#.devopus.workspace.v1.ProjectConfigR\x06config\"\x86\x01\n" +
+	"\x10RemoveAppRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12!\n" +
+	"\fbase_version\x18\x03 \x01(\x05R\vbaseVersion\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\"P\n" +
+	"\x11RemoveAppResponse\x12;\n" +
+	"\x06config\x18\x01 \x01(\v2#.devopus.workspace.v1.ProjectConfigR\x06config\"\xc2\x01\n" +
+	"\x11PutServiceRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12!\n" +
+	"\fbase_version\x18\x03 \x01(\x05R\vbaseVersion\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12!\n" +
+	"\fservice_yaml\x18\x05 \x01(\tR\vserviceYaml\x12\x16\n" +
+	"\x06create\x18\x06 \x01(\bR\x06create\"Q\n" +
+	"\x12PutServiceResponse\x12;\n" +
+	"\x06config\x18\x01 \x01(\v2#.devopus.workspace.v1.ProjectConfigR\x06config\"\x8a\x01\n" +
+	"\x14RemoveServiceRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x18\n" +
+	"\aproject\x18\x02 \x01(\tR\aproject\x12!\n" +
+	"\fbase_version\x18\x03 \x01(\x05R\vbaseVersion\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\"T\n" +
+	"\x15RemoveServiceResponse\x12;\n" +
+	"\x06config\x18\x01 \x01(\v2#.devopus.workspace.v1.ProjectConfigR\x06config\"8\n" +
 	"\x13ListProjectsRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"Q\n" +
 	"\x14ListProjectsResponse\x129\n" +
@@ -2504,7 +3797,7 @@ const file_devopus_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fSCOPE_SIGNED_IN\x10\x01\x12\x13\n" +
 	"\x0fSCOPE_WORKSPACE\x10\x02\x12\x11\n" +
-	"\rSCOPE_PROJECT\x10\x032\xa7\x12\n" +
+	"\rSCOPE_PROJECT\x10\x032\xd3\x1b\n" +
 	"\x10WorkspaceService\x12v\n" +
 	"\x0fCreateWorkspace\x12,.devopus.workspace.v1.CreateWorkspaceRequest\x1a-.devopus.workspace.v1.CreateWorkspaceResponse\"\x06\xc2\xf3\x18\x02\b\x01\x12s\n" +
 	"\x0eListWorkspaces\x12+.devopus.workspace.v1.ListWorkspacesRequest\x1a,.devopus.workspace.v1.ListWorkspacesResponse\"\x06\xc2\xf3\x18\x02\b\x01\x12}\n" +
@@ -2514,7 +3807,17 @@ const file_devopus_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x0fDeleteWorkspace\x12,.devopus.workspace.v1.DeleteWorkspaceRequest\x1a-.devopus.workspace.v1.DeleteWorkspaceResponse\"\x18\xc2\xf3\x18\x14\b\x02\x12\x10workspace.manage\x12v\n" +
 	"\tListAudit\x12&.devopus.workspace.v1.ListAuditRequest\x1a'.devopus.workspace.v1.ListAuditResponse\"\x18\xc2\xf3\x18\x14\b\x02\x12\x10workspace.manage\x12\x80\x01\n" +
 	"\rCreateProject\x12*.devopus.workspace.v1.CreateProjectRequest\x1a+.devopus.workspace.v1.CreateProjectResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0eproject.create\x12}\n" +
-	"\fListProjects\x12).devopus.workspace.v1.ListProjectsRequest\x1a*.devopus.workspace.v1.ListProjectsResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0eworkspace.view\x12}\n" +
+	"\fListProjects\x12).devopus.workspace.v1.ListProjectsRequest\x1a*.devopus.workspace.v1.ListProjectsResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0eworkspace.view\x12\x83\x01\n" +
+	"\rDeleteProject\x12*.devopus.workspace.v1.DeleteProjectRequest\x1a+.devopus.workspace.v1.DeleteProjectResponse\"\x19\xc2\xf3\x18\x15\b\x03\x12\x11project.configure\x12\x89\x01\n" +
+	"\x10GetProjectConfig\x12-.devopus.workspace.v1.GetProjectConfigRequest\x1a..devopus.workspace.v1.GetProjectConfigResponse\"\x16\xc2\xf3\x18\x12\b\x03\x12\x0eworkspace.view\x12\x92\x01\n" +
+	"\x13ListProjectVersions\x120.devopus.workspace.v1.ListProjectVersionsRequest\x1a1.devopus.workspace.v1.ListProjectVersionsResponse\"\x16\xc2\xf3\x18\x12\b\x03\x12\x0eworkspace.view\x12\x9b\x01\n" +
+	"\x15UpdateProjectSettings\x122.devopus.workspace.v1.UpdateProjectSettingsRequest\x1a3.devopus.workspace.v1.UpdateProjectSettingsResponse\"\x19\xc2\xf3\x18\x15\b\x03\x12\x11project.configure\x12\x89\x01\n" +
+	"\x0fRollbackProject\x12,.devopus.workspace.v1.RollbackProjectRequest\x1a-.devopus.workspace.v1.RollbackProjectResponse\"\x19\xc2\xf3\x18\x15\b\x03\x12\x11project.configure\x12h\n" +
+	"\x06PutApp\x12#.devopus.workspace.v1.PutAppRequest\x1a$.devopus.workspace.v1.PutAppResponse\"\x13\xc2\xf3\x18\x0f\b\x03\x12\vapps.manage\x12q\n" +
+	"\tRemoveApp\x12&.devopus.workspace.v1.RemoveAppRequest\x1a'.devopus.workspace.v1.RemoveAppResponse\"\x13\xc2\xf3\x18\x0f\b\x03\x12\vapps.manage\x12x\n" +
+	"\n" +
+	"PutService\x12'.devopus.workspace.v1.PutServiceRequest\x1a(.devopus.workspace.v1.PutServiceResponse\"\x17\xc2\xf3\x18\x13\b\x03\x12\x0fservices.manage\x12\x81\x01\n" +
+	"\rRemoveService\x12*.devopus.workspace.v1.RemoveServiceRequest\x1a+.devopus.workspace.v1.RemoveServiceResponse\"\x17\xc2\xf3\x18\x13\b\x03\x12\x0fservices.manage\x12}\n" +
 	"\fCreateInvite\x12).devopus.workspace.v1.CreateInviteRequest\x1a*.devopus.workspace.v1.CreateInviteResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0emembers.invite\x12z\n" +
 	"\vListInvites\x12(.devopus.workspace.v1.ListInvitesRequest\x1a).devopus.workspace.v1.ListInvitesResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0emembers.invite\x12}\n" +
 	"\fRevokeInvite\x12).devopus.workspace.v1.RevokeInviteRequest\x1a*.devopus.workspace.v1.RevokeInviteResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0emembers.invite\x12m\n" +
@@ -2540,120 +3843,169 @@ func file_devopus_workspace_v1_workspace_proto_rawDescGZIP() []byte {
 }
 
 var file_devopus_workspace_v1_workspace_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_devopus_workspace_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_devopus_workspace_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 64)
 var file_devopus_workspace_v1_workspace_proto_goTypes = []any{
-	(Scope)(0),                         // 0: devopus.workspace.v1.Scope
-	(*Access)(nil),                     // 1: devopus.workspace.v1.Access
-	(*Workspace)(nil),                  // 2: devopus.workspace.v1.Workspace
-	(*Project)(nil),                    // 3: devopus.workspace.v1.Project
-	(*ProjectRole)(nil),                // 4: devopus.workspace.v1.ProjectRole
-	(*Member)(nil),                     // 5: devopus.workspace.v1.Member
-	(*Invite)(nil),                     // 6: devopus.workspace.v1.Invite
-	(*AuditEvent)(nil),                 // 7: devopus.workspace.v1.AuditEvent
-	(*CreateWorkspaceRequest)(nil),     // 8: devopus.workspace.v1.CreateWorkspaceRequest
-	(*CreateWorkspaceResponse)(nil),    // 9: devopus.workspace.v1.CreateWorkspaceResponse
-	(*ListWorkspacesRequest)(nil),      // 10: devopus.workspace.v1.ListWorkspacesRequest
-	(*ListWorkspacesResponse)(nil),     // 11: devopus.workspace.v1.ListWorkspacesResponse
-	(*GetWorkspaceRequest)(nil),        // 12: devopus.workspace.v1.GetWorkspaceRequest
-	(*ProjectPermissions)(nil),         // 13: devopus.workspace.v1.ProjectPermissions
-	(*GetWorkspaceResponse)(nil),       // 14: devopus.workspace.v1.GetWorkspaceResponse
-	(*RenameWorkspaceRequest)(nil),     // 15: devopus.workspace.v1.RenameWorkspaceRequest
-	(*RenameWorkspaceResponse)(nil),    // 16: devopus.workspace.v1.RenameWorkspaceResponse
-	(*TransferWorkspaceRequest)(nil),   // 17: devopus.workspace.v1.TransferWorkspaceRequest
-	(*TransferWorkspaceResponse)(nil),  // 18: devopus.workspace.v1.TransferWorkspaceResponse
-	(*DeleteWorkspaceRequest)(nil),     // 19: devopus.workspace.v1.DeleteWorkspaceRequest
-	(*DeleteWorkspaceResponse)(nil),    // 20: devopus.workspace.v1.DeleteWorkspaceResponse
-	(*ListAuditRequest)(nil),           // 21: devopus.workspace.v1.ListAuditRequest
-	(*ListAuditResponse)(nil),          // 22: devopus.workspace.v1.ListAuditResponse
-	(*CreateProjectRequest)(nil),       // 23: devopus.workspace.v1.CreateProjectRequest
-	(*CreateProjectResponse)(nil),      // 24: devopus.workspace.v1.CreateProjectResponse
-	(*ListProjectsRequest)(nil),        // 25: devopus.workspace.v1.ListProjectsRequest
-	(*ListProjectsResponse)(nil),       // 26: devopus.workspace.v1.ListProjectsResponse
-	(*CreateInviteRequest)(nil),        // 27: devopus.workspace.v1.CreateInviteRequest
-	(*CreateInviteResponse)(nil),       // 28: devopus.workspace.v1.CreateInviteResponse
-	(*ListInvitesRequest)(nil),         // 29: devopus.workspace.v1.ListInvitesRequest
-	(*ListInvitesResponse)(nil),        // 30: devopus.workspace.v1.ListInvitesResponse
-	(*RevokeInviteRequest)(nil),        // 31: devopus.workspace.v1.RevokeInviteRequest
-	(*RevokeInviteResponse)(nil),       // 32: devopus.workspace.v1.RevokeInviteResponse
-	(*AcceptInviteRequest)(nil),        // 33: devopus.workspace.v1.AcceptInviteRequest
-	(*AcceptInviteResponse)(nil),       // 34: devopus.workspace.v1.AcceptInviteResponse
-	(*ListMembersRequest)(nil),         // 35: devopus.workspace.v1.ListMembersRequest
-	(*ListMembersResponse)(nil),        // 36: devopus.workspace.v1.ListMembersResponse
-	(*GrantPermissionRequest)(nil),     // 37: devopus.workspace.v1.GrantPermissionRequest
-	(*GrantPermissionResponse)(nil),    // 38: devopus.workspace.v1.GrantPermissionResponse
-	(*RevokePermissionRequest)(nil),    // 39: devopus.workspace.v1.RevokePermissionRequest
-	(*RevokePermissionResponse)(nil),   // 40: devopus.workspace.v1.RevokePermissionResponse
-	(*RemoveFromProjectRequest)(nil),   // 41: devopus.workspace.v1.RemoveFromProjectRequest
-	(*RemoveFromProjectResponse)(nil),  // 42: devopus.workspace.v1.RemoveFromProjectResponse
-	(*RemoveMemberRequest)(nil),        // 43: devopus.workspace.v1.RemoveMemberRequest
-	(*RemoveMemberResponse)(nil),       // 44: devopus.workspace.v1.RemoveMemberResponse
-	(*timestamppb.Timestamp)(nil),      // 45: google.protobuf.Timestamp
-	(*descriptorpb.MethodOptions)(nil), // 46: google.protobuf.MethodOptions
+	(Scope)(0),                            // 0: devopus.workspace.v1.Scope
+	(*Access)(nil),                        // 1: devopus.workspace.v1.Access
+	(*Workspace)(nil),                     // 2: devopus.workspace.v1.Workspace
+	(*Project)(nil),                       // 3: devopus.workspace.v1.Project
+	(*ProjectConfig)(nil),                 // 4: devopus.workspace.v1.ProjectConfig
+	(*ProjectVersion)(nil),                // 5: devopus.workspace.v1.ProjectVersion
+	(*ProjectRole)(nil),                   // 6: devopus.workspace.v1.ProjectRole
+	(*Member)(nil),                        // 7: devopus.workspace.v1.Member
+	(*Invite)(nil),                        // 8: devopus.workspace.v1.Invite
+	(*AuditEvent)(nil),                    // 9: devopus.workspace.v1.AuditEvent
+	(*CreateWorkspaceRequest)(nil),        // 10: devopus.workspace.v1.CreateWorkspaceRequest
+	(*CreateWorkspaceResponse)(nil),       // 11: devopus.workspace.v1.CreateWorkspaceResponse
+	(*ListWorkspacesRequest)(nil),         // 12: devopus.workspace.v1.ListWorkspacesRequest
+	(*ListWorkspacesResponse)(nil),        // 13: devopus.workspace.v1.ListWorkspacesResponse
+	(*GetWorkspaceRequest)(nil),           // 14: devopus.workspace.v1.GetWorkspaceRequest
+	(*ProjectPermissions)(nil),            // 15: devopus.workspace.v1.ProjectPermissions
+	(*GetWorkspaceResponse)(nil),          // 16: devopus.workspace.v1.GetWorkspaceResponse
+	(*RenameWorkspaceRequest)(nil),        // 17: devopus.workspace.v1.RenameWorkspaceRequest
+	(*RenameWorkspaceResponse)(nil),       // 18: devopus.workspace.v1.RenameWorkspaceResponse
+	(*TransferWorkspaceRequest)(nil),      // 19: devopus.workspace.v1.TransferWorkspaceRequest
+	(*TransferWorkspaceResponse)(nil),     // 20: devopus.workspace.v1.TransferWorkspaceResponse
+	(*DeleteWorkspaceRequest)(nil),        // 21: devopus.workspace.v1.DeleteWorkspaceRequest
+	(*DeleteWorkspaceResponse)(nil),       // 22: devopus.workspace.v1.DeleteWorkspaceResponse
+	(*ListAuditRequest)(nil),              // 23: devopus.workspace.v1.ListAuditRequest
+	(*ListAuditResponse)(nil),             // 24: devopus.workspace.v1.ListAuditResponse
+	(*CreateProjectRequest)(nil),          // 25: devopus.workspace.v1.CreateProjectRequest
+	(*CreateProjectResponse)(nil),         // 26: devopus.workspace.v1.CreateProjectResponse
+	(*DeleteProjectRequest)(nil),          // 27: devopus.workspace.v1.DeleteProjectRequest
+	(*DeleteProjectResponse)(nil),         // 28: devopus.workspace.v1.DeleteProjectResponse
+	(*GetProjectConfigRequest)(nil),       // 29: devopus.workspace.v1.GetProjectConfigRequest
+	(*GetProjectConfigResponse)(nil),      // 30: devopus.workspace.v1.GetProjectConfigResponse
+	(*ListProjectVersionsRequest)(nil),    // 31: devopus.workspace.v1.ListProjectVersionsRequest
+	(*ListProjectVersionsResponse)(nil),   // 32: devopus.workspace.v1.ListProjectVersionsResponse
+	(*UpdateProjectSettingsRequest)(nil),  // 33: devopus.workspace.v1.UpdateProjectSettingsRequest
+	(*UpdateProjectSettingsResponse)(nil), // 34: devopus.workspace.v1.UpdateProjectSettingsResponse
+	(*RollbackProjectRequest)(nil),        // 35: devopus.workspace.v1.RollbackProjectRequest
+	(*RollbackProjectResponse)(nil),       // 36: devopus.workspace.v1.RollbackProjectResponse
+	(*PutAppRequest)(nil),                 // 37: devopus.workspace.v1.PutAppRequest
+	(*PutAppResponse)(nil),                // 38: devopus.workspace.v1.PutAppResponse
+	(*RemoveAppRequest)(nil),              // 39: devopus.workspace.v1.RemoveAppRequest
+	(*RemoveAppResponse)(nil),             // 40: devopus.workspace.v1.RemoveAppResponse
+	(*PutServiceRequest)(nil),             // 41: devopus.workspace.v1.PutServiceRequest
+	(*PutServiceResponse)(nil),            // 42: devopus.workspace.v1.PutServiceResponse
+	(*RemoveServiceRequest)(nil),          // 43: devopus.workspace.v1.RemoveServiceRequest
+	(*RemoveServiceResponse)(nil),         // 44: devopus.workspace.v1.RemoveServiceResponse
+	(*ListProjectsRequest)(nil),           // 45: devopus.workspace.v1.ListProjectsRequest
+	(*ListProjectsResponse)(nil),          // 46: devopus.workspace.v1.ListProjectsResponse
+	(*CreateInviteRequest)(nil),           // 47: devopus.workspace.v1.CreateInviteRequest
+	(*CreateInviteResponse)(nil),          // 48: devopus.workspace.v1.CreateInviteResponse
+	(*ListInvitesRequest)(nil),            // 49: devopus.workspace.v1.ListInvitesRequest
+	(*ListInvitesResponse)(nil),           // 50: devopus.workspace.v1.ListInvitesResponse
+	(*RevokeInviteRequest)(nil),           // 51: devopus.workspace.v1.RevokeInviteRequest
+	(*RevokeInviteResponse)(nil),          // 52: devopus.workspace.v1.RevokeInviteResponse
+	(*AcceptInviteRequest)(nil),           // 53: devopus.workspace.v1.AcceptInviteRequest
+	(*AcceptInviteResponse)(nil),          // 54: devopus.workspace.v1.AcceptInviteResponse
+	(*ListMembersRequest)(nil),            // 55: devopus.workspace.v1.ListMembersRequest
+	(*ListMembersResponse)(nil),           // 56: devopus.workspace.v1.ListMembersResponse
+	(*GrantPermissionRequest)(nil),        // 57: devopus.workspace.v1.GrantPermissionRequest
+	(*GrantPermissionResponse)(nil),       // 58: devopus.workspace.v1.GrantPermissionResponse
+	(*RevokePermissionRequest)(nil),       // 59: devopus.workspace.v1.RevokePermissionRequest
+	(*RevokePermissionResponse)(nil),      // 60: devopus.workspace.v1.RevokePermissionResponse
+	(*RemoveFromProjectRequest)(nil),      // 61: devopus.workspace.v1.RemoveFromProjectRequest
+	(*RemoveFromProjectResponse)(nil),     // 62: devopus.workspace.v1.RemoveFromProjectResponse
+	(*RemoveMemberRequest)(nil),           // 63: devopus.workspace.v1.RemoveMemberRequest
+	(*RemoveMemberResponse)(nil),          // 64: devopus.workspace.v1.RemoveMemberResponse
+	(*timestamppb.Timestamp)(nil),         // 65: google.protobuf.Timestamp
+	(*descriptorpb.MethodOptions)(nil),    // 66: google.protobuf.MethodOptions
 }
 var file_devopus_workspace_v1_workspace_proto_depIdxs = []int32{
 	0,  // 0: devopus.workspace.v1.Access.scope:type_name -> devopus.workspace.v1.Scope
-	45, // 1: devopus.workspace.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
-	45, // 2: devopus.workspace.v1.Project.created_at:type_name -> google.protobuf.Timestamp
-	4,  // 3: devopus.workspace.v1.Member.projects:type_name -> devopus.workspace.v1.ProjectRole
-	45, // 4: devopus.workspace.v1.Member.joined_at:type_name -> google.protobuf.Timestamp
-	45, // 5: devopus.workspace.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
-	45, // 6: devopus.workspace.v1.Invite.expires_at:type_name -> google.protobuf.Timestamp
-	45, // 7: devopus.workspace.v1.AuditEvent.at:type_name -> google.protobuf.Timestamp
-	2,  // 8: devopus.workspace.v1.CreateWorkspaceResponse.workspace:type_name -> devopus.workspace.v1.Workspace
-	2,  // 9: devopus.workspace.v1.ListWorkspacesResponse.workspaces:type_name -> devopus.workspace.v1.Workspace
-	2,  // 10: devopus.workspace.v1.GetWorkspaceResponse.workspace:type_name -> devopus.workspace.v1.Workspace
-	13, // 11: devopus.workspace.v1.GetWorkspaceResponse.projects:type_name -> devopus.workspace.v1.ProjectPermissions
-	2,  // 12: devopus.workspace.v1.RenameWorkspaceResponse.workspace:type_name -> devopus.workspace.v1.Workspace
-	7,  // 13: devopus.workspace.v1.ListAuditResponse.events:type_name -> devopus.workspace.v1.AuditEvent
-	3,  // 14: devopus.workspace.v1.CreateProjectResponse.project:type_name -> devopus.workspace.v1.Project
-	3,  // 15: devopus.workspace.v1.ListProjectsResponse.projects:type_name -> devopus.workspace.v1.Project
-	6,  // 16: devopus.workspace.v1.CreateInviteResponse.invite:type_name -> devopus.workspace.v1.Invite
-	6,  // 17: devopus.workspace.v1.ListInvitesResponse.invites:type_name -> devopus.workspace.v1.Invite
-	2,  // 18: devopus.workspace.v1.AcceptInviteResponse.workspace:type_name -> devopus.workspace.v1.Workspace
-	5,  // 19: devopus.workspace.v1.ListMembersResponse.members:type_name -> devopus.workspace.v1.Member
-	46, // 20: devopus.workspace.v1.access:extendee -> google.protobuf.MethodOptions
-	1,  // 21: devopus.workspace.v1.access:type_name -> devopus.workspace.v1.Access
-	8,  // 22: devopus.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> devopus.workspace.v1.CreateWorkspaceRequest
-	10, // 23: devopus.workspace.v1.WorkspaceService.ListWorkspaces:input_type -> devopus.workspace.v1.ListWorkspacesRequest
-	12, // 24: devopus.workspace.v1.WorkspaceService.GetWorkspace:input_type -> devopus.workspace.v1.GetWorkspaceRequest
-	15, // 25: devopus.workspace.v1.WorkspaceService.RenameWorkspace:input_type -> devopus.workspace.v1.RenameWorkspaceRequest
-	17, // 26: devopus.workspace.v1.WorkspaceService.TransferWorkspace:input_type -> devopus.workspace.v1.TransferWorkspaceRequest
-	19, // 27: devopus.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> devopus.workspace.v1.DeleteWorkspaceRequest
-	21, // 28: devopus.workspace.v1.WorkspaceService.ListAudit:input_type -> devopus.workspace.v1.ListAuditRequest
-	23, // 29: devopus.workspace.v1.WorkspaceService.CreateProject:input_type -> devopus.workspace.v1.CreateProjectRequest
-	25, // 30: devopus.workspace.v1.WorkspaceService.ListProjects:input_type -> devopus.workspace.v1.ListProjectsRequest
-	27, // 31: devopus.workspace.v1.WorkspaceService.CreateInvite:input_type -> devopus.workspace.v1.CreateInviteRequest
-	29, // 32: devopus.workspace.v1.WorkspaceService.ListInvites:input_type -> devopus.workspace.v1.ListInvitesRequest
-	31, // 33: devopus.workspace.v1.WorkspaceService.RevokeInvite:input_type -> devopus.workspace.v1.RevokeInviteRequest
-	33, // 34: devopus.workspace.v1.WorkspaceService.AcceptInvite:input_type -> devopus.workspace.v1.AcceptInviteRequest
-	35, // 35: devopus.workspace.v1.WorkspaceService.ListMembers:input_type -> devopus.workspace.v1.ListMembersRequest
-	37, // 36: devopus.workspace.v1.WorkspaceService.GrantPermission:input_type -> devopus.workspace.v1.GrantPermissionRequest
-	39, // 37: devopus.workspace.v1.WorkspaceService.RevokePermission:input_type -> devopus.workspace.v1.RevokePermissionRequest
-	41, // 38: devopus.workspace.v1.WorkspaceService.RemoveFromProject:input_type -> devopus.workspace.v1.RemoveFromProjectRequest
-	43, // 39: devopus.workspace.v1.WorkspaceService.RemoveMember:input_type -> devopus.workspace.v1.RemoveMemberRequest
-	9,  // 40: devopus.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> devopus.workspace.v1.CreateWorkspaceResponse
-	11, // 41: devopus.workspace.v1.WorkspaceService.ListWorkspaces:output_type -> devopus.workspace.v1.ListWorkspacesResponse
-	14, // 42: devopus.workspace.v1.WorkspaceService.GetWorkspace:output_type -> devopus.workspace.v1.GetWorkspaceResponse
-	16, // 43: devopus.workspace.v1.WorkspaceService.RenameWorkspace:output_type -> devopus.workspace.v1.RenameWorkspaceResponse
-	18, // 44: devopus.workspace.v1.WorkspaceService.TransferWorkspace:output_type -> devopus.workspace.v1.TransferWorkspaceResponse
-	20, // 45: devopus.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> devopus.workspace.v1.DeleteWorkspaceResponse
-	22, // 46: devopus.workspace.v1.WorkspaceService.ListAudit:output_type -> devopus.workspace.v1.ListAuditResponse
-	24, // 47: devopus.workspace.v1.WorkspaceService.CreateProject:output_type -> devopus.workspace.v1.CreateProjectResponse
-	26, // 48: devopus.workspace.v1.WorkspaceService.ListProjects:output_type -> devopus.workspace.v1.ListProjectsResponse
-	28, // 49: devopus.workspace.v1.WorkspaceService.CreateInvite:output_type -> devopus.workspace.v1.CreateInviteResponse
-	30, // 50: devopus.workspace.v1.WorkspaceService.ListInvites:output_type -> devopus.workspace.v1.ListInvitesResponse
-	32, // 51: devopus.workspace.v1.WorkspaceService.RevokeInvite:output_type -> devopus.workspace.v1.RevokeInviteResponse
-	34, // 52: devopus.workspace.v1.WorkspaceService.AcceptInvite:output_type -> devopus.workspace.v1.AcceptInviteResponse
-	36, // 53: devopus.workspace.v1.WorkspaceService.ListMembers:output_type -> devopus.workspace.v1.ListMembersResponse
-	38, // 54: devopus.workspace.v1.WorkspaceService.GrantPermission:output_type -> devopus.workspace.v1.GrantPermissionResponse
-	40, // 55: devopus.workspace.v1.WorkspaceService.RevokePermission:output_type -> devopus.workspace.v1.RevokePermissionResponse
-	42, // 56: devopus.workspace.v1.WorkspaceService.RemoveFromProject:output_type -> devopus.workspace.v1.RemoveFromProjectResponse
-	44, // 57: devopus.workspace.v1.WorkspaceService.RemoveMember:output_type -> devopus.workspace.v1.RemoveMemberResponse
-	40, // [40:58] is the sub-list for method output_type
-	22, // [22:40] is the sub-list for method input_type
-	21, // [21:22] is the sub-list for extension type_name
-	20, // [20:21] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	65, // 1: devopus.workspace.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
+	65, // 2: devopus.workspace.v1.Project.created_at:type_name -> google.protobuf.Timestamp
+	65, // 3: devopus.workspace.v1.ProjectConfig.created_at:type_name -> google.protobuf.Timestamp
+	65, // 4: devopus.workspace.v1.ProjectVersion.created_at:type_name -> google.protobuf.Timestamp
+	6,  // 5: devopus.workspace.v1.Member.projects:type_name -> devopus.workspace.v1.ProjectRole
+	65, // 6: devopus.workspace.v1.Member.joined_at:type_name -> google.protobuf.Timestamp
+	65, // 7: devopus.workspace.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
+	65, // 8: devopus.workspace.v1.Invite.expires_at:type_name -> google.protobuf.Timestamp
+	65, // 9: devopus.workspace.v1.AuditEvent.at:type_name -> google.protobuf.Timestamp
+	2,  // 10: devopus.workspace.v1.CreateWorkspaceResponse.workspace:type_name -> devopus.workspace.v1.Workspace
+	2,  // 11: devopus.workspace.v1.ListWorkspacesResponse.workspaces:type_name -> devopus.workspace.v1.Workspace
+	2,  // 12: devopus.workspace.v1.GetWorkspaceResponse.workspace:type_name -> devopus.workspace.v1.Workspace
+	15, // 13: devopus.workspace.v1.GetWorkspaceResponse.projects:type_name -> devopus.workspace.v1.ProjectPermissions
+	2,  // 14: devopus.workspace.v1.RenameWorkspaceResponse.workspace:type_name -> devopus.workspace.v1.Workspace
+	9,  // 15: devopus.workspace.v1.ListAuditResponse.events:type_name -> devopus.workspace.v1.AuditEvent
+	3,  // 16: devopus.workspace.v1.CreateProjectResponse.project:type_name -> devopus.workspace.v1.Project
+	4,  // 17: devopus.workspace.v1.CreateProjectResponse.config:type_name -> devopus.workspace.v1.ProjectConfig
+	4,  // 18: devopus.workspace.v1.GetProjectConfigResponse.config:type_name -> devopus.workspace.v1.ProjectConfig
+	5,  // 19: devopus.workspace.v1.ListProjectVersionsResponse.versions:type_name -> devopus.workspace.v1.ProjectVersion
+	4,  // 20: devopus.workspace.v1.UpdateProjectSettingsResponse.config:type_name -> devopus.workspace.v1.ProjectConfig
+	4,  // 21: devopus.workspace.v1.RollbackProjectResponse.config:type_name -> devopus.workspace.v1.ProjectConfig
+	4,  // 22: devopus.workspace.v1.PutAppResponse.config:type_name -> devopus.workspace.v1.ProjectConfig
+	4,  // 23: devopus.workspace.v1.RemoveAppResponse.config:type_name -> devopus.workspace.v1.ProjectConfig
+	4,  // 24: devopus.workspace.v1.PutServiceResponse.config:type_name -> devopus.workspace.v1.ProjectConfig
+	4,  // 25: devopus.workspace.v1.RemoveServiceResponse.config:type_name -> devopus.workspace.v1.ProjectConfig
+	3,  // 26: devopus.workspace.v1.ListProjectsResponse.projects:type_name -> devopus.workspace.v1.Project
+	8,  // 27: devopus.workspace.v1.CreateInviteResponse.invite:type_name -> devopus.workspace.v1.Invite
+	8,  // 28: devopus.workspace.v1.ListInvitesResponse.invites:type_name -> devopus.workspace.v1.Invite
+	2,  // 29: devopus.workspace.v1.AcceptInviteResponse.workspace:type_name -> devopus.workspace.v1.Workspace
+	7,  // 30: devopus.workspace.v1.ListMembersResponse.members:type_name -> devopus.workspace.v1.Member
+	66, // 31: devopus.workspace.v1.access:extendee -> google.protobuf.MethodOptions
+	1,  // 32: devopus.workspace.v1.access:type_name -> devopus.workspace.v1.Access
+	10, // 33: devopus.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> devopus.workspace.v1.CreateWorkspaceRequest
+	12, // 34: devopus.workspace.v1.WorkspaceService.ListWorkspaces:input_type -> devopus.workspace.v1.ListWorkspacesRequest
+	14, // 35: devopus.workspace.v1.WorkspaceService.GetWorkspace:input_type -> devopus.workspace.v1.GetWorkspaceRequest
+	17, // 36: devopus.workspace.v1.WorkspaceService.RenameWorkspace:input_type -> devopus.workspace.v1.RenameWorkspaceRequest
+	19, // 37: devopus.workspace.v1.WorkspaceService.TransferWorkspace:input_type -> devopus.workspace.v1.TransferWorkspaceRequest
+	21, // 38: devopus.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> devopus.workspace.v1.DeleteWorkspaceRequest
+	23, // 39: devopus.workspace.v1.WorkspaceService.ListAudit:input_type -> devopus.workspace.v1.ListAuditRequest
+	25, // 40: devopus.workspace.v1.WorkspaceService.CreateProject:input_type -> devopus.workspace.v1.CreateProjectRequest
+	45, // 41: devopus.workspace.v1.WorkspaceService.ListProjects:input_type -> devopus.workspace.v1.ListProjectsRequest
+	27, // 42: devopus.workspace.v1.WorkspaceService.DeleteProject:input_type -> devopus.workspace.v1.DeleteProjectRequest
+	29, // 43: devopus.workspace.v1.WorkspaceService.GetProjectConfig:input_type -> devopus.workspace.v1.GetProjectConfigRequest
+	31, // 44: devopus.workspace.v1.WorkspaceService.ListProjectVersions:input_type -> devopus.workspace.v1.ListProjectVersionsRequest
+	33, // 45: devopus.workspace.v1.WorkspaceService.UpdateProjectSettings:input_type -> devopus.workspace.v1.UpdateProjectSettingsRequest
+	35, // 46: devopus.workspace.v1.WorkspaceService.RollbackProject:input_type -> devopus.workspace.v1.RollbackProjectRequest
+	37, // 47: devopus.workspace.v1.WorkspaceService.PutApp:input_type -> devopus.workspace.v1.PutAppRequest
+	39, // 48: devopus.workspace.v1.WorkspaceService.RemoveApp:input_type -> devopus.workspace.v1.RemoveAppRequest
+	41, // 49: devopus.workspace.v1.WorkspaceService.PutService:input_type -> devopus.workspace.v1.PutServiceRequest
+	43, // 50: devopus.workspace.v1.WorkspaceService.RemoveService:input_type -> devopus.workspace.v1.RemoveServiceRequest
+	47, // 51: devopus.workspace.v1.WorkspaceService.CreateInvite:input_type -> devopus.workspace.v1.CreateInviteRequest
+	49, // 52: devopus.workspace.v1.WorkspaceService.ListInvites:input_type -> devopus.workspace.v1.ListInvitesRequest
+	51, // 53: devopus.workspace.v1.WorkspaceService.RevokeInvite:input_type -> devopus.workspace.v1.RevokeInviteRequest
+	53, // 54: devopus.workspace.v1.WorkspaceService.AcceptInvite:input_type -> devopus.workspace.v1.AcceptInviteRequest
+	55, // 55: devopus.workspace.v1.WorkspaceService.ListMembers:input_type -> devopus.workspace.v1.ListMembersRequest
+	57, // 56: devopus.workspace.v1.WorkspaceService.GrantPermission:input_type -> devopus.workspace.v1.GrantPermissionRequest
+	59, // 57: devopus.workspace.v1.WorkspaceService.RevokePermission:input_type -> devopus.workspace.v1.RevokePermissionRequest
+	61, // 58: devopus.workspace.v1.WorkspaceService.RemoveFromProject:input_type -> devopus.workspace.v1.RemoveFromProjectRequest
+	63, // 59: devopus.workspace.v1.WorkspaceService.RemoveMember:input_type -> devopus.workspace.v1.RemoveMemberRequest
+	11, // 60: devopus.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> devopus.workspace.v1.CreateWorkspaceResponse
+	13, // 61: devopus.workspace.v1.WorkspaceService.ListWorkspaces:output_type -> devopus.workspace.v1.ListWorkspacesResponse
+	16, // 62: devopus.workspace.v1.WorkspaceService.GetWorkspace:output_type -> devopus.workspace.v1.GetWorkspaceResponse
+	18, // 63: devopus.workspace.v1.WorkspaceService.RenameWorkspace:output_type -> devopus.workspace.v1.RenameWorkspaceResponse
+	20, // 64: devopus.workspace.v1.WorkspaceService.TransferWorkspace:output_type -> devopus.workspace.v1.TransferWorkspaceResponse
+	22, // 65: devopus.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> devopus.workspace.v1.DeleteWorkspaceResponse
+	24, // 66: devopus.workspace.v1.WorkspaceService.ListAudit:output_type -> devopus.workspace.v1.ListAuditResponse
+	26, // 67: devopus.workspace.v1.WorkspaceService.CreateProject:output_type -> devopus.workspace.v1.CreateProjectResponse
+	46, // 68: devopus.workspace.v1.WorkspaceService.ListProjects:output_type -> devopus.workspace.v1.ListProjectsResponse
+	28, // 69: devopus.workspace.v1.WorkspaceService.DeleteProject:output_type -> devopus.workspace.v1.DeleteProjectResponse
+	30, // 70: devopus.workspace.v1.WorkspaceService.GetProjectConfig:output_type -> devopus.workspace.v1.GetProjectConfigResponse
+	32, // 71: devopus.workspace.v1.WorkspaceService.ListProjectVersions:output_type -> devopus.workspace.v1.ListProjectVersionsResponse
+	34, // 72: devopus.workspace.v1.WorkspaceService.UpdateProjectSettings:output_type -> devopus.workspace.v1.UpdateProjectSettingsResponse
+	36, // 73: devopus.workspace.v1.WorkspaceService.RollbackProject:output_type -> devopus.workspace.v1.RollbackProjectResponse
+	38, // 74: devopus.workspace.v1.WorkspaceService.PutApp:output_type -> devopus.workspace.v1.PutAppResponse
+	40, // 75: devopus.workspace.v1.WorkspaceService.RemoveApp:output_type -> devopus.workspace.v1.RemoveAppResponse
+	42, // 76: devopus.workspace.v1.WorkspaceService.PutService:output_type -> devopus.workspace.v1.PutServiceResponse
+	44, // 77: devopus.workspace.v1.WorkspaceService.RemoveService:output_type -> devopus.workspace.v1.RemoveServiceResponse
+	48, // 78: devopus.workspace.v1.WorkspaceService.CreateInvite:output_type -> devopus.workspace.v1.CreateInviteResponse
+	50, // 79: devopus.workspace.v1.WorkspaceService.ListInvites:output_type -> devopus.workspace.v1.ListInvitesResponse
+	52, // 80: devopus.workspace.v1.WorkspaceService.RevokeInvite:output_type -> devopus.workspace.v1.RevokeInviteResponse
+	54, // 81: devopus.workspace.v1.WorkspaceService.AcceptInvite:output_type -> devopus.workspace.v1.AcceptInviteResponse
+	56, // 82: devopus.workspace.v1.WorkspaceService.ListMembers:output_type -> devopus.workspace.v1.ListMembersResponse
+	58, // 83: devopus.workspace.v1.WorkspaceService.GrantPermission:output_type -> devopus.workspace.v1.GrantPermissionResponse
+	60, // 84: devopus.workspace.v1.WorkspaceService.RevokePermission:output_type -> devopus.workspace.v1.RevokePermissionResponse
+	62, // 85: devopus.workspace.v1.WorkspaceService.RemoveFromProject:output_type -> devopus.workspace.v1.RemoveFromProjectResponse
+	64, // 86: devopus.workspace.v1.WorkspaceService.RemoveMember:output_type -> devopus.workspace.v1.RemoveMemberResponse
+	60, // [60:87] is the sub-list for method output_type
+	33, // [33:60] is the sub-list for method input_type
+	32, // [32:33] is the sub-list for extension type_name
+	31, // [31:32] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_devopus_workspace_v1_workspace_proto_init() }
@@ -2667,7 +4019,7 @@ func file_devopus_workspace_v1_workspace_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_devopus_workspace_v1_workspace_proto_rawDesc), len(file_devopus_workspace_v1_workspace_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   44,
+			NumMessages:   64,
 			NumExtensions: 1,
 			NumServices:   1,
 		},

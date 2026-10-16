@@ -72,6 +72,34 @@ func (q *Queries) AddMember(ctx context.Context, arg AddMemberParams) error {
 	return err
 }
 
+const addProjectVersion = `-- name: AddProjectVersion :exec
+INSERT INTO project_versions (workspace_id, project_id, version, config, author_id, message, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type AddProjectVersionParams struct {
+	WorkspaceID string
+	ProjectID   string
+	Version     int32
+	Config      string
+	AuthorID    string
+	Message     string
+	CreatedAt   time.Time
+}
+
+func (q *Queries) AddProjectVersion(ctx context.Context, arg AddProjectVersionParams) error {
+	_, err := q.db.Exec(ctx, addProjectVersion,
+		arg.WorkspaceID,
+		arg.ProjectID,
+		arg.Version,
+		arg.Config,
+		arg.AuthorID,
+		arg.Message,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const audit = `-- name: Audit :many
 SELECT a.id, a.workspace_id, a.actor_id, a.action, a.target, a.detail, a.created_at, coalesce(u.email, a.actor_id)::text AS actor FROM audit a LEFT JOIN users u ON u.id = a.actor_id
 WHERE a.workspace_id = $1
@@ -174,7 +202,7 @@ func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) (Inv
 
 const createProject = `-- name: CreateProject :one
 INSERT INTO projects (id, workspace_id, name, created_by, created_at) VALUES ($1, $2, $3, $4, $5)
-RETURNING id, workspace_id, name, created_by, created_at
+RETURNING id, workspace_id, name, created_by, created_at, version
 `
 
 type CreateProjectParams struct {
@@ -200,6 +228,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.Name,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.Version,
 	)
 	return i, err
 }
@@ -219,6 +248,15 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 	var i Workspace
 	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
 	return i, err
+}
+
+const deleteProject = `-- name: DeleteProject :exec
+DELETE FROM projects WHERE id = $1
+`
+
+func (q *Queries) DeleteProject(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteProject, id)
+	return err
 }
 
 const deleteWorkspace = `-- name: DeleteWorkspace :exec
@@ -476,7 +514,7 @@ func (q *Queries) OpenInvites(ctx context.Context, arg OpenInvitesParams) ([]Ope
 }
 
 const projectByName = `-- name: ProjectByName :one
-SELECT id, workspace_id, name, created_by, created_at FROM projects WHERE workspace_id = $1 AND name = $2
+SELECT id, workspace_id, name, created_by, created_at, version FROM projects WHERE workspace_id = $1 AND name = $2
 `
 
 type ProjectByNameParams struct {
@@ -493,6 +531,30 @@ func (q *Queries) ProjectByName(ctx context.Context, arg ProjectByNameParams) (P
 		&i.Name,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
+const projectByNameForUpdate = `-- name: ProjectByNameForUpdate :one
+SELECT id, workspace_id, name, created_by, created_at, version FROM projects WHERE workspace_id = $1 AND name = $2 FOR UPDATE
+`
+
+type ProjectByNameForUpdateParams struct {
+	WorkspaceID string
+	Name        string
+}
+
+func (q *Queries) ProjectByNameForUpdate(ctx context.Context, arg ProjectByNameForUpdateParams) (Project, error) {
+	row := q.db.QueryRow(ctx, projectByNameForUpdate, arg.WorkspaceID, arg.Name)
+	var i Project
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Name,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.Version,
 	)
 	return i, err
 }
@@ -536,8 +598,89 @@ func (q *Queries) ProjectRoles(ctx context.Context, workspaceID string) ([]Proje
 	return items, nil
 }
 
+const projectVersion = `-- name: ProjectVersion :one
+SELECT v.workspace_id, v.project_id, v.version, v.config, v.author_id, v.message, v.created_at, u.email AS author FROM project_versions v JOIN users u ON u.id = v.author_id
+WHERE v.project_id = $1 AND v.version = $2
+`
+
+type ProjectVersionParams struct {
+	ProjectID string
+	Version   int32
+}
+
+type ProjectVersionRow struct {
+	WorkspaceID string
+	ProjectID   string
+	Version     int32
+	Config      string
+	AuthorID    string
+	Message     string
+	CreatedAt   time.Time
+	Author      string
+}
+
+func (q *Queries) ProjectVersion(ctx context.Context, arg ProjectVersionParams) (ProjectVersionRow, error) {
+	row := q.db.QueryRow(ctx, projectVersion, arg.ProjectID, arg.Version)
+	var i ProjectVersionRow
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.ProjectID,
+		&i.Version,
+		&i.Config,
+		&i.AuthorID,
+		&i.Message,
+		&i.CreatedAt,
+		&i.Author,
+	)
+	return i, err
+}
+
+const projectVersions = `-- name: ProjectVersions :many
+SELECT v.version, v.message, v.created_at, u.email AS author FROM project_versions v JOIN users u ON u.id = v.author_id
+WHERE v.project_id = $1
+ORDER BY v.version DESC
+LIMIT $2
+`
+
+type ProjectVersionsParams struct {
+	ProjectID string
+	Limit     int32
+}
+
+type ProjectVersionsRow struct {
+	Version   int32
+	Message   string
+	CreatedAt time.Time
+	Author    string
+}
+
+func (q *Queries) ProjectVersions(ctx context.Context, arg ProjectVersionsParams) ([]ProjectVersionsRow, error) {
+	rows, err := q.db.Query(ctx, projectVersions, arg.ProjectID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProjectVersionsRow
+	for rows.Next() {
+		var i ProjectVersionsRow
+		if err := rows.Scan(
+			&i.Version,
+			&i.Message,
+			&i.CreatedAt,
+			&i.Author,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const projects = `-- name: Projects :many
-SELECT id, workspace_id, name, created_by, created_at FROM projects WHERE workspace_id = $1 ORDER BY name
+SELECT id, workspace_id, name, created_by, created_at, version FROM projects WHERE workspace_id = $1 ORDER BY name
 `
 
 func (q *Queries) Projects(ctx context.Context, workspaceID string) ([]Project, error) {
@@ -555,6 +698,7 @@ func (q *Queries) Projects(ctx context.Context, workspaceID string) ([]Project, 
 			&i.Name,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}
@@ -680,6 +824,20 @@ func (q *Queries) SetProjectRole(ctx context.Context, arg SetProjectRoleParams) 
 		arg.UserID,
 		arg.Role,
 	)
+	return err
+}
+
+const setProjectVersion = `-- name: SetProjectVersion :exec
+UPDATE projects SET version = $2 WHERE id = $1
+`
+
+type SetProjectVersionParams struct {
+	ID      string
+	Version int32
+}
+
+func (q *Queries) SetProjectVersion(ctx context.Context, arg SetProjectVersionParams) error {
+	_, err := q.db.Exec(ctx, setProjectVersion, arg.ID, arg.Version)
 	return err
 }
 

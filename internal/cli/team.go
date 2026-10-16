@@ -17,12 +17,14 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
+	"github.com/amalychev/devopus/examples/demo"
 	authv1 "github.com/amalychev/devopus/gen/devopus/auth/v1"
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
 	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/authz"
 	"github.com/amalychev/devopus/internal/credentials"
+	"github.com/amalychev/devopus/internal/importer"
 )
 
 // The team commands talk to the workspace server (ADR-0016): workspace, project,
@@ -410,66 +412,53 @@ func (a *app) workspaceCmd() *cobra.Command {
 	}
 	audit.Flags().IntVarP(&limit, "limit", "n", 50, "how many events")
 
-	cmd.AddCommand(create, list, use, show, rename, transfer, del, audit)
-	return cmd
-}
-
-func (a *app) projectCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "project",
-		Short: "Projects of the current workspace",
-		Long: "A project is a product of the workspace: its applications and services (stage 3).\n" +
-			"Roles are given per project: a teamlead leads it, developers work in it.",
-	}
-	create := &cobra.Command{
-		Use:   "create <name>",
-		Short: "Create a project (admin, teamlead); a teamlead who creates it leads it",
-		Args:  cobra.ExactArgs(1),
+	demoCmd := &cobra.Command{
+		Use:   "demo [name]",
+		Short: "Create a demo workspace with the demo project, to try Devopus or debug it",
+		Long: "Creates a workspace (named demo unless given) with the project of examples/demo:\n" +
+			"three applications on Node, Python and PHP, Postgres and a mail catcher.",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, cur, c, err := a.inWorkspace(cmd.Context())
+			name := "demo"
+			if len(args) == 1 {
+				name = args[0]
+			}
+			project, _, err := importer.Parse(demo.Config)
+			if err != nil {
+				return fail(ExitError, "the demo project: %v", err)
+			}
+			config, err := project.YAML()
 			if err != nil {
 				return err
 			}
-			res, err := c.CreateProject(cmd.Context(), req(s, &workspacev1.CreateProjectRequest{WorkspaceId: cur.ID, Name: args[0]}))
-			if err != nil {
-				return rpcErr(err)
-			}
-			return a.done(map[string]any{"id": res.Msg.Project.Id, "name": res.Msg.Project.Name}, "✓ Project %s created in %s.\n", res.Msg.Project.Name, cur.Name)
-		},
-	}
-	list := &cobra.Command{
-		Use:   "list",
-		Short: "Projects you have a role in (the admin sees all)",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			s, cur, c, err := a.inWorkspace(cmd.Context())
+			ctx := cmd.Context()
+			s, err := a.session(ctx)
 			if err != nil {
 				return err
 			}
-			res, err := c.ListProjects(cmd.Context(), req(s, &workspacev1.ListProjectsRequest{WorkspaceId: cur.ID}))
+			url := strings.TrimRight(server, "/")
+			c := s.server(url)
+			res, err := c.CreateWorkspace(ctx, req(s, &workspacev1.CreateWorkspaceRequest{Name: name}))
 			if err != nil {
 				return rpcErr(err)
 			}
-			if a.json {
-				return a.writeProto(res.Msg)
+			w := res.Msg.Workspace
+			s.register(ctx, w, url)
+			if err := saveCurrent(&current{ID: w.Id, Name: w.Name, ServerURL: url}); err != nil {
+				return fail(ExitError, "%v", err)
 			}
-			if len(res.Msg.Projects) == 0 {
-				fmt.Fprintln(a.stdout, "No projects yet.")
-				return nil
+			pr, err := c.CreateProject(ctx, req(s, &workspacev1.CreateProjectRequest{WorkspaceId: w.Id, Name: project.Name, Domain: project.Domain, ConfigYaml: string(config)}))
+			if err != nil {
+				return rpcErr(err)
 			}
-			w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "PROJECT\tYOUR ROLE\tCREATED")
-			for _, p := range res.Msg.Projects {
-				role := p.Role
-				if role == "" {
-					role = "admin"
-				}
-				fmt.Fprintf(w, "%s\t%s\t%s\n", p.Name, role, day(p.CreatedAt.AsTime()))
-			}
-			return w.Flush()
+			return a.done(map[string]any{"workspace": w.Id, "name": w.Name, "project": pr.Msg.Project.Name, "version": pr.Msg.Config.Version},
+				"✓ Workspace %s with project %s: %d applications, %d services. See it: devopus project show %s\n",
+				w.Name, project.Name, len(project.Apps), len(project.Services), project.Name)
 		},
 	}
-	cmd.AddCommand(create, list)
+	demoCmd.Flags().StringVar(&server, "server", serverURL(), "the workspace server ($DEVOPUS_SERVER_URL)")
+
+	cmd.AddCommand(create, demoCmd, list, use, show, rename, transfer, del, audit)
 	return cmd
 }
 
