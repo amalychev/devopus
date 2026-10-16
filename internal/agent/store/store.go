@@ -160,6 +160,14 @@ type ServerProject struct {
 	Name    string
 	Spec    []byte
 	Version int32
+	// Secrets are encrypted to the workspace's key.
+	Secrets map[string][]byte
+}
+
+// ServerKey is the workspace's key as this device has it: wrapped for it.
+type ServerKey struct {
+	Generation int32
+	Wrapped    []byte
 }
 
 // SyncServer makes the server's projects of a workspace the device's: new ones come
@@ -168,7 +176,7 @@ type ServerProject struct {
 // workspace — are stopped with their data kept. A project held with 'devopus down'
 // stays stopped. A project of a folder with the same name is left alone; its name is
 // returned. The revision moves only when something changed.
-func (s *Store) SyncServer(workspaceID, adminEmail string, projects []ServerProject, root func(name string) string) (rev uint64, conflicts []string, err error) {
+func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projects []ServerProject, root func(name string) string) (rev uint64, conflicts []string, err error) {
 	rev, err = s.updateIfChanged(func(st *agentv2.DesiredState) error {
 		conflicts = nil // fn runs twice: once to see whether anything changes
 		given := map[string]bool{}
@@ -189,6 +197,7 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, projects []ServerProj
 			sum := sha256.Sum256(sp.Spec)
 			p.WorkspaceId, p.Spec, p.ConfigVersion, p.AdminEmail = workspaceID, sp.Spec, sp.Version, adminEmail
 			p.Config, p.ConfigHash, p.Orphaned = nil, hex.EncodeToString(sum[:]), false
+			p.Secrets, p.KeyWrap, p.KeyGeneration = sp.Secrets, key.Wrapped, key.Generation
 			base := ensureBase(st, sp.Name)
 			if start && !p.Held {
 				base.Phase = agentv2.DesiredPhase_DESIRED_PHASE_RUNNING

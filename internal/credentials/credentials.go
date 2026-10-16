@@ -97,7 +97,7 @@ func save(s Session, refresh string) error {
 		}
 		// The key store is there but refuses (a locked keychain over SSH): keep the file.
 		s.Store = StoreFile
-		if err := (file{}).set("", refresh); err != nil {
+		if err := (file{}).set(paths.Home(), refresh); err != nil {
 			return err
 		}
 	}

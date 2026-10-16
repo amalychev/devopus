@@ -23,10 +23,13 @@ import (
 
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
 	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
+	"github.com/amalychev/devopus/internal/agent/link"
+	agentstore "github.com/amalychev/devopus/internal/agent/store"
 	"github.com/amalychev/devopus/internal/auth/mail"
 	"github.com/amalychev/devopus/internal/auth/token"
 	"github.com/amalychev/devopus/internal/authz"
 	"github.com/amalychev/devopus/internal/pgtest"
+	"github.com/amalychev/devopus/internal/secrets"
 	"github.com/amalychev/devopus/internal/server/store"
 	"github.com/amalychev/devopus/internal/spec"
 )
@@ -574,4 +577,114 @@ func TestWatch(t *testing.T) {
 	if n != 1 || st.Err() != nil {
 		t.Errorf("short token: %d messages, %v", n, st.Err())
 	}
+}
+
+func TestSecrets(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	f := e.fixture(t)
+	sc := syncv1connect.NewSyncServiceClient(http.DefaultClient, e.url)
+	adminDev, _ := secrets.NewKey()
+	devDev, _ := secrets.NewKey()
+	const value = "pa55-w0rd-of-the-db"
+
+	// No key yet: setting a secret is refused until the admin makes one.
+	sealedNowhere, _ := secrets.Seal([]byte(value), adminDev.Recipient().String())
+	_, err := e.client.SetSecret(ctx, as(e, f.lead, &workspacev1.SetSecretRequest{WorkspaceId: f.ws, Project: "shop", Name: "DB_PASSWORD", Generation: 1, Ciphertext: sealedNowhere}))
+	wantCode(t, err, connect.CodeAborted)
+
+	// The admin's device registers its key and makes the workspace's.
+	must[workspacev1.RegisterDeviceKeyResponse](t)(e.client.RegisterDeviceKey(ctx, as(e, f.admin, &workspacev1.RegisterDeviceKeyRequest{WorkspaceId: f.ws, DeviceId: "admin-mac", DeviceName: "mac", PublicKey: adminDev.Recipient().String()})))
+	wsKey, _ := secrets.NewKey()
+	wrapped, _ := secrets.Wrap(wsKey, adminDev.Recipient().String())
+	_, err = e.client.CreateSecretsKey(ctx, as(e, f.lead, &workspacev1.CreateSecretsKeyRequest{WorkspaceId: f.ws, PublicKey: wsKey.Recipient().String(), DeviceId: "x", Wrapped: wrapped}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	must[workspacev1.CreateSecretsKeyResponse](t)(e.client.CreateSecretsKey(ctx, as(e, f.admin, &workspacev1.CreateSecretsKeyRequest{WorkspaceId: f.ws, PublicKey: wsKey.Recipient().String(), DeviceId: "admin-mac", Wrapped: wrapped})))
+	_, err = e.client.CreateSecretsKey(ctx, as(e, f.admin, &workspacev1.CreateSecretsKeyRequest{WorkspaceId: f.ws, PublicKey: wsKey.Recipient().String(), DeviceId: "admin-mac", Wrapped: wrapped}))
+	wantCode(t, err, connect.CodeAlreadyExists)
+
+	// The teamlead sets a secret with the public key alone; the developer may not.
+	key := must[workspacev1.GetSecretsKeyResponse](t)(e.client.GetSecretsKey(ctx, as(e, f.lead, &workspacev1.GetSecretsKeyRequest{WorkspaceId: f.ws})))
+	sealed, _ := secrets.Seal([]byte(value), key.PublicKey)
+	must[workspacev1.SetSecretResponse](t)(e.client.SetSecret(ctx, as(e, f.lead, &workspacev1.SetSecretRequest{WorkspaceId: f.ws, Project: "shop", Name: "DB_PASSWORD", Generation: key.Generation, Ciphertext: sealed})))
+	_, err = e.client.SetSecret(ctx, as(e, f.dev, &workspacev1.SetSecretRequest{WorkspaceId: f.ws, Project: "shop", Name: "X", Generation: key.Generation, Ciphertext: sealed}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	names := must[workspacev1.ListSecretsResponse](t)(e.client.ListSecrets(ctx, as(e, f.dev, &workspacev1.ListSecretsRequest{WorkspaceId: f.ws, Project: "shop"}))).Secrets
+	if len(names) != 1 || names[0].Name != "DB_PASSWORD" || names[0].UpdatedBy != f.lead {
+		t.Fatalf("names: %v", names)
+	}
+
+	// The server never had the value: not in any table.
+	var leaks int
+	if err := e.svc.pool.QueryRow(ctx, `SELECT count(*) FROM secrets WHERE position($1::bytea in ciphertext) > 0`, []byte(value)).Scan(&leaks); err != nil || leaks != 0 {
+		t.Fatalf("plaintext in the database: %d %v", leaks, err)
+	}
+
+	// The developer's device connects: it gets the ciphertext but no key yet; the
+	// admin's device sees it waiting and wraps the key for it (variant A).
+	first := func(email, device string, pub string) *syncv1.WatchResponse {
+		t.Helper()
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		st, err := sc.Watch(ctx, as(e, email, &syncv1.WatchRequest{WorkspaceId: f.ws, Device: &syncv1.Device{Id: device, Name: device, PublicKey: pub}}))
+		if err != nil || !st.Receive() {
+			t.Fatalf("watch as %s: %v %v", email, err, st.Err())
+		}
+		return st.Msg()
+	}
+	dev := first(f.dev, "dev-laptop", devDev.Recipient().String())
+	if dev.Key.GetGeneration() != 1 || len(dev.Key.Wrapped) != 0 || len(dev.Projects[0].Secrets["DB_PASSWORD"]) == 0 || len(dev.PendingDevices) != 0 {
+		t.Fatalf("developer before the key: %+v", dev)
+	}
+	adm := first(f.admin, "admin-mac", adminDev.Recipient().String())
+	if len(adm.PendingDevices) != 1 || adm.PendingDevices[0].UserEmail != f.dev {
+		t.Fatalf("pending for the admin: %v", adm.PendingDevices)
+	}
+	n, err := link.DeliverKey(ctx, e.url, f.ws, e.token(f.admin), agentstore.ServerKey{Generation: adm.Key.Generation, Wrapped: adm.Key.Wrapped}, adminDev, adm.PendingDevices)
+	if err != nil || n != 1 {
+		t.Fatalf("deliver: %d %v", n, err)
+	}
+	dev = first(f.dev, "dev-laptop", devDev.Recipient().String())
+	got, err := secrets.Unwrap(dev.Key.Wrapped, devDev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, err := secrets.Open(dev.Projects[0].Secrets["DB_PASSWORD"], got); err != nil || string(v) != value {
+		t.Fatalf("the developer's device opens %q %v", v, err)
+	}
+	// A developer may not deliver keys.
+	_, err = e.client.ProvideKeyWraps(ctx, as(e, f.dev, &workspacev1.ProvideKeyWrapsRequest{WorkspaceId: f.ws, Generation: 1}))
+	wantCode(t, err, connect.CodePermissionDenied)
+
+	// The developer is removed, the admin rotates: the secret opens with the new key
+	// on the admin's device, and the removed member's device keys are gone.
+	must[workspacev1.RemoveMemberResponse](t)(e.client.RemoveMember(ctx, as(e, f.admin, &workspacev1.RemoveMemberRequest{WorkspaceId: f.ws, Email: f.dev})))
+	prep := must[workspacev1.PrepareRotationResponse](t)(e.client.PrepareRotation(ctx, as(e, f.admin, &workspacev1.PrepareRotationRequest{WorkspaceId: f.ws})))
+	if len(prep.Secrets) != 1 || len(prep.Devices) != 1 || prep.Devices[0].DeviceId != "admin-mac" {
+		t.Fatalf("rotation: %d secrets, devices %v", len(prep.Secrets), prep.Devices)
+	}
+	next, _ := secrets.NewKey()
+	v, _ := secrets.Open(prep.Secrets[0].Ciphertext, wsKey)
+	resealed, _ := secrets.Seal(v, next.Recipient().String())
+	rewrapped, _ := secrets.Wrap(next, adminDev.Recipient().String())
+	_, err = e.client.RotateSecretsKey(ctx, as(e, f.admin, &workspacev1.RotateSecretsKeyRequest{WorkspaceId: f.ws, FromGeneration: 1, PublicKey: next.Recipient().String(),
+		Wraps: []*workspacev1.KeyWrap{{DeviceId: "admin-mac", UserId: prep.Devices[0].UserId, Wrapped: rewrapped}}}))
+	wantCode(t, err, connect.CodeFailedPrecondition) // a secret is missing
+	must[workspacev1.RotateSecretsKeyResponse](t)(e.client.RotateSecretsKey(ctx, as(e, f.admin, &workspacev1.RotateSecretsKeyRequest{WorkspaceId: f.ws, FromGeneration: 1, PublicKey: next.Recipient().String(),
+		Wraps:   []*workspacev1.KeyWrap{{DeviceId: "admin-mac", UserId: prep.Devices[0].UserId, Wrapped: rewrapped}},
+		Secrets: []*workspacev1.SealedSecret{{Project: "shop", Name: "DB_PASSWORD", Ciphertext: resealed}}})))
+	adm = first(f.admin, "admin-mac", adminDev.Recipient().String())
+	k2, err := secrets.Unwrap(adm.Key.Wrapped, adminDev)
+	if err != nil || adm.Key.Generation != 2 {
+		t.Fatalf("after rotation: %v %v", adm.Key, err)
+	}
+	if v, err := secrets.Open(adm.Projects[0].Secrets["DB_PASSWORD"], k2); err != nil || string(v) != value {
+		t.Fatalf("after rotation: %q %v", v, err)
+	}
+	if _, err := secrets.Open(adm.Projects[0].Secrets["DB_PASSWORD"], wsKey); err == nil {
+		t.Error("the old key still opens the secret")
+	}
+	// A value encrypted to the old key is refused.
+	_, err = e.client.SetSecret(ctx, as(e, f.lead, &workspacev1.SetSecretRequest{WorkspaceId: f.ws, Project: "shop", Name: "DB_PASSWORD", Generation: 1, Ciphertext: sealed}))
+	wantCode(t, err, connect.CodeAborted)
 }

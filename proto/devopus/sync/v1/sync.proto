@@ -43,6 +43,8 @@ message Device {
   // Its host name.
   string name = 2;
   string agent_version = 3;
+  // The device's public key for secrets: the workspace's key is wrapped for it.
+  string public_key = 4;
 }
 
 message WatchRequest {
@@ -57,6 +59,26 @@ message DesiredProject {
   int32 version = 3;
   // The project in the YAML form of internal/spec.
   string config_yaml = 4;
+  // Its secrets encrypted to the workspace's key, by name: only to users who may read
+  // them (secrets.read).
+  map<string, bytes> secrets = 5;
+}
+
+// SecretsKey is the workspace's key for this device.
+message SecretsKey {
+  int32 generation = 1;
+  // The private key wrapped for this device; empty until a device that holds the key
+  // delivers it.
+  bytes wrapped = 2;
+}
+
+// PendingDevice is a device waiting for the workspace's key.
+message PendingDevice {
+  string device_id = 1;
+  string user_id = 2;
+  string user_email = 3;
+  string device_name = 4;
+  string public_key = 5;
 }
 
 // WatchResponse is the device's whole desired state in the workspace.
@@ -67,6 +89,11 @@ message WatchResponse {
   string admin_email = 3;
   // The projects of the workspace the user works in (env.use).
   repeated DesiredProject projects = 4;
+  // Absent while the workspace has no key.
+  SecretsKey key = 5;
+  // Devices waiting for the key: sent to the devices of admins and teamleads, which
+  // wrap it for them (ADR-0009, variant A).
+  repeated PendingDevice pending_devices = 6;
 }
 
 message EnvironmentReport {

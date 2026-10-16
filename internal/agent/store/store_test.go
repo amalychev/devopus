@@ -157,7 +157,7 @@ func TestSyncServer(t *testing.T) {
 	}
 	clash := ServerProject{Name: "local", Spec: []byte("name: local\n"), Version: 1}
 
-	rev, conflicts, err := s.SyncServer("wsp_1", "admin@acme.dev", []ServerProject{shop, blog, clash}, root)
+	rev, conflicts, err := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog, clash}, root)
 	if err != nil || len(conflicts) != 1 || conflicts[0] != "local" {
 		t.Fatalf("sync: %v %v", conflicts, err)
 	}
@@ -188,7 +188,7 @@ func TestSyncServer(t *testing.T) {
 		t.Error("the folder's project was replaced")
 	}
 	// The same state again changes nothing.
-	if again, _, _ := s.SyncServer("wsp_1", "admin@acme.dev", []ServerProject{shop, blog, clash}, root); again != rev {
+	if again, _, _ := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog, clash}, root); again != rev {
 		t.Errorf("revision moved without a change: %d → %d", rev, again)
 	}
 
@@ -197,7 +197,7 @@ func TestSyncServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	shop.Version, shop.Spec = 2, []byte("name: shop\ndomain: shop.test\n")
-	s.SyncServer("wsp_1", "admin@acme.dev", []ServerProject{shop, blog}, root)
+	s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog}, root)
 	if phase("shop") != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED || project("shop").ConfigVersion != 2 || !project("shop").Held {
 		t.Fatalf("held shop: %v %+v", phase("shop"), project("shop"))
 	}
@@ -209,7 +209,7 @@ func TestSyncServer(t *testing.T) {
 	}
 
 	// Gone from the server: stopped, kept, and not to be brought up.
-	s.SyncServer("wsp_1", "admin@acme.dev", []ServerProject{shop}, root)
+	s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop}, root)
 	if !project("blog").Orphaned || phase("blog") != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED {
 		t.Fatalf("blog: %+v", project("blog"))
 	}
@@ -217,7 +217,7 @@ func TestSyncServer(t *testing.T) {
 		t.Errorf("up of an orphan: %v", err)
 	}
 	// Back on the server: it comes up again.
-	s.SyncServer("wsp_1", "admin@acme.dev", []ServerProject{shop, blog}, root)
+	s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog}, root)
 	if project("blog").Orphaned || phase("blog") != agentv2.DesiredPhase_DESIRED_PHASE_RUNNING {
 		t.Fatalf("blog back: %+v", project("blog"))
 	}

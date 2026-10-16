@@ -522,8 +522,9 @@ type parsed struct {
 	ws   *spec.Project
 	root string
 	// admin is whom to ask for access to the repositories: the workspace's admin.
-	admin string
-	err   error
+	admin   string
+	project *agentv2.ProjectSpec
+	err     error
 }
 
 func parseProjects(projects []*agentv2.ProjectSpec) map[string]*parsed {
@@ -536,7 +537,7 @@ func parseProjects(projects []*agentv2.ProjectSpec) map[string]*parsed {
 		case proj.Domain == "":
 			out[p.Name] = &parsed{err: errors.New("no domain")}
 		default:
-			out[p.Name] = &parsed{ws: proj, root: p.Root, admin: p.AdminEmail}
+			out[p.Name] = &parsed{ws: proj, root: p.Root, admin: p.AdminEmail, project: p}
 		}
 	}
 	return out

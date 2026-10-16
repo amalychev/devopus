@@ -89,6 +89,34 @@ func (q *Queries) AddDeviceEnvironment(ctx context.Context, arg AddDeviceEnviron
 	return err
 }
 
+const addKeyWrap = `-- name: AddKeyWrap :exec
+INSERT INTO key_wraps (workspace_id, generation, device_id, user_id, wrapped, wrapped_by, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (workspace_id, generation, device_id, user_id) DO UPDATE SET wrapped = excluded.wrapped, wrapped_by = excluded.wrapped_by, created_at = excluded.created_at
+`
+
+type AddKeyWrapParams struct {
+	WorkspaceID string
+	Generation  int32
+	DeviceID    string
+	UserID      string
+	Wrapped     []byte
+	WrappedBy   string
+	CreatedAt   time.Time
+}
+
+func (q *Queries) AddKeyWrap(ctx context.Context, arg AddKeyWrapParams) error {
+	_, err := q.db.Exec(ctx, addKeyWrap,
+		arg.WorkspaceID,
+		arg.Generation,
+		arg.DeviceID,
+		arg.UserID,
+		arg.Wrapped,
+		arg.WrappedBy,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const addMember = `-- name: AddMember :exec
 INSERT INTO members (workspace_id, user_id, role, joined_at) VALUES ($1, $2, $3, $4)
 `
@@ -133,6 +161,29 @@ func (q *Queries) AddProjectVersion(ctx context.Context, arg AddProjectVersionPa
 		arg.Config,
 		arg.AuthorID,
 		arg.Message,
+		arg.CreatedAt,
+	)
+	return err
+}
+
+const addWorkspaceKey = `-- name: AddWorkspaceKey :exec
+INSERT INTO workspace_keys (workspace_id, generation, public_key, created_by, created_at) VALUES ($1, $2, $3, $4, $5)
+`
+
+type AddWorkspaceKeyParams struct {
+	WorkspaceID string
+	Generation  int32
+	PublicKey   string
+	CreatedBy   string
+	CreatedAt   time.Time
+}
+
+func (q *Queries) AddWorkspaceKey(ctx context.Context, arg AddWorkspaceKeyParams) error {
+	_, err := q.db.Exec(ctx, addWorkspaceKey,
+		arg.WorkspaceID,
+		arg.Generation,
+		arg.PublicKey,
+		arg.CreatedBy,
 		arg.CreatedAt,
 	)
 	return err
@@ -287,7 +338,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 }
 
 const createWorkspace = `-- name: CreateWorkspace :one
-INSERT INTO workspaces (id, name, created_at) VALUES ($1, $2, $3) RETURNING id, name, created_at
+INSERT INTO workspaces (id, name, created_at) VALUES ($1, $2, $3) RETURNING id, name, created_at, key_generation
 `
 
 type CreateWorkspaceParams struct {
@@ -299,8 +350,42 @@ type CreateWorkspaceParams struct {
 func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (Workspace, error) {
 	row := q.db.QueryRow(ctx, createWorkspace, arg.ID, arg.Name, arg.CreatedAt)
 	var i Workspace
-	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.KeyGeneration,
+	)
 	return i, err
+}
+
+const deleteDeviceWraps = `-- name: DeleteDeviceWraps :exec
+DELETE FROM key_wraps WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3
+`
+
+type DeleteDeviceWrapsParams struct {
+	WorkspaceID string
+	DeviceID    string
+	UserID      string
+}
+
+func (q *Queries) DeleteDeviceWraps(ctx context.Context, arg DeleteDeviceWrapsParams) error {
+	_, err := q.db.Exec(ctx, deleteDeviceWraps, arg.WorkspaceID, arg.DeviceID, arg.UserID)
+	return err
+}
+
+const deleteOldWraps = `-- name: DeleteOldWraps :exec
+DELETE FROM key_wraps WHERE workspace_id = $1 AND generation < $2
+`
+
+type DeleteOldWrapsParams struct {
+	WorkspaceID string
+	Generation  int32
+}
+
+func (q *Queries) DeleteOldWraps(ctx context.Context, arg DeleteOldWrapsParams) error {
+	_, err := q.db.Exec(ctx, deleteOldWraps, arg.WorkspaceID, arg.Generation)
+	return err
 }
 
 const deleteProject = `-- name: DeleteProject :exec
@@ -310,6 +395,23 @@ DELETE FROM projects WHERE id = $1
 func (q *Queries) DeleteProject(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, deleteProject, id)
 	return err
+}
+
+const deleteSecret = `-- name: DeleteSecret :execrows
+DELETE FROM secrets WHERE project_id = $1 AND name = $2
+`
+
+type DeleteSecretParams struct {
+	ProjectID string
+	Name      string
+}
+
+func (q *Queries) DeleteSecret(ctx context.Context, arg DeleteSecretParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSecret, arg.ProjectID, arg.Name)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteWorkspace = `-- name: DeleteWorkspace :exec
@@ -356,6 +458,30 @@ func (q *Queries) DeviceEnvironments(ctx context.Context, workspaceID string) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const deviceKey = `-- name: DeviceKey :one
+SELECT workspace_id, device_id, user_id, name, public_key, created_at FROM device_keys WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3
+`
+
+type DeviceKeyParams struct {
+	WorkspaceID string
+	DeviceID    string
+	UserID      string
+}
+
+func (q *Queries) DeviceKey(ctx context.Context, arg DeviceKeyParams) (DeviceKey, error) {
+	row := q.db.QueryRow(ctx, deviceKey, arg.WorkspaceID, arg.DeviceID, arg.UserID)
+	var i DeviceKey
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.DeviceID,
+		&i.UserID,
+		&i.Name,
+		&i.PublicKey,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const devices = `-- name: Devices :many
@@ -525,6 +651,37 @@ func (q *Queries) InviteByCodeForUpdate(ctx context.Context, codeHash []byte) (I
 	return i, err
 }
 
+const keyWrap = `-- name: KeyWrap :one
+SELECT workspace_id, generation, device_id, user_id, wrapped, wrapped_by, created_at FROM key_wraps WHERE workspace_id = $1 AND generation = $2 AND device_id = $3 AND user_id = $4
+`
+
+type KeyWrapParams struct {
+	WorkspaceID string
+	Generation  int32
+	DeviceID    string
+	UserID      string
+}
+
+func (q *Queries) KeyWrap(ctx context.Context, arg KeyWrapParams) (KeyWrap, error) {
+	row := q.db.QueryRow(ctx, keyWrap,
+		arg.WorkspaceID,
+		arg.Generation,
+		arg.DeviceID,
+		arg.UserID,
+	)
+	var i KeyWrap
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.Generation,
+		&i.DeviceID,
+		&i.UserID,
+		&i.Wrapped,
+		&i.WrappedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const member = `-- name: Member :one
 SELECT workspace_id, user_id, role, joined_at FROM members WHERE workspace_id = $1 AND user_id = $2
 `
@@ -647,6 +804,53 @@ func (q *Queries) OpenInvites(ctx context.Context, arg OpenInvitesParams) ([]Ope
 	return items, nil
 }
 
+const pendingDevices = `-- name: PendingDevices :many
+SELECT d.device_id, d.user_id, d.name, d.public_key, u.email FROM device_keys d
+JOIN users u ON u.id = d.user_id
+LEFT JOIN key_wraps k ON k.workspace_id = d.workspace_id AND k.device_id = d.device_id AND k.user_id = d.user_id AND k.generation = $2
+WHERE d.workspace_id = $1 AND k.wrapped IS NULL
+ORDER BY u.email, d.name
+`
+
+type PendingDevicesParams struct {
+	WorkspaceID string
+	Generation  int32
+}
+
+type PendingDevicesRow struct {
+	DeviceID  string
+	UserID    string
+	Name      string
+	PublicKey string
+	Email     string
+}
+
+func (q *Queries) PendingDevices(ctx context.Context, arg PendingDevicesParams) ([]PendingDevicesRow, error) {
+	rows, err := q.db.Query(ctx, pendingDevices, arg.WorkspaceID, arg.Generation)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PendingDevicesRow
+	for rows.Next() {
+		var i PendingDevicesRow
+		if err := rows.Scan(
+			&i.DeviceID,
+			&i.UserID,
+			&i.Name,
+			&i.PublicKey,
+			&i.Email,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const projectByName = `-- name: ProjectByName :one
 SELECT id, workspace_id, name, created_by, created_at, version FROM projects WHERE workspace_id = $1 AND name = $2
 `
@@ -721,6 +925,51 @@ func (q *Queries) ProjectRoles(ctx context.Context, workspaceID string) ([]Proje
 			&i.UserID,
 			&i.Role,
 			&i.Project,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const projectSecrets = `-- name: ProjectSecrets :many
+SELECT s.workspace_id, s.project_id, s.name, s.generation, s.ciphertext, s.updated_by, s.updated_at, u.email AS updated_by_email FROM secrets s JOIN users u ON u.id = s.updated_by
+WHERE s.project_id = $1 ORDER BY s.name
+`
+
+type ProjectSecretsRow struct {
+	WorkspaceID    string
+	ProjectID      string
+	Name           string
+	Generation     int32
+	Ciphertext     []byte
+	UpdatedBy      string
+	UpdatedAt      time.Time
+	UpdatedByEmail string
+}
+
+func (q *Queries) ProjectSecrets(ctx context.Context, projectID string) ([]ProjectSecretsRow, error) {
+	rows, err := q.db.Query(ctx, projectSecrets, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProjectSecretsRow
+	for rows.Next() {
+		var i ProjectSecretsRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.ProjectID,
+			&i.Name,
+			&i.Generation,
+			&i.Ciphertext,
+			&i.UpdatedBy,
+			&i.UpdatedAt,
+			&i.UpdatedByEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -876,7 +1125,7 @@ func (q *Queries) RemoveProjectRole(ctx context.Context, arg RemoveProjectRolePa
 }
 
 const renameWorkspace = `-- name: RenameWorkspace :one
-UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING id, name, created_at
+UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING id, name, created_at, key_generation
 `
 
 type RenameWorkspaceParams struct {
@@ -887,7 +1136,12 @@ type RenameWorkspaceParams struct {
 func (q *Queries) RenameWorkspace(ctx context.Context, arg RenameWorkspaceParams) (Workspace, error) {
 	row := q.db.QueryRow(ctx, renameWorkspace, arg.ID, arg.Name)
 	var i Workspace
-	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.KeyGeneration,
+	)
 	return i, err
 }
 
@@ -921,6 +1175,20 @@ type RevokeInviteParams struct {
 
 func (q *Queries) RevokeInvite(ctx context.Context, arg RevokeInviteParams) error {
 	_, err := q.db.Exec(ctx, revokeInvite, arg.WorkspaceID, arg.ID, arg.RevokedAt)
+	return err
+}
+
+const setKeyGeneration = `-- name: SetKeyGeneration :exec
+UPDATE workspaces SET key_generation = $2 WHERE id = $1
+`
+
+type SetKeyGenerationParams struct {
+	ID            string
+	KeyGeneration int32
+}
+
+func (q *Queries) SetKeyGeneration(ctx context.Context, arg SetKeyGenerationParams) error {
+	_, err := q.db.Exec(ctx, setKeyGeneration, arg.ID, arg.KeyGeneration)
 	return err
 }
 
@@ -975,6 +1243,35 @@ func (q *Queries) SetProjectVersion(ctx context.Context, arg SetProjectVersionPa
 	return err
 }
 
+const setSecret = `-- name: SetSecret :exec
+INSERT INTO secrets (workspace_id, project_id, name, generation, ciphertext, updated_by, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (project_id, name) DO UPDATE SET generation = excluded.generation, ciphertext = excluded.ciphertext,
+    updated_by = excluded.updated_by, updated_at = excluded.updated_at
+`
+
+type SetSecretParams struct {
+	WorkspaceID string
+	ProjectID   string
+	Name        string
+	Generation  int32
+	Ciphertext  []byte
+	UpdatedBy   string
+	UpdatedAt   time.Time
+}
+
+func (q *Queries) SetSecret(ctx context.Context, arg SetSecretParams) error {
+	_, err := q.db.Exec(ctx, setSecret,
+		arg.WorkspaceID,
+		arg.ProjectID,
+		arg.Name,
+		arg.Generation,
+		arg.Ciphertext,
+		arg.UpdatedBy,
+		arg.UpdatedAt,
+	)
+	return err
+}
+
 const upsertDevice = `-- name: UpsertDevice :exec
 INSERT INTO devices (workspace_id, device_id, user_id, name, agent_version, last_seen)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -999,6 +1296,32 @@ func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) erro
 		arg.Name,
 		arg.AgentVersion,
 		arg.LastSeen,
+	)
+	return err
+}
+
+const upsertDeviceKey = `-- name: UpsertDeviceKey :exec
+INSERT INTO device_keys (workspace_id, device_id, user_id, name, public_key, created_at) VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (workspace_id, device_id, user_id) DO UPDATE SET name = excluded.name, public_key = excluded.public_key
+`
+
+type UpsertDeviceKeyParams struct {
+	WorkspaceID string
+	DeviceID    string
+	UserID      string
+	Name        string
+	PublicKey   string
+	CreatedAt   time.Time
+}
+
+func (q *Queries) UpsertDeviceKey(ctx context.Context, arg UpsertDeviceKeyParams) error {
+	_, err := q.db.Exec(ctx, upsertDeviceKey,
+		arg.WorkspaceID,
+		arg.DeviceID,
+		arg.UserID,
+		arg.Name,
+		arg.PublicKey,
+		arg.CreatedAt,
 	)
 	return err
 }
@@ -1123,17 +1446,18 @@ func (q *Queries) UserProjectRoles(ctx context.Context, arg UserProjectRolesPara
 }
 
 const userWorkspaces = `-- name: UserWorkspaces :many
-SELECT w.id, w.name, w.created_at, m.role FROM workspaces w
+SELECT w.id, w.name, w.created_at, w.key_generation, m.role FROM workspaces w
 JOIN members m ON m.workspace_id = w.id
 WHERE m.user_id = $1
 ORDER BY w.name
 `
 
 type UserWorkspacesRow struct {
-	ID        string
-	Name      string
-	CreatedAt time.Time
-	Role      string
+	ID            string
+	Name          string
+	CreatedAt     time.Time
+	KeyGeneration int32
+	Role          string
 }
 
 func (q *Queries) UserWorkspaces(ctx context.Context, userID string) ([]UserWorkspacesRow, error) {
@@ -1149,6 +1473,7 @@ func (q *Queries) UserWorkspaces(ctx context.Context, userID string) ([]UserWork
 			&i.ID,
 			&i.Name,
 			&i.CreatedAt,
+			&i.KeyGeneration,
 			&i.Role,
 		); err != nil {
 			return nil, err
@@ -1162,13 +1487,18 @@ func (q *Queries) UserWorkspaces(ctx context.Context, userID string) ([]UserWork
 }
 
 const workspace = `-- name: Workspace :one
-SELECT id, name, created_at FROM workspaces WHERE id = $1
+SELECT id, name, created_at, key_generation FROM workspaces WHERE id = $1
 `
 
 func (q *Queries) Workspace(ctx context.Context, id string) (Workspace, error) {
 	row := q.db.QueryRow(ctx, workspace, id)
 	var i Workspace
-	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.KeyGeneration,
+	)
 	return i, err
 }
 
@@ -1182,4 +1512,114 @@ func (q *Queries) WorkspaceAdmin(ctx context.Context, workspaceID string) (User,
 	var i User
 	err := row.Scan(&i.ID, &i.Email, &i.SeenAt)
 	return i, err
+}
+
+const workspaceDeviceKeys = `-- name: WorkspaceDeviceKeys :many
+SELECT workspace_id, device_id, user_id, name, public_key, created_at FROM device_keys WHERE workspace_id = $1
+`
+
+func (q *Queries) WorkspaceDeviceKeys(ctx context.Context, workspaceID string) ([]DeviceKey, error) {
+	rows, err := q.db.Query(ctx, workspaceDeviceKeys, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeviceKey
+	for rows.Next() {
+		var i DeviceKey
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.DeviceID,
+			&i.UserID,
+			&i.Name,
+			&i.PublicKey,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const workspaceForUpdate = `-- name: WorkspaceForUpdate :one
+SELECT id, name, created_at, key_generation FROM workspaces WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) WorkspaceForUpdate(ctx context.Context, id string) (Workspace, error) {
+	row := q.db.QueryRow(ctx, workspaceForUpdate, id)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.KeyGeneration,
+	)
+	return i, err
+}
+
+const workspaceKey = `-- name: WorkspaceKey :one
+SELECT k.workspace_id, k.generation, k.public_key, k.created_by, k.created_at FROM workspace_keys k JOIN workspaces w ON w.id = k.workspace_id AND k.generation = w.key_generation
+WHERE w.id = $1
+`
+
+func (q *Queries) WorkspaceKey(ctx context.Context, id string) (WorkspaceKey, error) {
+	row := q.db.QueryRow(ctx, workspaceKey, id)
+	var i WorkspaceKey
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.Generation,
+		&i.PublicKey,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const workspaceSecrets = `-- name: WorkspaceSecrets :many
+SELECT s.workspace_id, s.project_id, s.name, s.generation, s.ciphertext, s.updated_by, s.updated_at, p.name AS project FROM secrets s JOIN projects p ON p.id = s.project_id
+WHERE s.workspace_id = $1 ORDER BY p.name, s.name
+`
+
+type WorkspaceSecretsRow struct {
+	WorkspaceID string
+	ProjectID   string
+	Name        string
+	Generation  int32
+	Ciphertext  []byte
+	UpdatedBy   string
+	UpdatedAt   time.Time
+	Project     string
+}
+
+func (q *Queries) WorkspaceSecrets(ctx context.Context, workspaceID string) ([]WorkspaceSecretsRow, error) {
+	rows, err := q.db.Query(ctx, workspaceSecrets, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkspaceSecretsRow
+	for rows.Next() {
+		var i WorkspaceSecretsRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.ProjectID,
+			&i.Name,
+			&i.Generation,
+			&i.Ciphertext,
+			&i.UpdatedBy,
+			&i.UpdatedAt,
+			&i.Project,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

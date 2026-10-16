@@ -17,13 +17,17 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"filippo.io/age"
 
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	syncv1 "github.com/amalychev/devopus/gen/devopus/sync/v1"
 	"github.com/amalychev/devopus/gen/devopus/sync/v1/syncv1connect"
+	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
+	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/store"
 	"github.com/amalychev/devopus/internal/credentials"
+	"github.com/amalychev/devopus/internal/secrets"
 )
 
 // Options of a link.
@@ -121,7 +125,7 @@ func (l *Link) Run(ctx context.Context) {
 			continue
 		case connect.CodeOf(err) == connect.CodePermissionDenied:
 			// Not a member any more: the workspace's projects stop here.
-			if _, _, serr := l.opt.Store.SyncServer(ws.ID, "", nil, root); serr != nil {
+			if _, _, serr := l.opt.Store.SyncServer(ws.ID, "", store.ServerKey{}, nil, root); serr != nil {
 				l.opt.Log.Error("stop the workspace's projects", "err", serr)
 			}
 			l.opt.Log.Warn("the workspace server refused this device", "workspace", ws.Name, "err", err)
@@ -152,7 +156,52 @@ func (l *Link) sleep(ctx context.Context, d time.Duration) {
 }
 
 func device(version string) *syncv1.Device {
-	return &syncv1.Device{Id: credentials.DeviceID(), Name: credentials.DeviceName(), AgentVersion: version}
+	d := &syncv1.Device{Id: credentials.DeviceID(), Name: credentials.DeviceName(), AgentVersion: version}
+	if k, err := credentials.DeviceKey(); err == nil {
+		d.PublicKey = k.Recipient().String()
+	}
+	return d
+}
+
+// deliverKey wraps the workspace's key, which this device holds, for the devices
+// waiting for it (ADR-0009, variant A): this is how a new member's agent gets the
+// secrets with nobody doing anything.
+func (l *Link) deliverKey(ctx context.Context, ws *credentials.Workspace, tok string, key store.ServerKey, pending []*syncv1.PendingDevice) {
+	dk, err := credentials.DeviceKey()
+	if err != nil {
+		l.opt.Log.Warn("device key", "err", err)
+		return
+	}
+	n, err := DeliverKey(ctx, ws.ServerURL, ws.ID, tok, key, dk, pending)
+	if err != nil {
+		l.opt.Log.Warn("deliver the workspace key", "err", err)
+		return
+	}
+	l.opt.Log.Info("delivered the workspace key", "devices", n)
+}
+
+// DeliverKey opens the workspace's key wrapped for this device and wraps it for each
+// pending device; it returns how many got it.
+func DeliverKey(ctx context.Context, serverURL, workspaceID, tok string, key store.ServerKey, device *age.X25519Identity, pending []*syncv1.PendingDevice) (int, error) {
+	wsKey, err := secrets.Unwrap(key.Wrapped, device)
+	if err != nil {
+		return 0, err
+	}
+	req := &workspacev1.ProvideKeyWrapsRequest{WorkspaceId: workspaceID, Generation: key.Generation}
+	for _, d := range pending {
+		wrapped, err := secrets.Wrap(wsKey, d.PublicKey)
+		if err != nil {
+			continue // a key that is not age's: the server checks keys, but trust no one
+		}
+		req.Wraps = append(req.Wraps, &workspacev1.KeyWrap{DeviceId: d.DeviceId, UserId: d.UserId, Wrapped: wrapped})
+	}
+	r := connect.NewRequest(req)
+	r.Header().Set("Authorization", "Bearer "+tok)
+	res, err := workspacev1connect.NewWorkspaceServiceClient(http.DefaultClient, serverURL).ProvideKeyWraps(ctx, r)
+	if err != nil {
+		return 0, err
+	}
+	return int(res.Msg.Delivered), nil
 }
 
 func client(url string) syncv1connect.SyncServiceClient {
@@ -190,9 +239,10 @@ func (l *Link) watch(ctx context.Context, ws *credentials.Workspace, tok string)
 		m := stream.Msg()
 		projects := make([]store.ServerProject, 0, len(m.Projects))
 		for _, p := range m.Projects {
-			projects = append(projects, store.ServerProject{Name: p.Name, Spec: []byte(p.ConfigYaml), Version: p.Version})
+			projects = append(projects, store.ServerProject{Name: p.Name, Spec: []byte(p.ConfigYaml), Version: p.Version, Secrets: p.Secrets})
 		}
-		_, conflicts, err := l.opt.Store.SyncServer(m.WorkspaceId, m.AdminEmail, projects, root)
+		key := store.ServerKey{Generation: m.GetKey().GetGeneration(), Wrapped: m.GetKey().GetWrapped()}
+		_, conflicts, err := l.opt.Store.SyncServer(m.WorkspaceId, m.AdminEmail, key, projects, root)
 		if err != nil {
 			return err
 		}
@@ -204,6 +254,9 @@ func (l *Link) watch(ctx context.Context, ws *credentials.Workspace, tok string)
 			*s = State{Workspace: m.WorkspaceName, Server: ws.ServerURL, Connected: true, Received: time.Now()}
 		})
 		l.opt.Log.Info("desired state from the workspace server", "workspace", m.WorkspaceName, "projects", len(m.Projects))
+		if len(m.PendingDevices) > 0 && len(key.Wrapped) > 0 {
+			l.deliverKey(ctx, ws, tok, key, m.PendingDevices)
+		}
 	}
 	if ctx.Err() != nil {
 		return nil

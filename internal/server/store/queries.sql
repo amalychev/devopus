@@ -160,3 +160,62 @@ ORDER BY u.email, d.name;
 
 -- name: DeviceEnvironments :many
 SELECT * FROM device_environments WHERE workspace_id = $1 ORDER BY project, kind, name;
+
+-- name: WorkspaceKey :one
+SELECT k.* FROM workspace_keys k JOIN workspaces w ON w.id = k.workspace_id AND k.generation = w.key_generation
+WHERE w.id = $1;
+
+-- name: WorkspaceForUpdate :one
+SELECT * FROM workspaces WHERE id = $1 FOR UPDATE;
+
+-- name: AddWorkspaceKey :exec
+INSERT INTO workspace_keys (workspace_id, generation, public_key, created_by, created_at) VALUES ($1, $2, $3, $4, $5);
+
+-- name: SetKeyGeneration :exec
+UPDATE workspaces SET key_generation = $2 WHERE id = $1;
+
+-- name: DeviceKey :one
+SELECT * FROM device_keys WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3;
+
+-- name: UpsertDeviceKey :exec
+INSERT INTO device_keys (workspace_id, device_id, user_id, name, public_key, created_at) VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (workspace_id, device_id, user_id) DO UPDATE SET name = excluded.name, public_key = excluded.public_key;
+
+-- name: DeleteDeviceWraps :exec
+DELETE FROM key_wraps WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3;
+
+-- name: KeyWrap :one
+SELECT * FROM key_wraps WHERE workspace_id = $1 AND generation = $2 AND device_id = $3 AND user_id = $4;
+
+-- name: AddKeyWrap :exec
+INSERT INTO key_wraps (workspace_id, generation, device_id, user_id, wrapped, wrapped_by, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (workspace_id, generation, device_id, user_id) DO UPDATE SET wrapped = excluded.wrapped, wrapped_by = excluded.wrapped_by, created_at = excluded.created_at;
+
+-- name: DeleteOldWraps :exec
+DELETE FROM key_wraps WHERE workspace_id = $1 AND generation < $2;
+
+-- name: PendingDevices :many
+SELECT d.device_id, d.user_id, d.name, d.public_key, u.email FROM device_keys d
+JOIN users u ON u.id = d.user_id
+LEFT JOIN key_wraps k ON k.workspace_id = d.workspace_id AND k.device_id = d.device_id AND k.user_id = d.user_id AND k.generation = $2
+WHERE d.workspace_id = $1 AND k.wrapped IS NULL
+ORDER BY u.email, d.name;
+
+-- name: WorkspaceDeviceKeys :many
+SELECT * FROM device_keys WHERE workspace_id = $1;
+
+-- name: SetSecret :exec
+INSERT INTO secrets (workspace_id, project_id, name, generation, ciphertext, updated_by, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (project_id, name) DO UPDATE SET generation = excluded.generation, ciphertext = excluded.ciphertext,
+    updated_by = excluded.updated_by, updated_at = excluded.updated_at;
+
+-- name: DeleteSecret :execrows
+DELETE FROM secrets WHERE project_id = $1 AND name = $2;
+
+-- name: ProjectSecrets :many
+SELECT s.*, u.email AS updated_by_email FROM secrets s JOIN users u ON u.id = s.updated_by
+WHERE s.project_id = $1 ORDER BY s.name;
+
+-- name: WorkspaceSecrets :many
+SELECT s.*, p.name AS project FROM secrets s JOIN projects p ON p.id = s.project_id
+WHERE s.workspace_id = $1 ORDER BY p.name, s.name;

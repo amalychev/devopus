@@ -42,6 +42,15 @@ type DeviceEnvironment struct {
 	ConfigVersion int32
 }
 
+type DeviceKey struct {
+	WorkspaceID string
+	DeviceID    string
+	UserID      string
+	Name        string
+	PublicKey   string
+	CreatedAt   time.Time
+}
+
 type Grant struct {
 	WorkspaceID string
 	ProjectID   string
@@ -64,6 +73,16 @@ type Invite struct {
 	AcceptedAt  *time.Time
 	AcceptedBy  *string
 	RevokedAt   *time.Time
+}
+
+type KeyWrap struct {
+	WorkspaceID string
+	Generation  int32
+	DeviceID    string
+	UserID      string
+	Wrapped     []byte
+	WrappedBy   string
+	CreatedAt   time.Time
 }
 
 type Member struct {
@@ -99,6 +118,16 @@ type ProjectVersion struct {
 	CreatedAt   time.Time
 }
 
+type Secret struct {
+	WorkspaceID string
+	ProjectID   string
+	Name        string
+	Generation  int32
+	Ciphertext  []byte
+	UpdatedBy   string
+	UpdatedAt   time.Time
+}
+
 type User struct {
 	ID     string
 	Email  string
@@ -106,7 +135,16 @@ type User struct {
 }
 
 type Workspace struct {
-	ID        string
-	Name      string
-	CreatedAt time.Time
+	ID            string
+	Name          string
+	CreatedAt     time.Time
+	KeyGeneration int32
+}
+
+type WorkspaceKey struct {
+	WorkspaceID string
+	Generation  int32
+	PublicKey   string
+	CreatedBy   string
+	CreatedAt   time.Time
 }

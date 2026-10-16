@@ -91,6 +91,33 @@ const (
 	// WorkspaceServiceRemoveServiceProcedure is the fully-qualified name of the WorkspaceService's
 	// RemoveService RPC.
 	WorkspaceServiceRemoveServiceProcedure = "/devopus.workspace.v1.WorkspaceService/RemoveService"
+	// WorkspaceServiceGetSecretsKeyProcedure is the fully-qualified name of the WorkspaceService's
+	// GetSecretsKey RPC.
+	WorkspaceServiceGetSecretsKeyProcedure = "/devopus.workspace.v1.WorkspaceService/GetSecretsKey"
+	// WorkspaceServiceRegisterDeviceKeyProcedure is the fully-qualified name of the WorkspaceService's
+	// RegisterDeviceKey RPC.
+	WorkspaceServiceRegisterDeviceKeyProcedure = "/devopus.workspace.v1.WorkspaceService/RegisterDeviceKey"
+	// WorkspaceServiceCreateSecretsKeyProcedure is the fully-qualified name of the WorkspaceService's
+	// CreateSecretsKey RPC.
+	WorkspaceServiceCreateSecretsKeyProcedure = "/devopus.workspace.v1.WorkspaceService/CreateSecretsKey"
+	// WorkspaceServiceProvideKeyWrapsProcedure is the fully-qualified name of the WorkspaceService's
+	// ProvideKeyWraps RPC.
+	WorkspaceServiceProvideKeyWrapsProcedure = "/devopus.workspace.v1.WorkspaceService/ProvideKeyWraps"
+	// WorkspaceServicePrepareRotationProcedure is the fully-qualified name of the WorkspaceService's
+	// PrepareRotation RPC.
+	WorkspaceServicePrepareRotationProcedure = "/devopus.workspace.v1.WorkspaceService/PrepareRotation"
+	// WorkspaceServiceRotateSecretsKeyProcedure is the fully-qualified name of the WorkspaceService's
+	// RotateSecretsKey RPC.
+	WorkspaceServiceRotateSecretsKeyProcedure = "/devopus.workspace.v1.WorkspaceService/RotateSecretsKey"
+	// WorkspaceServiceSetSecretProcedure is the fully-qualified name of the WorkspaceService's
+	// SetSecret RPC.
+	WorkspaceServiceSetSecretProcedure = "/devopus.workspace.v1.WorkspaceService/SetSecret"
+	// WorkspaceServiceListSecretsProcedure is the fully-qualified name of the WorkspaceService's
+	// ListSecrets RPC.
+	WorkspaceServiceListSecretsProcedure = "/devopus.workspace.v1.WorkspaceService/ListSecrets"
+	// WorkspaceServiceRemoveSecretProcedure is the fully-qualified name of the WorkspaceService's
+	// RemoveSecret RPC.
+	WorkspaceServiceRemoveSecretProcedure = "/devopus.workspace.v1.WorkspaceService/RemoveSecret"
 	// WorkspaceServiceCreateInviteProcedure is the fully-qualified name of the WorkspaceService's
 	// CreateInvite RPC.
 	WorkspaceServiceCreateInviteProcedure = "/devopus.workspace.v1.WorkspaceService/CreateInvite"
@@ -159,6 +186,28 @@ type WorkspaceServiceClient interface {
 	// attached to.
 	PutService(context.Context, *connect.Request[v1.PutServiceRequest]) (*connect.Response[v1.PutServiceResponse], error)
 	RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error)
+	// GetSecretsKey is the workspace's current public key, and its private key wrapped
+	// for one of the caller's devices if it has reached it.
+	GetSecretsKey(context.Context, *connect.Request[v1.GetSecretsKeyRequest]) (*connect.Response[v1.GetSecretsKeyResponse], error)
+	// RegisterDeviceKey records the public key of one of the caller's devices: the
+	// workspace's key is wrapped for it.
+	RegisterDeviceKey(context.Context, *connect.Request[v1.RegisterDeviceKeyRequest]) (*connect.Response[v1.RegisterDeviceKeyResponse], error)
+	// CreateSecretsKey sets the workspace's first key, made on the admin's device.
+	CreateSecretsKey(context.Context, *connect.Request[v1.CreateSecretsKeyRequest]) (*connect.Response[v1.CreateSecretsKeyResponse], error)
+	// ProvideKeyWraps delivers the workspace's key to devices waiting for it, wrapped
+	// on a device that holds it: an admin's or a teamlead's.
+	ProvideKeyWraps(context.Context, *connect.Request[v1.ProvideKeyWrapsRequest]) (*connect.Response[v1.ProvideKeyWrapsResponse], error)
+	// PrepareRotation gives the admin's device what a rotation re-encrypts: every
+	// secret, sealed, and the devices that are to keep the key.
+	PrepareRotation(context.Context, *connect.Request[v1.PrepareRotationRequest]) (*connect.Response[v1.PrepareRotationResponse], error)
+	// RotateSecretsKey replaces the key: every secret re-encrypted and the key wrapped
+	// for the devices still in the workspace, all on the admin's device.
+	RotateSecretsKey(context.Context, *connect.Request[v1.RotateSecretsKeyRequest]) (*connect.Response[v1.RotateSecretsKeyResponse], error)
+	// SetSecret stores a secret of a project, encrypted to the workspace's key.
+	SetSecret(context.Context, *connect.Request[v1.SetSecretRequest]) (*connect.Response[v1.SetSecretResponse], error)
+	// ListSecrets names a project's secrets; values only agents decrypt.
+	ListSecrets(context.Context, *connect.Request[v1.ListSecretsRequest]) (*connect.Response[v1.ListSecretsResponse], error)
+	RemoveSecret(context.Context, *connect.Request[v1.RemoveSecretRequest]) (*connect.Response[v1.RemoveSecretResponse], error)
 	// CreateInvite invites an email with a role: the admin invites teamleads and
 	// developers, a teamlead invites developers into the projects they lead.
 	CreateInvite(context.Context, *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error)
@@ -296,6 +345,60 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workspaceServiceMethods.ByName("RemoveService")),
 			connect.WithClientOptions(opts...),
 		),
+		getSecretsKey: connect.NewClient[v1.GetSecretsKeyRequest, v1.GetSecretsKeyResponse](
+			httpClient,
+			baseURL+WorkspaceServiceGetSecretsKeyProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("GetSecretsKey")),
+			connect.WithClientOptions(opts...),
+		),
+		registerDeviceKey: connect.NewClient[v1.RegisterDeviceKeyRequest, v1.RegisterDeviceKeyResponse](
+			httpClient,
+			baseURL+WorkspaceServiceRegisterDeviceKeyProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("RegisterDeviceKey")),
+			connect.WithClientOptions(opts...),
+		),
+		createSecretsKey: connect.NewClient[v1.CreateSecretsKeyRequest, v1.CreateSecretsKeyResponse](
+			httpClient,
+			baseURL+WorkspaceServiceCreateSecretsKeyProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("CreateSecretsKey")),
+			connect.WithClientOptions(opts...),
+		),
+		provideKeyWraps: connect.NewClient[v1.ProvideKeyWrapsRequest, v1.ProvideKeyWrapsResponse](
+			httpClient,
+			baseURL+WorkspaceServiceProvideKeyWrapsProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("ProvideKeyWraps")),
+			connect.WithClientOptions(opts...),
+		),
+		prepareRotation: connect.NewClient[v1.PrepareRotationRequest, v1.PrepareRotationResponse](
+			httpClient,
+			baseURL+WorkspaceServicePrepareRotationProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("PrepareRotation")),
+			connect.WithClientOptions(opts...),
+		),
+		rotateSecretsKey: connect.NewClient[v1.RotateSecretsKeyRequest, v1.RotateSecretsKeyResponse](
+			httpClient,
+			baseURL+WorkspaceServiceRotateSecretsKeyProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("RotateSecretsKey")),
+			connect.WithClientOptions(opts...),
+		),
+		setSecret: connect.NewClient[v1.SetSecretRequest, v1.SetSecretResponse](
+			httpClient,
+			baseURL+WorkspaceServiceSetSecretProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("SetSecret")),
+			connect.WithClientOptions(opts...),
+		),
+		listSecrets: connect.NewClient[v1.ListSecretsRequest, v1.ListSecretsResponse](
+			httpClient,
+			baseURL+WorkspaceServiceListSecretsProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("ListSecrets")),
+			connect.WithClientOptions(opts...),
+		),
+		removeSecret: connect.NewClient[v1.RemoveSecretRequest, v1.RemoveSecretResponse](
+			httpClient,
+			baseURL+WorkspaceServiceRemoveSecretProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("RemoveSecret")),
+			connect.WithClientOptions(opts...),
+		),
 		createInvite: connect.NewClient[v1.CreateInviteRequest, v1.CreateInviteResponse](
 			httpClient,
 			baseURL+WorkspaceServiceCreateInviteProcedure,
@@ -373,6 +476,15 @@ type workspaceServiceClient struct {
 	removeApp             *connect.Client[v1.RemoveAppRequest, v1.RemoveAppResponse]
 	putService            *connect.Client[v1.PutServiceRequest, v1.PutServiceResponse]
 	removeService         *connect.Client[v1.RemoveServiceRequest, v1.RemoveServiceResponse]
+	getSecretsKey         *connect.Client[v1.GetSecretsKeyRequest, v1.GetSecretsKeyResponse]
+	registerDeviceKey     *connect.Client[v1.RegisterDeviceKeyRequest, v1.RegisterDeviceKeyResponse]
+	createSecretsKey      *connect.Client[v1.CreateSecretsKeyRequest, v1.CreateSecretsKeyResponse]
+	provideKeyWraps       *connect.Client[v1.ProvideKeyWrapsRequest, v1.ProvideKeyWrapsResponse]
+	prepareRotation       *connect.Client[v1.PrepareRotationRequest, v1.PrepareRotationResponse]
+	rotateSecretsKey      *connect.Client[v1.RotateSecretsKeyRequest, v1.RotateSecretsKeyResponse]
+	setSecret             *connect.Client[v1.SetSecretRequest, v1.SetSecretResponse]
+	listSecrets           *connect.Client[v1.ListSecretsRequest, v1.ListSecretsResponse]
+	removeSecret          *connect.Client[v1.RemoveSecretRequest, v1.RemoveSecretResponse]
 	createInvite          *connect.Client[v1.CreateInviteRequest, v1.CreateInviteResponse]
 	listInvites           *connect.Client[v1.ListInvitesRequest, v1.ListInvitesResponse]
 	revokeInvite          *connect.Client[v1.RevokeInviteRequest, v1.RevokeInviteResponse]
@@ -474,6 +586,51 @@ func (c *workspaceServiceClient) RemoveService(ctx context.Context, req *connect
 	return c.removeService.CallUnary(ctx, req)
 }
 
+// GetSecretsKey calls devopus.workspace.v1.WorkspaceService.GetSecretsKey.
+func (c *workspaceServiceClient) GetSecretsKey(ctx context.Context, req *connect.Request[v1.GetSecretsKeyRequest]) (*connect.Response[v1.GetSecretsKeyResponse], error) {
+	return c.getSecretsKey.CallUnary(ctx, req)
+}
+
+// RegisterDeviceKey calls devopus.workspace.v1.WorkspaceService.RegisterDeviceKey.
+func (c *workspaceServiceClient) RegisterDeviceKey(ctx context.Context, req *connect.Request[v1.RegisterDeviceKeyRequest]) (*connect.Response[v1.RegisterDeviceKeyResponse], error) {
+	return c.registerDeviceKey.CallUnary(ctx, req)
+}
+
+// CreateSecretsKey calls devopus.workspace.v1.WorkspaceService.CreateSecretsKey.
+func (c *workspaceServiceClient) CreateSecretsKey(ctx context.Context, req *connect.Request[v1.CreateSecretsKeyRequest]) (*connect.Response[v1.CreateSecretsKeyResponse], error) {
+	return c.createSecretsKey.CallUnary(ctx, req)
+}
+
+// ProvideKeyWraps calls devopus.workspace.v1.WorkspaceService.ProvideKeyWraps.
+func (c *workspaceServiceClient) ProvideKeyWraps(ctx context.Context, req *connect.Request[v1.ProvideKeyWrapsRequest]) (*connect.Response[v1.ProvideKeyWrapsResponse], error) {
+	return c.provideKeyWraps.CallUnary(ctx, req)
+}
+
+// PrepareRotation calls devopus.workspace.v1.WorkspaceService.PrepareRotation.
+func (c *workspaceServiceClient) PrepareRotation(ctx context.Context, req *connect.Request[v1.PrepareRotationRequest]) (*connect.Response[v1.PrepareRotationResponse], error) {
+	return c.prepareRotation.CallUnary(ctx, req)
+}
+
+// RotateSecretsKey calls devopus.workspace.v1.WorkspaceService.RotateSecretsKey.
+func (c *workspaceServiceClient) RotateSecretsKey(ctx context.Context, req *connect.Request[v1.RotateSecretsKeyRequest]) (*connect.Response[v1.RotateSecretsKeyResponse], error) {
+	return c.rotateSecretsKey.CallUnary(ctx, req)
+}
+
+// SetSecret calls devopus.workspace.v1.WorkspaceService.SetSecret.
+func (c *workspaceServiceClient) SetSecret(ctx context.Context, req *connect.Request[v1.SetSecretRequest]) (*connect.Response[v1.SetSecretResponse], error) {
+	return c.setSecret.CallUnary(ctx, req)
+}
+
+// ListSecrets calls devopus.workspace.v1.WorkspaceService.ListSecrets.
+func (c *workspaceServiceClient) ListSecrets(ctx context.Context, req *connect.Request[v1.ListSecretsRequest]) (*connect.Response[v1.ListSecretsResponse], error) {
+	return c.listSecrets.CallUnary(ctx, req)
+}
+
+// RemoveSecret calls devopus.workspace.v1.WorkspaceService.RemoveSecret.
+func (c *workspaceServiceClient) RemoveSecret(ctx context.Context, req *connect.Request[v1.RemoveSecretRequest]) (*connect.Response[v1.RemoveSecretResponse], error) {
+	return c.removeSecret.CallUnary(ctx, req)
+}
+
 // CreateInvite calls devopus.workspace.v1.WorkspaceService.CreateInvite.
 func (c *workspaceServiceClient) CreateInvite(ctx context.Context, req *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error) {
 	return c.createInvite.CallUnary(ctx, req)
@@ -559,6 +716,28 @@ type WorkspaceServiceHandler interface {
 	// attached to.
 	PutService(context.Context, *connect.Request[v1.PutServiceRequest]) (*connect.Response[v1.PutServiceResponse], error)
 	RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error)
+	// GetSecretsKey is the workspace's current public key, and its private key wrapped
+	// for one of the caller's devices if it has reached it.
+	GetSecretsKey(context.Context, *connect.Request[v1.GetSecretsKeyRequest]) (*connect.Response[v1.GetSecretsKeyResponse], error)
+	// RegisterDeviceKey records the public key of one of the caller's devices: the
+	// workspace's key is wrapped for it.
+	RegisterDeviceKey(context.Context, *connect.Request[v1.RegisterDeviceKeyRequest]) (*connect.Response[v1.RegisterDeviceKeyResponse], error)
+	// CreateSecretsKey sets the workspace's first key, made on the admin's device.
+	CreateSecretsKey(context.Context, *connect.Request[v1.CreateSecretsKeyRequest]) (*connect.Response[v1.CreateSecretsKeyResponse], error)
+	// ProvideKeyWraps delivers the workspace's key to devices waiting for it, wrapped
+	// on a device that holds it: an admin's or a teamlead's.
+	ProvideKeyWraps(context.Context, *connect.Request[v1.ProvideKeyWrapsRequest]) (*connect.Response[v1.ProvideKeyWrapsResponse], error)
+	// PrepareRotation gives the admin's device what a rotation re-encrypts: every
+	// secret, sealed, and the devices that are to keep the key.
+	PrepareRotation(context.Context, *connect.Request[v1.PrepareRotationRequest]) (*connect.Response[v1.PrepareRotationResponse], error)
+	// RotateSecretsKey replaces the key: every secret re-encrypted and the key wrapped
+	// for the devices still in the workspace, all on the admin's device.
+	RotateSecretsKey(context.Context, *connect.Request[v1.RotateSecretsKeyRequest]) (*connect.Response[v1.RotateSecretsKeyResponse], error)
+	// SetSecret stores a secret of a project, encrypted to the workspace's key.
+	SetSecret(context.Context, *connect.Request[v1.SetSecretRequest]) (*connect.Response[v1.SetSecretResponse], error)
+	// ListSecrets names a project's secrets; values only agents decrypt.
+	ListSecrets(context.Context, *connect.Request[v1.ListSecretsRequest]) (*connect.Response[v1.ListSecretsResponse], error)
+	RemoveSecret(context.Context, *connect.Request[v1.RemoveSecretRequest]) (*connect.Response[v1.RemoveSecretResponse], error)
 	// CreateInvite invites an email with a role: the admin invites teamleads and
 	// developers, a teamlead invites developers into the projects they lead.
 	CreateInvite(context.Context, *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error)
@@ -692,6 +871,60 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 		connect.WithSchema(workspaceServiceMethods.ByName("RemoveService")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workspaceServiceGetSecretsKeyHandler := connect.NewUnaryHandler(
+		WorkspaceServiceGetSecretsKeyProcedure,
+		svc.GetSecretsKey,
+		connect.WithSchema(workspaceServiceMethods.ByName("GetSecretsKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceRegisterDeviceKeyHandler := connect.NewUnaryHandler(
+		WorkspaceServiceRegisterDeviceKeyProcedure,
+		svc.RegisterDeviceKey,
+		connect.WithSchema(workspaceServiceMethods.ByName("RegisterDeviceKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceCreateSecretsKeyHandler := connect.NewUnaryHandler(
+		WorkspaceServiceCreateSecretsKeyProcedure,
+		svc.CreateSecretsKey,
+		connect.WithSchema(workspaceServiceMethods.ByName("CreateSecretsKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceProvideKeyWrapsHandler := connect.NewUnaryHandler(
+		WorkspaceServiceProvideKeyWrapsProcedure,
+		svc.ProvideKeyWraps,
+		connect.WithSchema(workspaceServiceMethods.ByName("ProvideKeyWraps")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServicePrepareRotationHandler := connect.NewUnaryHandler(
+		WorkspaceServicePrepareRotationProcedure,
+		svc.PrepareRotation,
+		connect.WithSchema(workspaceServiceMethods.ByName("PrepareRotation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceRotateSecretsKeyHandler := connect.NewUnaryHandler(
+		WorkspaceServiceRotateSecretsKeyProcedure,
+		svc.RotateSecretsKey,
+		connect.WithSchema(workspaceServiceMethods.ByName("RotateSecretsKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceSetSecretHandler := connect.NewUnaryHandler(
+		WorkspaceServiceSetSecretProcedure,
+		svc.SetSecret,
+		connect.WithSchema(workspaceServiceMethods.ByName("SetSecret")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceListSecretsHandler := connect.NewUnaryHandler(
+		WorkspaceServiceListSecretsProcedure,
+		svc.ListSecrets,
+		connect.WithSchema(workspaceServiceMethods.ByName("ListSecrets")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceRemoveSecretHandler := connect.NewUnaryHandler(
+		WorkspaceServiceRemoveSecretProcedure,
+		svc.RemoveSecret,
+		connect.WithSchema(workspaceServiceMethods.ByName("RemoveSecret")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workspaceServiceCreateInviteHandler := connect.NewUnaryHandler(
 		WorkspaceServiceCreateInviteProcedure,
 		svc.CreateInvite,
@@ -784,6 +1017,24 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 			workspaceServicePutServiceHandler.ServeHTTP(w, r)
 		case WorkspaceServiceRemoveServiceProcedure:
 			workspaceServiceRemoveServiceHandler.ServeHTTP(w, r)
+		case WorkspaceServiceGetSecretsKeyProcedure:
+			workspaceServiceGetSecretsKeyHandler.ServeHTTP(w, r)
+		case WorkspaceServiceRegisterDeviceKeyProcedure:
+			workspaceServiceRegisterDeviceKeyHandler.ServeHTTP(w, r)
+		case WorkspaceServiceCreateSecretsKeyProcedure:
+			workspaceServiceCreateSecretsKeyHandler.ServeHTTP(w, r)
+		case WorkspaceServiceProvideKeyWrapsProcedure:
+			workspaceServiceProvideKeyWrapsHandler.ServeHTTP(w, r)
+		case WorkspaceServicePrepareRotationProcedure:
+			workspaceServicePrepareRotationHandler.ServeHTTP(w, r)
+		case WorkspaceServiceRotateSecretsKeyProcedure:
+			workspaceServiceRotateSecretsKeyHandler.ServeHTTP(w, r)
+		case WorkspaceServiceSetSecretProcedure:
+			workspaceServiceSetSecretHandler.ServeHTTP(w, r)
+		case WorkspaceServiceListSecretsProcedure:
+			workspaceServiceListSecretsHandler.ServeHTTP(w, r)
+		case WorkspaceServiceRemoveSecretProcedure:
+			workspaceServiceRemoveSecretHandler.ServeHTTP(w, r)
 		case WorkspaceServiceCreateInviteProcedure:
 			workspaceServiceCreateInviteHandler.ServeHTTP(w, r)
 		case WorkspaceServiceListInvitesProcedure:
@@ -881,6 +1132,42 @@ func (UnimplementedWorkspaceServiceHandler) PutService(context.Context, *connect
 
 func (UnimplementedWorkspaceServiceHandler) RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RemoveService is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) GetSecretsKey(context.Context, *connect.Request[v1.GetSecretsKeyRequest]) (*connect.Response[v1.GetSecretsKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.GetSecretsKey is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) RegisterDeviceKey(context.Context, *connect.Request[v1.RegisterDeviceKeyRequest]) (*connect.Response[v1.RegisterDeviceKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RegisterDeviceKey is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) CreateSecretsKey(context.Context, *connect.Request[v1.CreateSecretsKeyRequest]) (*connect.Response[v1.CreateSecretsKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.CreateSecretsKey is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) ProvideKeyWraps(context.Context, *connect.Request[v1.ProvideKeyWrapsRequest]) (*connect.Response[v1.ProvideKeyWrapsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.ProvideKeyWraps is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) PrepareRotation(context.Context, *connect.Request[v1.PrepareRotationRequest]) (*connect.Response[v1.PrepareRotationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.PrepareRotation is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) RotateSecretsKey(context.Context, *connect.Request[v1.RotateSecretsKeyRequest]) (*connect.Response[v1.RotateSecretsKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RotateSecretsKey is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) SetSecret(context.Context, *connect.Request[v1.SetSecretRequest]) (*connect.Response[v1.SetSecretResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.SetSecret is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) ListSecrets(context.Context, *connect.Request[v1.ListSecretsRequest]) (*connect.Response[v1.ListSecretsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.ListSecrets is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) RemoveSecret(context.Context, *connect.Request[v1.RemoveSecretRequest]) (*connect.Response[v1.RemoveSecretResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RemoveSecret is not implemented"))
 }
 
 func (UnimplementedWorkspaceServiceHandler) CreateInvite(context.Context, *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error) {

@@ -73,8 +73,9 @@ func (h *hub) wake(ws string) {
 	}
 }
 
-// desired is what a member's devices run in a workspace: the projects they work in.
-func (s *Service) desired(ctx context.Context, c *caller) (*syncv1.WatchResponse, error) {
+// desired is what a member's device runs in a workspace: the projects they work in,
+// with the secrets they may read, and the workspace's key wrapped for the device.
+func (s *Service) desired(ctx context.Context, c *caller, device string) (*syncv1.WatchResponse, error) {
 	w, err := s.q.Workspace(ctx, c.workspace)
 	if err != nil {
 		return nil, err
@@ -96,7 +97,30 @@ func (s *Service) desired(ctx context.Context, c *caller) (*syncv1.WatchResponse
 		if err != nil {
 			return nil, err
 		}
-		out.Projects = append(out.Projects, &syncv1.DesiredProject{Id: p.ID, Name: p.Name, Version: p.Version, ConfigYaml: v.Config})
+		dp := &syncv1.DesiredProject{Id: p.ID, Name: p.Name, Version: p.Version, ConfigYaml: v.Config}
+		if c.subject.Can(authz.SecretsRead, p.Name) {
+			secrets, err := s.q.ProjectSecrets(ctx, p.ID)
+			if err != nil {
+				return nil, err
+			}
+			for _, sec := range secrets {
+				if dp.Secrets == nil {
+					dp.Secrets = map[string][]byte{}
+				}
+				dp.Secrets[sec.Name] = sec.Ciphertext
+			}
+		}
+		out.Projects = append(out.Projects, dp)
+	}
+	gen, wrapped, pending, err := s.keyFor(ctx, c, device)
+	if err != nil {
+		return nil, err
+	}
+	if gen > 0 {
+		out.Key = &syncv1.SecretsKey{Generation: gen, Wrapped: wrapped}
+	}
+	for _, d := range pending {
+		out.PendingDevices = append(out.PendingDevices, &syncv1.PendingDevice{DeviceId: d.DeviceID, UserId: d.UserID, UserEmail: d.Email, DeviceName: d.Name, PublicKey: d.PublicKey})
 	}
 	return out, nil
 }
@@ -126,7 +150,7 @@ func (x *syncService) Watch(ctx context.Context, req *connect.Request[syncv1.Wat
 		if err := s.load(ctx, c, c.workspace); err != nil {
 			return err
 		}
-		ds, err := s.desired(ctx, c)
+		ds, err := s.desired(ctx, c, req.Msg.Device.GetId())
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil
@@ -158,7 +182,12 @@ func (s *Service) seeDevice(ctx context.Context, c *caller, d *syncv1.Device) er
 	if err != nil {
 		return internal(err)
 	}
-	return nil
+	if d.PublicKey == "" {
+		return nil
+	}
+	return s.tx(ctx, func(q *store.Queries) error {
+		return s.saveDeviceKey(ctx, q, c.workspace, c.userID, d.Id, d.Name, d.PublicKey)
+	})
 }
 
 func (x *syncService) ReportStatus(ctx context.Context, req *connect.Request[syncv1.ReportStatusRequest]) (*connect.Response[syncv1.ReportStatusResponse], error) {

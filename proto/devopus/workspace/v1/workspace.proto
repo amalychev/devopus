@@ -156,6 +156,77 @@ service WorkspaceService {
     };
   }
 
+  // Secrets are end-to-end (ADR-0009): the server keeps the workspace's public key,
+  // its private key wrapped for each device, and ciphertexts. It reads no value.
+
+  // GetSecretsKey is the workspace's current public key, and its private key wrapped
+  // for one of the caller's devices if it has reached it.
+  rpc GetSecretsKey(GetSecretsKeyRequest) returns (GetSecretsKeyResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  // RegisterDeviceKey records the public key of one of the caller's devices: the
+  // workspace's key is wrapped for it.
+  rpc RegisterDeviceKey(RegisterDeviceKeyRequest) returns (RegisterDeviceKeyResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  // CreateSecretsKey sets the workspace's first key, made on the admin's device.
+  rpc CreateSecretsKey(CreateSecretsKeyRequest) returns (CreateSecretsKeyResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.manage"
+    };
+  }
+  // ProvideKeyWraps delivers the workspace's key to devices waiting for it, wrapped
+  // on a device that holds it: an admin's or a teamlead's.
+  rpc ProvideKeyWraps(ProvideKeyWrapsRequest) returns (ProvideKeyWrapsResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "members.invite"
+    };
+  }
+  // PrepareRotation gives the admin's device what a rotation re-encrypts: every
+  // secret, sealed, and the devices that are to keep the key.
+  rpc PrepareRotation(PrepareRotationRequest) returns (PrepareRotationResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.manage"
+    };
+  }
+  // RotateSecretsKey replaces the key: every secret re-encrypted and the key wrapped
+  // for the devices still in the workspace, all on the admin's device.
+  rpc RotateSecretsKey(RotateSecretsKeyRequest) returns (RotateSecretsKeyResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.manage"
+    };
+  }
+  // SetSecret stores a secret of a project, encrypted to the workspace's key.
+  rpc SetSecret(SetSecretRequest) returns (SetSecretResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "secrets.manage"
+    };
+  }
+  // ListSecrets names a project's secrets; values only agents decrypt.
+  rpc ListSecrets(ListSecretsRequest) returns (ListSecretsResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "secrets.read"
+    };
+  }
+  rpc RemoveSecret(RemoveSecretRequest) returns (RemoveSecretResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "secrets.manage"
+    };
+  }
+
   // CreateInvite invites an email with a role: the admin invites teamleads and
   // developers, a teamlead invites developers into the projects they lead.
   rpc CreateInvite(CreateInviteRequest) returns (CreateInviteResponse) {
@@ -564,3 +635,128 @@ message RemoveMemberRequest {
 }
 
 message RemoveMemberResponse {}
+
+message GetSecretsKeyRequest {
+  string workspace_id = 1;
+  // The device whose wrapped key to return.
+  string device_id = 2;
+}
+
+message GetSecretsKeyResponse {
+  // 0: the workspace has no key yet.
+  int32 generation = 1;
+  // age1…
+  string public_key = 2;
+  // The private key wrapped for the device; empty until it reaches the device.
+  bytes wrapped = 3;
+}
+
+message RegisterDeviceKeyRequest {
+  string workspace_id = 1;
+  string device_id = 2;
+  string device_name = 3;
+  string public_key = 4;
+}
+
+message RegisterDeviceKeyResponse {}
+
+message CreateSecretsKeyRequest {
+  string workspace_id = 1;
+  string public_key = 2;
+  // The key wrapped for the admin's device, which made it.
+  string device_id = 3;
+  bytes wrapped = 4;
+}
+
+message CreateSecretsKeyResponse {
+  int32 generation = 1;
+}
+
+message KeyWrap {
+  string device_id = 1;
+  string user_id = 2;
+  bytes wrapped = 3;
+}
+
+message ProvideKeyWrapsRequest {
+  string workspace_id = 1;
+  int32 generation = 2;
+  repeated KeyWrap wraps = 3;
+}
+
+message ProvideKeyWrapsResponse {
+  int32 delivered = 1;
+}
+
+message SealedSecret {
+  string project = 1;
+  string name = 2;
+  bytes ciphertext = 3;
+}
+
+message RotateSecretsKeyRequest {
+  string workspace_id = 1;
+  // The generation being replaced: the rotation is refused if it is not current.
+  int32 from_generation = 2;
+  string public_key = 3;
+  // For every device of the workspace that is to keep the key.
+  repeated KeyWrap wraps = 4;
+  // Every secret of the workspace, re-encrypted to the new key.
+  repeated SealedSecret secrets = 5;
+}
+
+message RotateSecretsKeyResponse {
+  int32 generation = 1;
+}
+
+message SetSecretRequest {
+  string workspace_id = 1;
+  string project = 2;
+  string name = 3;
+  // The key generation it is encrypted to: it must be the current one.
+  int32 generation = 4;
+  bytes ciphertext = 5;
+}
+
+message SetSecretResponse {}
+
+message SecretInfo {
+  string name = 1;
+  string updated_by = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message ListSecretsRequest {
+  string workspace_id = 1;
+  string project = 2;
+}
+
+message ListSecretsResponse {
+  repeated SecretInfo secrets = 1;
+}
+
+message RemoveSecretRequest {
+  string workspace_id = 1;
+  string project = 2;
+  string name = 3;
+}
+
+message RemoveSecretResponse {}
+
+message PrepareRotationRequest {
+  string workspace_id = 1;
+}
+
+message DeviceKey {
+  string device_id = 1;
+  string user_id = 2;
+  string user_email = 3;
+  string device_name = 4;
+  string public_key = 5;
+}
+
+message PrepareRotationResponse {
+  int32 generation = 1;
+  repeated SealedSecret secrets = 2;
+  repeated DeviceKey devices = 3;
+}

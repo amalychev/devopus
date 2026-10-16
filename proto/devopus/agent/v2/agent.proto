@@ -83,6 +83,11 @@ message ProjectSpec {
   bool orphaned = 9;
   // Stopped on this device with devopus down: the server's changes do not start it.
   bool held = 10;
+  // Its secrets encrypted to the workspace's key, by name (ADR-0009).
+  map<string, bytes> secrets = 11;
+  // The workspace's key wrapped for this device; empty until it is delivered.
+  bytes key_wrap = 12;
+  int32 key_generation = 13;
 }
 
 enum EnvironmentKind {

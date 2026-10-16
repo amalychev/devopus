@@ -62,7 +62,7 @@ func (s *Server) Status(context.Context, *connect.Request[agentv2.StatusRequest]
 	st := s.b.Store().Snapshot()
 	projects := st.Projects
 	for _, p := range projects {
-		p.Config, p.Spec = nil, nil // the CLI needs names and roots, not files
+		p.Config, p.Spec, p.Secrets, p.KeyWrap = nil, nil, nil, nil // the CLI needs names and roots, not files
 	}
 	return connect.NewResponse(&agentv2.StatusResponse{
 		AgentVersion:    s.b.Version(),

@@ -400,7 +400,12 @@ type ProjectSpec struct {
 	// or another workspace is current. Its environments are stopped, data kept.
 	Orphaned bool `protobuf:"varint,9,opt,name=orphaned,proto3" json:"orphaned,omitempty"`
 	// Stopped on this device with devopus down: the server's changes do not start it.
-	Held          bool `protobuf:"varint,10,opt,name=held,proto3" json:"held,omitempty"`
+	Held bool `protobuf:"varint,10,opt,name=held,proto3" json:"held,omitempty"`
+	// Its secrets encrypted to the workspace's key, by name (ADR-0009).
+	Secrets map[string][]byte `protobuf:"bytes,11,rep,name=secrets,proto3" json:"secrets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// The workspace's key wrapped for this device; empty until it is delivered.
+	KeyWrap       []byte `protobuf:"bytes,12,opt,name=key_wrap,json=keyWrap,proto3" json:"key_wrap,omitempty"`
+	KeyGeneration int32  `protobuf:"varint,13,opt,name=key_generation,json=keyGeneration,proto3" json:"key_generation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -503,6 +508,27 @@ func (x *ProjectSpec) GetHeld() bool {
 		return x.Held
 	}
 	return false
+}
+
+func (x *ProjectSpec) GetSecrets() map[string][]byte {
+	if x != nil {
+		return x.Secrets
+	}
+	return nil
+}
+
+func (x *ProjectSpec) GetKeyWrap() []byte {
+	if x != nil {
+		return x.KeyWrap
+	}
+	return nil
+}
+
+func (x *ProjectSpec) GetKeyGeneration() int32 {
+	if x != nil {
+		return x.KeyGeneration
+	}
+	return 0
 }
 
 type EnvironmentSpec struct {
@@ -3951,7 +3977,7 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	"\x0eDeviceSettings\x12*\n" +
 	"\x11coexist_http_port\x18\x01 \x01(\rR\x0fcoexistHttpPort\x12,\n" +
 	"\x12coexist_https_port\x18\x02 \x01(\rR\x10coexistHttpsPort\x12)\n" +
-	"\x10proxy_generation\x18\x03 \x01(\x04R\x0fproxyGeneration\"\x9d\x02\n" +
+	"\x10proxy_generation\x18\x03 \x01(\x04R\x0fproxyGeneration\"\xe1\x03\n" +
 	"\vProjectSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04root\x18\x02 \x01(\tR\x04root\x12\x16\n" +
@@ -3965,7 +3991,13 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	"adminEmail\x12\x1a\n" +
 	"\borphaned\x18\t \x01(\bR\borphaned\x12\x12\n" +
 	"\x04held\x18\n" +
-	" \x01(\bR\x04held\"\x9c\x03\n" +
+	" \x01(\bR\x04held\x12D\n" +
+	"\asecrets\x18\v \x03(\v2*.devopus.agent.v2.ProjectSpec.SecretsEntryR\asecrets\x12\x19\n" +
+	"\bkey_wrap\x18\f \x01(\fR\akeyWrap\x12%\n" +
+	"\x0ekey_generation\x18\r \x01(\x05R\rkeyGeneration\x1a:\n" +
+	"\fSecretsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"\x9c\x03\n" +
 	"\x0fEnvironmentSpec\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aproject\x18\x02 \x01(\tR\aproject\x125\n" +
@@ -4292,7 +4324,7 @@ func file_devopus_agent_v2_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_devopus_agent_v2_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_devopus_agent_v2_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
+var file_devopus_agent_v2_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
 var file_devopus_agent_v2_agent_proto_goTypes = []any{
 	(EnvironmentKind)(0),            // 0: devopus.agent.v2.EnvironmentKind
 	(DesiredPhase)(0),               // 1: devopus.agent.v2.DesiredPhase
@@ -4350,85 +4382,87 @@ var file_devopus_agent_v2_agent_proto_goTypes = []any{
 	(*ResourcesRequest)(nil),        // 53: devopus.agent.v2.ResourcesRequest
 	(*UnitResources)(nil),           // 54: devopus.agent.v2.UnitResources
 	(*ResourcesResponse)(nil),       // 55: devopus.agent.v2.ResourcesResponse
-	nil,                             // 56: devopus.agent.v2.EnvironmentSpec.DataResetsEntry
-	(*timestamppb.Timestamp)(nil),   // 57: google.protobuf.Timestamp
+	nil,                             // 56: devopus.agent.v2.ProjectSpec.SecretsEntry
+	nil,                             // 57: devopus.agent.v2.EnvironmentSpec.DataResetsEntry
+	(*timestamppb.Timestamp)(nil),   // 58: google.protobuf.Timestamp
 }
 var file_devopus_agent_v2_agent_proto_depIdxs = []int32{
 	6,  // 0: devopus.agent.v2.DesiredState.projects:type_name -> devopus.agent.v2.ProjectSpec
 	7,  // 1: devopus.agent.v2.DesiredState.environments:type_name -> devopus.agent.v2.EnvironmentSpec
 	5,  // 2: devopus.agent.v2.DesiredState.device:type_name -> devopus.agent.v2.DeviceSettings
-	0,  // 3: devopus.agent.v2.EnvironmentSpec.kind:type_name -> devopus.agent.v2.EnvironmentKind
-	1,  // 4: devopus.agent.v2.EnvironmentSpec.phase:type_name -> devopus.agent.v2.DesiredPhase
-	56, // 5: devopus.agent.v2.EnvironmentSpec.data_resets:type_name -> devopus.agent.v2.EnvironmentSpec.DataResetsEntry
-	3,  // 6: devopus.agent.v2.StepProgress.state:type_name -> devopus.agent.v2.StepState
-	57, // 7: devopus.agent.v2.StepProgress.started_at:type_name -> google.protobuf.Timestamp
-	57, // 8: devopus.agent.v2.StepProgress.finished_at:type_name -> google.protobuf.Timestamp
-	0,  // 9: devopus.agent.v2.EnvironmentStatus.kind:type_name -> devopus.agent.v2.EnvironmentKind
-	2,  // 10: devopus.agent.v2.EnvironmentStatus.phase:type_name -> devopus.agent.v2.Phase
-	8,  // 11: devopus.agent.v2.EnvironmentStatus.steps:type_name -> devopus.agent.v2.StepProgress
-	9,  // 12: devopus.agent.v2.EnvironmentStatus.network:type_name -> devopus.agent.v2.NetworkStatus
-	57, // 13: devopus.agent.v2.EnvironmentStatus.updated_at:type_name -> google.protobuf.Timestamp
-	13, // 14: devopus.agent.v2.EnvironmentStatus.units:type_name -> devopus.agent.v2.UnitStatus
-	12, // 15: devopus.agent.v2.EnvironmentStatus.sources:type_name -> devopus.agent.v2.AppSource
-	11, // 16: devopus.agent.v2.EnvironmentStatus.data:type_name -> devopus.agent.v2.DataStatus
-	57, // 17: devopus.agent.v2.EnvironmentStatus.last_active:type_name -> google.protobuf.Timestamp
-	57, // 18: devopus.agent.v2.EnvironmentStatus.sleeping_since:type_name -> google.protobuf.Timestamp
-	57, // 19: devopus.agent.v2.DataStatus.copied_at:type_name -> google.protobuf.Timestamp
-	14, // 20: devopus.agent.v2.StatusResponse.runtime:type_name -> devopus.agent.v2.RuntimeInfo
-	6,  // 21: devopus.agent.v2.StatusResponse.projects:type_name -> devopus.agent.v2.ProjectSpec
-	10, // 22: devopus.agent.v2.StatusResponse.environments:type_name -> devopus.agent.v2.EnvironmentStatus
-	20, // 23: devopus.agent.v2.StatusResponse.proxy:type_name -> devopus.agent.v2.ProxyStatus
-	21, // 24: devopus.agent.v2.StatusResponse.ca:type_name -> devopus.agent.v2.CAInfo
-	18, // 25: devopus.agent.v2.StatusResponse.account:type_name -> devopus.agent.v2.AccountInfo
-	17, // 26: devopus.agent.v2.StatusResponse.link:type_name -> devopus.agent.v2.LinkInfo
-	19, // 27: devopus.agent.v2.ProxyStatus.conflicts:type_name -> devopus.agent.v2.PortConflict
-	57, // 28: devopus.agent.v2.CAInfo.not_after:type_name -> google.protobuf.Timestamp
-	22, // 29: devopus.agent.v2.RoutesResponse.routes:type_name -> devopus.agent.v2.Route
-	20, // 30: devopus.agent.v2.RoutesResponse.proxy:type_name -> devopus.agent.v2.ProxyStatus
-	10, // 31: devopus.agent.v2.WatchResponse.status:type_name -> devopus.agent.v2.EnvironmentStatus
-	44, // 32: devopus.agent.v2.DescribeProjectResponse.apps:type_name -> devopus.agent.v2.AppInfo
-	45, // 33: devopus.agent.v2.DescribeProjectResponse.plan:type_name -> devopus.agent.v2.FeaturePlan
-	57, // 34: devopus.agent.v2.LogSource.updated_at:type_name -> google.protobuf.Timestamp
-	47, // 35: devopus.agent.v2.LogSourcesResponse.sources:type_name -> devopus.agent.v2.LogSource
-	47, // 36: devopus.agent.v2.LogsRequest.source:type_name -> devopus.agent.v2.LogSource
-	57, // 37: devopus.agent.v2.LogLine.time:type_name -> google.protobuf.Timestamp
-	51, // 38: devopus.agent.v2.LogsResponse.lines:type_name -> devopus.agent.v2.LogLine
-	54, // 39: devopus.agent.v2.ResourcesResponse.units:type_name -> devopus.agent.v2.UnitResources
-	15, // 40: devopus.agent.v2.AgentService.Status:input_type -> devopus.agent.v2.StatusRequest
-	27, // 41: devopus.agent.v2.AgentService.Up:input_type -> devopus.agent.v2.UpRequest
-	29, // 42: devopus.agent.v2.AgentService.Down:input_type -> devopus.agent.v2.DownRequest
-	31, // 43: devopus.agent.v2.AgentService.Watch:input_type -> devopus.agent.v2.WatchRequest
-	23, // 44: devopus.agent.v2.AgentService.Routes:input_type -> devopus.agent.v2.RoutesRequest
-	25, // 45: devopus.agent.v2.AgentService.SetProxy:input_type -> devopus.agent.v2.SetProxyRequest
-	33, // 46: devopus.agent.v2.AgentService.CreateFeature:input_type -> devopus.agent.v2.CreateFeatureRequest
-	35, // 47: devopus.agent.v2.AgentService.AddFeatureApps:input_type -> devopus.agent.v2.AddFeatureAppsRequest
-	37, // 48: devopus.agent.v2.AgentService.RemoveFeature:input_type -> devopus.agent.v2.RemoveFeatureRequest
-	39, // 49: devopus.agent.v2.AgentService.ResetData:input_type -> devopus.agent.v2.ResetDataRequest
-	41, // 50: devopus.agent.v2.AgentService.SetSleep:input_type -> devopus.agent.v2.SetSleepRequest
-	43, // 51: devopus.agent.v2.AgentService.DescribeProject:input_type -> devopus.agent.v2.DescribeProjectRequest
-	48, // 52: devopus.agent.v2.AgentService.LogSources:input_type -> devopus.agent.v2.LogSourcesRequest
-	50, // 53: devopus.agent.v2.AgentService.Logs:input_type -> devopus.agent.v2.LogsRequest
-	53, // 54: devopus.agent.v2.AgentService.Resources:input_type -> devopus.agent.v2.ResourcesRequest
-	16, // 55: devopus.agent.v2.AgentService.Status:output_type -> devopus.agent.v2.StatusResponse
-	28, // 56: devopus.agent.v2.AgentService.Up:output_type -> devopus.agent.v2.UpResponse
-	30, // 57: devopus.agent.v2.AgentService.Down:output_type -> devopus.agent.v2.DownResponse
-	32, // 58: devopus.agent.v2.AgentService.Watch:output_type -> devopus.agent.v2.WatchResponse
-	24, // 59: devopus.agent.v2.AgentService.Routes:output_type -> devopus.agent.v2.RoutesResponse
-	26, // 60: devopus.agent.v2.AgentService.SetProxy:output_type -> devopus.agent.v2.SetProxyResponse
-	34, // 61: devopus.agent.v2.AgentService.CreateFeature:output_type -> devopus.agent.v2.CreateFeatureResponse
-	36, // 62: devopus.agent.v2.AgentService.AddFeatureApps:output_type -> devopus.agent.v2.AddFeatureAppsResponse
-	38, // 63: devopus.agent.v2.AgentService.RemoveFeature:output_type -> devopus.agent.v2.RemoveFeatureResponse
-	40, // 64: devopus.agent.v2.AgentService.ResetData:output_type -> devopus.agent.v2.ResetDataResponse
-	42, // 65: devopus.agent.v2.AgentService.SetSleep:output_type -> devopus.agent.v2.SetSleepResponse
-	46, // 66: devopus.agent.v2.AgentService.DescribeProject:output_type -> devopus.agent.v2.DescribeProjectResponse
-	49, // 67: devopus.agent.v2.AgentService.LogSources:output_type -> devopus.agent.v2.LogSourcesResponse
-	52, // 68: devopus.agent.v2.AgentService.Logs:output_type -> devopus.agent.v2.LogsResponse
-	55, // 69: devopus.agent.v2.AgentService.Resources:output_type -> devopus.agent.v2.ResourcesResponse
-	55, // [55:70] is the sub-list for method output_type
-	40, // [40:55] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	56, // 3: devopus.agent.v2.ProjectSpec.secrets:type_name -> devopus.agent.v2.ProjectSpec.SecretsEntry
+	0,  // 4: devopus.agent.v2.EnvironmentSpec.kind:type_name -> devopus.agent.v2.EnvironmentKind
+	1,  // 5: devopus.agent.v2.EnvironmentSpec.phase:type_name -> devopus.agent.v2.DesiredPhase
+	57, // 6: devopus.agent.v2.EnvironmentSpec.data_resets:type_name -> devopus.agent.v2.EnvironmentSpec.DataResetsEntry
+	3,  // 7: devopus.agent.v2.StepProgress.state:type_name -> devopus.agent.v2.StepState
+	58, // 8: devopus.agent.v2.StepProgress.started_at:type_name -> google.protobuf.Timestamp
+	58, // 9: devopus.agent.v2.StepProgress.finished_at:type_name -> google.protobuf.Timestamp
+	0,  // 10: devopus.agent.v2.EnvironmentStatus.kind:type_name -> devopus.agent.v2.EnvironmentKind
+	2,  // 11: devopus.agent.v2.EnvironmentStatus.phase:type_name -> devopus.agent.v2.Phase
+	8,  // 12: devopus.agent.v2.EnvironmentStatus.steps:type_name -> devopus.agent.v2.StepProgress
+	9,  // 13: devopus.agent.v2.EnvironmentStatus.network:type_name -> devopus.agent.v2.NetworkStatus
+	58, // 14: devopus.agent.v2.EnvironmentStatus.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 15: devopus.agent.v2.EnvironmentStatus.units:type_name -> devopus.agent.v2.UnitStatus
+	12, // 16: devopus.agent.v2.EnvironmentStatus.sources:type_name -> devopus.agent.v2.AppSource
+	11, // 17: devopus.agent.v2.EnvironmentStatus.data:type_name -> devopus.agent.v2.DataStatus
+	58, // 18: devopus.agent.v2.EnvironmentStatus.last_active:type_name -> google.protobuf.Timestamp
+	58, // 19: devopus.agent.v2.EnvironmentStatus.sleeping_since:type_name -> google.protobuf.Timestamp
+	58, // 20: devopus.agent.v2.DataStatus.copied_at:type_name -> google.protobuf.Timestamp
+	14, // 21: devopus.agent.v2.StatusResponse.runtime:type_name -> devopus.agent.v2.RuntimeInfo
+	6,  // 22: devopus.agent.v2.StatusResponse.projects:type_name -> devopus.agent.v2.ProjectSpec
+	10, // 23: devopus.agent.v2.StatusResponse.environments:type_name -> devopus.agent.v2.EnvironmentStatus
+	20, // 24: devopus.agent.v2.StatusResponse.proxy:type_name -> devopus.agent.v2.ProxyStatus
+	21, // 25: devopus.agent.v2.StatusResponse.ca:type_name -> devopus.agent.v2.CAInfo
+	18, // 26: devopus.agent.v2.StatusResponse.account:type_name -> devopus.agent.v2.AccountInfo
+	17, // 27: devopus.agent.v2.StatusResponse.link:type_name -> devopus.agent.v2.LinkInfo
+	19, // 28: devopus.agent.v2.ProxyStatus.conflicts:type_name -> devopus.agent.v2.PortConflict
+	58, // 29: devopus.agent.v2.CAInfo.not_after:type_name -> google.protobuf.Timestamp
+	22, // 30: devopus.agent.v2.RoutesResponse.routes:type_name -> devopus.agent.v2.Route
+	20, // 31: devopus.agent.v2.RoutesResponse.proxy:type_name -> devopus.agent.v2.ProxyStatus
+	10, // 32: devopus.agent.v2.WatchResponse.status:type_name -> devopus.agent.v2.EnvironmentStatus
+	44, // 33: devopus.agent.v2.DescribeProjectResponse.apps:type_name -> devopus.agent.v2.AppInfo
+	45, // 34: devopus.agent.v2.DescribeProjectResponse.plan:type_name -> devopus.agent.v2.FeaturePlan
+	58, // 35: devopus.agent.v2.LogSource.updated_at:type_name -> google.protobuf.Timestamp
+	47, // 36: devopus.agent.v2.LogSourcesResponse.sources:type_name -> devopus.agent.v2.LogSource
+	47, // 37: devopus.agent.v2.LogsRequest.source:type_name -> devopus.agent.v2.LogSource
+	58, // 38: devopus.agent.v2.LogLine.time:type_name -> google.protobuf.Timestamp
+	51, // 39: devopus.agent.v2.LogsResponse.lines:type_name -> devopus.agent.v2.LogLine
+	54, // 40: devopus.agent.v2.ResourcesResponse.units:type_name -> devopus.agent.v2.UnitResources
+	15, // 41: devopus.agent.v2.AgentService.Status:input_type -> devopus.agent.v2.StatusRequest
+	27, // 42: devopus.agent.v2.AgentService.Up:input_type -> devopus.agent.v2.UpRequest
+	29, // 43: devopus.agent.v2.AgentService.Down:input_type -> devopus.agent.v2.DownRequest
+	31, // 44: devopus.agent.v2.AgentService.Watch:input_type -> devopus.agent.v2.WatchRequest
+	23, // 45: devopus.agent.v2.AgentService.Routes:input_type -> devopus.agent.v2.RoutesRequest
+	25, // 46: devopus.agent.v2.AgentService.SetProxy:input_type -> devopus.agent.v2.SetProxyRequest
+	33, // 47: devopus.agent.v2.AgentService.CreateFeature:input_type -> devopus.agent.v2.CreateFeatureRequest
+	35, // 48: devopus.agent.v2.AgentService.AddFeatureApps:input_type -> devopus.agent.v2.AddFeatureAppsRequest
+	37, // 49: devopus.agent.v2.AgentService.RemoveFeature:input_type -> devopus.agent.v2.RemoveFeatureRequest
+	39, // 50: devopus.agent.v2.AgentService.ResetData:input_type -> devopus.agent.v2.ResetDataRequest
+	41, // 51: devopus.agent.v2.AgentService.SetSleep:input_type -> devopus.agent.v2.SetSleepRequest
+	43, // 52: devopus.agent.v2.AgentService.DescribeProject:input_type -> devopus.agent.v2.DescribeProjectRequest
+	48, // 53: devopus.agent.v2.AgentService.LogSources:input_type -> devopus.agent.v2.LogSourcesRequest
+	50, // 54: devopus.agent.v2.AgentService.Logs:input_type -> devopus.agent.v2.LogsRequest
+	53, // 55: devopus.agent.v2.AgentService.Resources:input_type -> devopus.agent.v2.ResourcesRequest
+	16, // 56: devopus.agent.v2.AgentService.Status:output_type -> devopus.agent.v2.StatusResponse
+	28, // 57: devopus.agent.v2.AgentService.Up:output_type -> devopus.agent.v2.UpResponse
+	30, // 58: devopus.agent.v2.AgentService.Down:output_type -> devopus.agent.v2.DownResponse
+	32, // 59: devopus.agent.v2.AgentService.Watch:output_type -> devopus.agent.v2.WatchResponse
+	24, // 60: devopus.agent.v2.AgentService.Routes:output_type -> devopus.agent.v2.RoutesResponse
+	26, // 61: devopus.agent.v2.AgentService.SetProxy:output_type -> devopus.agent.v2.SetProxyResponse
+	34, // 62: devopus.agent.v2.AgentService.CreateFeature:output_type -> devopus.agent.v2.CreateFeatureResponse
+	36, // 63: devopus.agent.v2.AgentService.AddFeatureApps:output_type -> devopus.agent.v2.AddFeatureAppsResponse
+	38, // 64: devopus.agent.v2.AgentService.RemoveFeature:output_type -> devopus.agent.v2.RemoveFeatureResponse
+	40, // 65: devopus.agent.v2.AgentService.ResetData:output_type -> devopus.agent.v2.ResetDataResponse
+	42, // 66: devopus.agent.v2.AgentService.SetSleep:output_type -> devopus.agent.v2.SetSleepResponse
+	46, // 67: devopus.agent.v2.AgentService.DescribeProject:output_type -> devopus.agent.v2.DescribeProjectResponse
+	49, // 68: devopus.agent.v2.AgentService.LogSources:output_type -> devopus.agent.v2.LogSourcesResponse
+	52, // 69: devopus.agent.v2.AgentService.Logs:output_type -> devopus.agent.v2.LogsResponse
+	55, // 70: devopus.agent.v2.AgentService.Resources:output_type -> devopus.agent.v2.ResourcesResponse
+	56, // [56:71] is the sub-list for method output_type
+	41, // [41:56] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_devopus_agent_v2_agent_proto_init() }
@@ -4442,7 +4476,7 @@ func file_devopus_agent_v2_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_devopus_agent_v2_agent_proto_rawDesc), len(file_devopus_agent_v2_agent_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   53,
+			NumMessages:   54,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

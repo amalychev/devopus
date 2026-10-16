@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -110,8 +109,9 @@ func (a *app) projectCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			config := ""
+			var found map[string]string
 			if len(from) > 0 {
-				p, err := a.importCompose(ctx, args[0], from, noPin)
+				p, values, err := a.importCompose(ctx, args[0], from, noPin)
 				if err != nil {
 					return err
 				}
@@ -119,7 +119,7 @@ func (a *app) projectCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				config = string(b)
+				config, found = string(b), values
 			}
 			s, cur, c, err := a.inWorkspace(ctx)
 			if err != nil {
@@ -130,6 +130,9 @@ func (a *app) projectCmd() *cobra.Command {
 				return rpcErr(err)
 			}
 			cfg, _ := spec.ParseYAML([]byte(res.Msg.Config.Yaml))
+			if err := a.uploadSecrets(ctx, args[0], found); err != nil {
+				fmt.Fprintf(a.stderr, "The project is created, but its secrets are not stored: %v\nSet them with 'devopus secrets set %s <NAME>'.\n", err, args[0])
+			}
 			return a.done(map[string]any{"id": res.Msg.Project.Id, "name": res.Msg.Project.Name, "domain": cfg.Domain, "version": res.Msg.Config.Version},
 				"✓ Project %s created in %s: https://%s, %d applications, %d services.\n", res.Msg.Project.Name, cur.Name, cfg.Domain, len(cfg.Apps), len(cfg.Services))
 		},
@@ -379,24 +382,24 @@ func printProject(out io.Writer, p *spec.Project, version int32) {
 }
 
 // importCompose turns compose files into a project the way 'devopus init' reads them:
-// compose → workspace.yaml v1 → the model. Values that look like secrets are not sent:
-// their names are listed for 'devopus secrets set' (stage 3).
-func (a *app) importCompose(ctx context.Context, name string, files []string, noPin bool) (*spec.Project, error) {
+// compose → workspace.yaml v1 → the model. Values that look like secrets come back
+// apart: they are encrypted here before they go to the server.
+func (a *app) importCompose(ctx context.Context, name string, files []string, noPin bool) (*spec.Project, map[string]string, error) {
 	opt := compose.Options{Project: name}
 	if !noPin {
 		opt.Pinner = compose.RegistryPinner{}
 	}
 	res, err := compose.Import(ctx, files, opt)
 	if err != nil {
-		return nil, fail(ExitInvalid, "cannot load %s: %v", strings.Join(files, ", "), err)
+		return nil, nil, fail(ExitInvalid, "cannot load %s: %v", strings.Join(files, ", "), err)
 	}
 	data, err := marshal(res.Workspace)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	parsed, err := workspace.Parse(data)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ds := parsed.Diagnostics
 	if !a.json {
@@ -404,21 +407,13 @@ func (a *app) importCompose(ctx context.Context, name string, files []string, no
 		a.printDiagnostics(strings.Join(files, ", "), ds)
 	}
 	if ds.HasErrors() || parsed.Workspace == nil {
-		return nil, fail(ExitInvalid, "the import has errors; fix the compose file or add the project by hand (devopus app add, devopus service add)")
+		return nil, nil, fail(ExitInvalid, "the import has errors; fix the compose file or add the project by hand (devopus app add, devopus service add)")
 	}
 	p, err := importer.FromV1(parsed.Workspace)
 	if err != nil {
-		return nil, fail(ExitInvalid, "%v", err)
+		return nil, nil, fail(ExitInvalid, "%v", err)
 	}
-	if len(res.Secrets) > 0 && !a.json {
-		names := make([]string, 0, len(res.Secrets))
-		for k := range res.Secrets {
-			names = append(names, k)
-		}
-		sort.Strings(names)
-		fmt.Fprintf(a.stderr, "\nSecrets are not sent to the server: %s. The project refers to them as ${{ secrets.NAME }}; their values go in with 'devopus secrets' (coming).\n", strings.Join(names, ", "))
-	}
-	return p, nil
+	return p, res.Secrets, nil
 }
 
 // --- applications

@@ -69,6 +69,9 @@ var Pool = netip.MustParsePrefix("10.213.0.0/16")
 type Options struct {
 	// Instance labels every resource; resources of other instances are invisible.
 	Instance string
+	// Decrypt opens the secrets of a project of the workspace server (ADR-0009).
+	// Projects of folders read theirs from .env.secrets.
+	Decrypt func(*agentv2.ProjectSpec) (map[string]string, error)
 	// ProxyName is the name of the Envoy container.
 	ProxyName string
 	CA        *pki.CA
@@ -353,9 +356,11 @@ type prepared struct {
 	leaf  *pki.Leaf
 	ws    *spec.Project
 	admin string
-	url   string
-	plan  *stack.Plan
-	err   error
+	// project is the project as registered; its secrets for one of the server.
+	project *agentv2.ProjectSpec
+	url     string
+	plan    *stack.Plan
+	err     error
 	// failed is the step that stopped the environment.
 	failed string
 	// waiting: applications are starting; the environment is not running yet.
@@ -445,7 +450,7 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv2.En
 		}})
 		root := ""
 		if ws != nil {
-			root, p.admin = ws.root, ws.admin
+			root, p.admin, p.project = ws.root, ws.admin, ws.project
 		}
 		steps = append(steps, r.unitSteps(env, root, p, &nw, o)...)
 		defer func() { r.setUnits(ctx, env.Id, p.plan, p.hosts) }()

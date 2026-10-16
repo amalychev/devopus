@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,6 +36,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/store"
 	"github.com/amalychev/devopus/internal/credentials"
 	"github.com/amalychev/devopus/internal/daemon"
+	"github.com/amalychev/devopus/internal/secrets"
 	"github.com/amalychev/devopus/internal/spec"
 )
 
@@ -123,6 +125,44 @@ func (a *Agent) Routes() []*agentv2.Route    { return a.rec.Routes() }
 
 func (a *Agent) CA() *agentv2.CAInfo {
 	return &agentv2.CAInfo{RootPath: a.ca.RootPath(), Fingerprint: a.ca.Fingerprint(), NotAfter: timestamppb.New(a.ca.Root.NotAfter)}
+}
+
+// decryptSecrets opens a workspace project's secrets with the workspace's key, which
+// reached this device wrapped for its own key (ADR-0009).
+func decryptSecrets(p *agentv2.ProjectSpec) (map[string]string, error) {
+	out := map[string]string{}
+	if len(p.Secrets) == 0 {
+		return out, nil
+	}
+	if len(p.KeyWrap) == 0 {
+		names := make([]string, 0, len(p.Secrets))
+		for n := range p.Secrets {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		who := "the workspace admin"
+		if p.AdminEmail != "" {
+			who += " (" + p.AdminEmail + ")"
+		}
+		return nil, fmt.Errorf("the workspace key has not reached this device yet, so %s cannot be read: the agent of %s or of a teamlead delivers it when online; the agent goes on as soon as it arrives",
+			strings.Join(names, ", "), who)
+	}
+	dk, err := credentials.DeviceKey()
+	if err != nil {
+		return nil, err
+	}
+	key, err := secrets.Unwrap(p.KeyWrap, dk)
+	if err != nil {
+		return nil, err
+	}
+	for n, sealed := range p.Secrets {
+		v, err := secrets.Open(sealed, key)
+		if err != nil {
+			return nil, fmt.Errorf("secret %s: %w (the key was rotated? the agent gets the new one from the server)", n, err)
+		}
+		out[n] = string(v)
+	}
+	return out, nil
 }
 
 // Account is the user signed in on this device, whose session the agent keeps fresh.
@@ -231,6 +271,7 @@ func Run(ctx context.Context, opt Options) error {
 	xds.OnRequests(a.life.OnRequests)
 	a.rec = reconcile.New(rt, reconcile.Options{
 		Instance:    paths.Instance(),
+		Decrypt:     decryptSecrets,
 		ProxyName:   paths.ProxyName(),
 		CA:          ca,
 		Leaves:      pki.Leaves{Dir: paths.Certs()},

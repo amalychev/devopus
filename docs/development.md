@@ -164,6 +164,8 @@ devopus up demo --dir examples/demo   # один раз: папка запоми
 devopus down demo                     # остановить здесь; сервер его не перезапустит до 'devopus up'
 ```
 
+Секреты — E2E ([ADR-0009](../adr/0009-secrets-key-distribution.md)): `devopus secrets set demo DB_PASSWORD` шифрует значение на этой машине. Первый секрет создаёт ключ воркспейса и один раз показывает код восстановления. Новому участнику ключ доставляет агент админа или тимлида, пока тот в сети; без него — `devopus secrets recover` с кодом. Ключ устройства хранится рядом с refresh-токеном (`device-key`, если нет Keychain).
+
 Проект с сервера и проект папки (`workspace.yaml`) с одним именем не уживаются: агент оставляет проект папки и пишет об этом в лог. Освободить имя — `devopus down --volumes --project <имя>` в папке.
 
 Токены сервер проверяет по ключам Auth (`--auth-url`, по умолчанию `DEVOPUS_AUTH_URL`). CLI ходит на `DEVOPUS_SERVER_URL` (по умолчанию `http://127.0.0.1:7481`); текущий воркспейс — `~/.devopus/workspace.json`, сменить — `devopus workspace use <имя>`. Несколько участников на одной машине — разные `DEVOPUS_HOME`.

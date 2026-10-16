@@ -53,7 +53,12 @@ func (r *Reconciler) unitSteps(env *agentv2.EnvironmentSpec, root string, p *pre
 				return "", err
 			}
 			p.sources = sources
-			secrets, err := readSecrets(filepath.Join(root, SecretsFile))
+			var secrets map[string]string
+			if p.project != nil && p.project.WorkspaceId != "" && r.opt.Decrypt != nil {
+				secrets, err = r.opt.Decrypt(p.project)
+			} else {
+				secrets, err = readSecrets(filepath.Join(root, SecretsFile))
+			}
 			if err != nil {
 				return "", err
 			}

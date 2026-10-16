@@ -2,6 +2,7 @@ package cli
 
 import (
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -229,11 +230,15 @@ func TestProjects(t *testing.T) {
 	write(t, filepath.Join(dir, "docker-compose.yml"), composeFile)
 	write(t, filepath.Join(dir, "web", "Dockerfile"), "FROM scratch\n")
 	code, out, errOut := cli(t, "", "project", "create", "shop", "--from-compose", filepath.Join(dir, "docker-compose.yml"), "--no-pin")
-	if code != ExitOK || !strings.Contains(out, "Project shop created") || !strings.Contains(errOut, "Secrets are not sent to the server: POSTGRES_PASSWORD, SESSION_SECRET") {
+	if code != ExitOK || !strings.Contains(out, "Project shop created") || !strings.Contains(errOut, "Secrets POSTGRES_PASSWORD, SESSION_SECRET are encrypted here and stored in shop") ||
+		!strings.Contains(errOut, "AGE-SECRET-KEY-1") {
 		t.Fatalf("import: %d\n%s\n%s", code, out, errOut)
 	}
 	if y := ok(t, "project", "config", "show", "shop", "-o", "yaml"); strings.Contains(y, "devpass") || strings.Contains(y, "s3cr3t") || !strings.Contains(y, "${{ secrets.POSTGRES_PASSWORD }}") {
 		t.Errorf("imported settings:\n%s", y)
+	}
+	if out := ok(t, "secrets", "list", "shop"); !strings.Contains(out, "POSTGRES_PASSWORD") || !strings.Contains(out, "SESSION_SECRET") || strings.Contains(out, "devpass") {
+		t.Errorf("secrets of the import:\n%s", out)
 	}
 	ok(t, "project", "rm", "shop", "--yes")
 	if out := ok(t, "project", "list"); strings.Contains(out, "shop") {
@@ -248,4 +253,74 @@ func squash(s string) string {
 		lines = append(lines, strings.Join(strings.Fields(l), " "))
 	}
 	return strings.Join(lines, "\n")
+}
+
+var recoveryRe = regexp.MustCompile(`AGE-SECRET-KEY-1[0-9A-Z]+`)
+
+func TestSecretsCommands(t *testing.T) {
+	a := startTeam(t)
+	signUp(t, a, "admin@acme.dev")
+	laptop := os.Getenv("DEVOPUS_HOME")
+	ok(t, "workspace", "create", "acme")
+	ok(t, "project", "create", "shop")
+	devCode := inviteCodeRe.FindStringSubmatch(ok(t, "invite", "create", "dev@acme.dev", "--role", "developer", "--project", "shop"))[1]
+
+	// The first secret makes the workspace's key and shows its recovery key once.
+	code, out, errOut := cli(t, "", "secrets", "set", "shop", "DB_PASSWORD", "hunter2")
+	recovery := recoveryRe.FindString(errOut)
+	if code != ExitOK || recovery == "" || !strings.Contains(out, "Secret DB_PASSWORD of shop is set") {
+		t.Fatalf("first secret: %d\n%s\n%s", code, out, errOut)
+	}
+	if _, _, errOut := cli(t, "", "secrets", "set", "shop", "API_TOKEN", "t0k3n"); strings.Contains(errOut, "AGE-SECRET-KEY") {
+		t.Error("the recovery key shown twice")
+	}
+	if code, _, errOut := cli(t, "piped-value\n", "secrets", "set", "shop", "FROM_STDIN"); code != ExitOK {
+		t.Fatalf("value from stdin: %d %s", code, errOut)
+	}
+	if out := ok(t, "secrets", "list", "shop"); !strings.Contains(out, "API_TOKEN") || !strings.Contains(out, "FROM_STDIN") || strings.Contains(out, "hunter2") {
+		t.Errorf("list:\n%s", out)
+	}
+	ok(t, "secrets", "rm", "shop", "FROM_STDIN")
+
+	// A developer reads names but sets nothing.
+	signUp(t, a, "dev@acme.dev")
+	ok(t, "invite", "accept", devCode)
+	if out := ok(t, "secrets", "list", "shop"); !strings.Contains(out, "DB_PASSWORD") {
+		t.Errorf("developer's list:\n%s", out)
+	}
+	if code, _, errOut := cli(t, "", "secrets", "set", "shop", "X", "y"); code != ExitAuth || !strings.Contains(errOut, "secrets.manage") {
+		t.Errorf("developer sets: %d %s", code, errOut)
+	}
+
+	// The admin on a new machine: the recovery key puts the workspace's key there.
+	t.Setenv("DEVOPUS_HOME", t.TempDir())
+	ty := newTyping()
+	run := start(ty.r, nil, "login", "--email")
+	ty.line("admin@acme.dev")
+	ty.line(a.Inbox.Code(t, "admin@acme.dev", a.Inbox.Count("admin@acme.dev")+1))
+	if code, out, errOut := run.wait(t); code != ExitOK {
+		t.Fatalf("login on the new machine: %d %s %s", code, out, errOut)
+	}
+	ok(t, "workspace", "use", "acme")
+	if code, _, errOut := cli(t, "", "secrets", "rotate"); code != ExitInvalid || !strings.Contains(errOut, "secrets recover") {
+		t.Errorf("rotate without the key: %d %s", code, errOut)
+	}
+	if code, _, _ := cli(t, "nonsense\n", "secrets", "recover"); code != ExitInvalid {
+		t.Errorf("a bad recovery key: %d", code)
+	}
+	code, out, errOut = cli(t, recovery+"\n", "secrets", "recover")
+	if code != ExitOK || !strings.Contains(out, "is on this machine again") {
+		t.Fatalf("recover: %d %s %s", code, out, errOut)
+	}
+
+	// Rotation from the laptop: every secret re-encrypted, a new recovery key; the old
+	// one no longer recovers.
+	t.Setenv("DEVOPUS_HOME", laptop)
+	code, out, errOut = cli(t, "", "secrets", "rotate")
+	if code != ExitOK || !strings.Contains(out, "2 secrets re-encrypted") || recoveryRe.FindString(errOut) == "" || recoveryRe.FindString(errOut) == recovery {
+		t.Fatalf("rotate: %d\n%s\n%s", code, out, errOut)
+	}
+	if code, _, errOut := cli(t, recovery+"\n", "secrets", "recover"); code != ExitInvalid || !strings.Contains(errOut, "not the current key") {
+		t.Errorf("old recovery key: %d %s", code, errOut)
+	}
 }

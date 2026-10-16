@@ -27,7 +27,7 @@ const service = "devopus"
 
 var errNoSecret = errors.New("no refresh token in the key store")
 
-type secrets interface {
+type keyStore interface {
 	get(account string) (string, error)
 	set(account, secret string) error
 	del(account string) error
@@ -51,7 +51,7 @@ func pickStore() string {
 	return StoreFile
 }
 
-func open(store string) (secrets, error) {
+func open(store string) (keyStore, error) {
 	switch store {
 	case StoreKeychain:
 		return keychain{}, nil
@@ -139,20 +139,28 @@ type file struct{}
 
 func tokenFile() string { return filepath.Join(paths.Home(), "refresh-token") }
 
-func (file) get(string) (string, error) {
-	b, err := os.ReadFile(tokenFile())
+// fileOf is the file of an account: the refresh token, or the device key.
+func fileOf(account string) string {
+	if strings.HasSuffix(account, deviceKeySuffix) {
+		return filepath.Join(paths.Home(), "device-key")
+	}
+	return tokenFile()
+}
+
+func (file) get(account string) (string, error) {
+	b, err := os.ReadFile(fileOf(account))
 	if errors.Is(err, os.ErrNotExist) {
 		return "", errNoSecret
 	}
 	return strings.TrimSpace(string(b)), err
 }
 
-func (file) set(_, secret string) error {
-	return writeFile(tokenFile(), []byte(secret+"\n"))
+func (file) set(account, secret string) error {
+	return writeFile(fileOf(account), []byte(secret+"\n"))
 }
 
-func (file) del(string) error {
-	if err := os.Remove(tokenFile()); err != nil && !errors.Is(err, os.ErrNotExist) {
+func (file) del(account string) error {
+	if err := os.Remove(fileOf(account)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil

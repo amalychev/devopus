@@ -23,6 +23,7 @@ import (
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
 	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
 	"github.com/amalychev/devopus/internal/agent/client"
+	"github.com/amalychev/devopus/internal/agent/link"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/proxy"
 	"github.com/amalychev/devopus/internal/agent/runtime"
@@ -31,6 +32,7 @@ import (
 	"github.com/amalychev/devopus/internal/auth/token"
 	"github.com/amalychev/devopus/internal/credentials"
 	"github.com/amalychev/devopus/internal/pgtest"
+	"github.com/amalychev/devopus/internal/secrets"
 	"github.com/amalychev/devopus/internal/server"
 	serverstore "github.com/amalychev/devopus/internal/server/store"
 )
@@ -69,7 +71,8 @@ const workspaceProject = `apps:
     routes: [/]
     env:
       VERSION: "%s"
-    command: sh -c "mkdir -p /srv && echo settings v$VERSION > /srv/index.html && cd /srv && exec python -m http.server 8080"
+      PW: ${{ secrets.DB_PASSWORD }}
+    command: sh -c "mkdir -p /srv && echo settings v$VERSION pw $PW > /srv/index.html && cd /srv && exec python -m http.server 8080"
 `
 
 // TestAgentFromWorkspace is R7's scenario: a developer's agent gets the project of the
@@ -140,6 +143,22 @@ func TestAgentFromWorkspace(t *testing.T) {
 	if _, err := ws.CreateProject(ctx, bearer(&workspacev1.CreateProjectRequest{WorkspaceId: wsID, Name: project, ConfigYaml: appYAML("1")}, lead)); err != nil {
 		t.Fatal(err)
 	}
+	// The teamlead (the admin here) sets the database password: the key of the
+	// workspace is made on their device, the value is encrypted there.
+	leadDevice, _ := secrets.NewKey()
+	if _, err := ws.RegisterDeviceKey(ctx, bearer(&workspacev1.RegisterDeviceKeyRequest{WorkspaceId: wsID, DeviceId: "lead-mac", DeviceName: "mac", PublicKey: leadDevice.Recipient().String()}, lead)); err != nil {
+		t.Fatal(err)
+	}
+	wsKey, _ := secrets.NewKey()
+	leadWrap, _ := secrets.Wrap(wsKey, leadDevice.Recipient().String())
+	if _, err := ws.CreateSecretsKey(ctx, bearer(&workspacev1.CreateSecretsKeyRequest{WorkspaceId: wsID, PublicKey: wsKey.Recipient().String(), DeviceId: "lead-mac", Wrapped: leadWrap}, lead)); err != nil {
+		t.Fatal(err)
+	}
+	const password = "correct-horse-battery"
+	sealed, _ := secrets.Seal([]byte(password), wsKey.Recipient().String())
+	if _, err := ws.SetSecret(ctx, bearer(&workspacev1.SetSecretRequest{WorkspaceId: wsID, Project: project, Name: "DB_PASSWORD", Generation: 1, Ciphertext: sealed}, lead)); err != nil {
+		t.Fatal(err)
+	}
 	inv, err := ws.CreateInvite(ctx, bearer(&workspacev1.CreateInviteRequest{WorkspaceId: wsID, Email: "dev@acme.dev", Role: "developer", Projects: []string{project}}, lead))
 	if err != nil {
 		t.Fatal(err)
@@ -205,7 +224,41 @@ func TestAgentFromWorkspace(t *testing.T) {
 	if spec.WorkspaceId != wsID || spec.ConfigVersion != 1 || spec.AdminEmail != "lead@acme.dev" {
 		t.Errorf("project on the device: %+v", spec)
 	}
-	st := waitFor(t, ctx, c, envID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
+	// The developer's device has no workspace key yet: the teamlead's agent sees it
+	// waiting and delivers the key; the environment goes on by itself.
+	sc := syncv1connect.NewSyncServiceClient(http.DefaultClient, srv.URL)
+	for deadline := time.Now().Add(time.Minute); ; time.Sleep(300 * time.Millisecond) {
+		wctx, wcancel := context.WithCancel(ctx)
+		stream, err := sc.Watch(wctx, bearer(&syncv1.WatchRequest{WorkspaceId: wsID, Device: &syncv1.Device{Id: "lead-mac", PublicKey: leadDevice.Recipient().String()}}, lead))
+		if err != nil || !stream.Receive() {
+			t.Fatalf("lead's watch: %v", err)
+		}
+		m := stream.Msg()
+		wcancel()
+		if len(m.PendingDevices) > 0 {
+			if n, err := link.DeliverKey(ctx, srv.URL, wsID, lead, store.ServerKey{Generation: m.Key.Generation, Wrapped: m.Key.Wrapped}, leadDevice, m.PendingDevices); err != nil || n != 1 {
+				t.Fatalf("deliver the key: %d %v", n, err)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the developer's device never waited for the key")
+		}
+	}
+	var st *agentv2.EnvironmentStatus
+	for deadline := time.Now().Add(3 * time.Minute); ; time.Sleep(300 * time.Millisecond) {
+		for _, e := range status().Environments {
+			if e.Id == envID {
+				st = e
+			}
+		}
+		if st != nil && st.Phase == agentv2.Phase_PHASE_RUNNING {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("environment: %v", st)
+		}
+	}
 	roots := x509.NewCertPool()
 	pemData, err := os.ReadFile(status().Ca.RootPath)
 	if err != nil {
@@ -225,17 +278,16 @@ func TestAgentFromWorkspace(t *testing.T) {
 		}
 		t.Fatalf("%s does not serve %q: %q", host, want, body)
 	}
-	serves("settings v1")
+	serves("settings v1 pw " + password)
 
 	// The teamlead changes the settings; the developer's environment follows.
 	if _, err := ws.PutApp(ctx, bearer(&workspacev1.PutAppRequest{WorkspaceId: wsID, Project: project, Name: "web",
 		AppYaml: strings.SplitN(appYAML("2"), "web:\n", 2)[1]}, lead)); err != nil {
 		t.Fatal(err)
 	}
-	serves("settings v2")
+	serves("settings v2 pw " + password)
 
 	// The device told the server what it runs, with the new version.
-	sc := syncv1connect.NewSyncServiceClient(http.DefaultClient, srv.URL)
 	var devices []*syncv1.DeviceStatus
 	for deadline := time.Now().Add(30 * time.Second); ; time.Sleep(500 * time.Millisecond) {
 		res, err := sc.ListDevices(ctx, bearer(&syncv1.ListDevicesRequest{WorkspaceId: wsID, Project: project}, lead))
@@ -259,7 +311,7 @@ func TestAgentFromWorkspace(t *testing.T) {
 	srv.Close()
 	serverUp = false
 	time.Sleep(3 * time.Second)
-	serves("settings v2")
+	serves("settings v2 pw " + password)
 	for _, e := range status().Environments {
 		if e.Id == envID && e.Phase != agentv2.Phase_PHASE_RUNNING {
 			t.Errorf("without the server: %v %s", e.Phase, e.Error)
