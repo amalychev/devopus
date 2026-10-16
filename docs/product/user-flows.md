@@ -97,7 +97,7 @@ sequenceDiagram
 Разработчик не согласен с версией сервиса или ему нужна другая настройка — только у себя:
 
 ```yaml
-# devopus.local.yaml в папке приложения backend (в .gitignore, в git не попадает)
+# devopus.yaml в папке приложения backend (в .gitignore, в git не попадает)
 services:
   php:
     version: "8.4"     # пробую миграцию на 8.4

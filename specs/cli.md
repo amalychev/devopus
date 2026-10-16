@@ -26,7 +26,7 @@
 | **Приложения** | `app add <проект> <имя> --repo <url> [--branch] [--path]`, `app set`, `app rm`, `app list` | админ, тимлид; разработчик — с правом `apps.manage` | 3 |
 | **Сервисы** | `service add <проект> <тип> [версия] --apps a,b [--…]`, `service set <проект> <сервис> <версия\|--ключ значение>`, `service link\|unlink <проект> <сервис> <приложение>`, `service rm`, `service list` — сервис живёт в проекте и подключается к одному или нескольким приложениям | админ, тимлид; разработчик — с правом `services.manage` | 3 |
 | **Секреты** | `secrets set\|list\|rm\|rotate` | по праву `secrets.*` | 3 |
-| **Расхождения** | `drift [--project]` — у кого какая версия, личные переопределения (`devopus.local.yaml`), кто не применил | админ, тимлид | 3 |
+| **Расхождения** | `drift [--project]` — у кого какая версия, личные переопределения (`devopus.yaml`), кто не применил | админ, тимлид | 3 |
 | **Компоненты на машине** | `agent …`, `panel …` — ниже; `agent install --server` — агент на сервере админа для staging и production | все / `--server` — админ | ✅; `--server` — 5 |
 | **Сервер воркспейса (self-hosted)** | `server install`, `server upgrade`, `server status`, `server backup`, `server uninstall` — «пульт» на своём сервере | админ | 4 |
 | **Окружения** | `up [проект…]`, `down`, `open`, `status`, `logs`, `exec`, `routes`; `env create staging\|production --project … --branch …` на сервере админа | все в проекте; staging/production — `servers.manage` | ✅ (сейчас из `workspace.yaml`); staging — 5 |
