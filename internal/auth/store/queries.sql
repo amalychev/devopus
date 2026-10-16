@@ -99,20 +99,17 @@ INSERT INTO signing_keys (id, private_key, created_at) VALUES ($1, $2, $3);
 -- name: SigningKeys :many
 SELECT * FROM signing_keys ORDER BY created_at DESC;
 
--- name: CreateWorkspace :one
-INSERT INTO workspaces (id, name, server_url, created_by, created_at)
+-- name: RegisterWorkspace :one
+INSERT INTO user_workspaces (user_id, workspace_id, name, server_url, added_at)
 VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (user_id, workspace_id) DO UPDATE SET name = excluded.name, server_url = excluded.server_url
 RETURNING *;
 
--- name: AddWorkspaceMember :exec
-INSERT INTO workspace_members (workspace_id, user_id, added_at) VALUES ($1, $2, $3)
-ON CONFLICT DO NOTHING;
+-- name: ForgetWorkspace :exec
+DELETE FROM user_workspaces WHERE user_id = $1 AND workspace_id = $2;
 
 -- name: UserWorkspaces :many
-SELECT w.* FROM workspaces w
-JOIN workspace_members m ON m.workspace_id = w.id
-WHERE m.user_id = $1
-ORDER BY w.name;
+SELECT * FROM user_workspaces WHERE user_id = $1 ORDER BY name;
 
 -- name: AddEvent :exec
 INSERT INTO security_events (user_id, session_id, kind, ip, detail, created_at)

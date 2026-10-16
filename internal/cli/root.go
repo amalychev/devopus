@@ -65,12 +65,14 @@ func execute(a *app, args []string) int {
 		Long: `Devopus gives every feature branch its own environment on this machine: its own
 containers, data and URL (https://pay-123.shop.localhost), next to the main one.
 
-The devopus command controls all of it: the agent and the web panel on this machine,
-projects and their features. Workspaces, agents on servers and the team's remote
-panel come with the Devopus server (stage 2) as more devopus commands.
+The devopus command controls all of it: your account, the team's workspace with its
+members and projects, the agent and the web panel on this machine, environments and
+their features.
 
 Get started:
   devopus register                create an account (or 'devopus login')
+  devopus workspace create acme   a workspace for the team; you are its admin
+  devopus invite create <email> --role teamlead --project shop
   devopus agent install           run the agent as a service and check this machine
   devopus init                    create workspace.yaml from docker-compose.yml
   devopus up                      start the project's main environment
@@ -95,6 +97,7 @@ Get started:
 	cobra.EnableCommandSorting = false
 	root.AddGroup(
 		&cobra.Group{ID: "account", Title: "Your account:"},
+		&cobra.Group{ID: "team", Title: "Workspaces, projects and members:"},
 		&cobra.Group{ID: "machine", Title: "This machine: the agent, the panel and what they need:"},
 		&cobra.Group{ID: "project", Title: "Projects and their main environment:"},
 		&cobra.Group{ID: "features", Title: "Features and data:"},
@@ -107,7 +110,8 @@ Get started:
 		}
 	}
 	add("account", a.registerCmd(), a.loginCmd(), a.logoutCmd(), a.whoamiCmd(), a.authCmd())
-	add("machine", a.agentCmd(), a.panelCmd(), a.statusCmd(), a.doctorCmd(), a.proxyCmd())
+	add("team", a.workspaceCmd(), a.projectCmd(), a.inviteCmd(), a.memberCmd())
+	add("machine", a.agentCmd(), a.panelCmd(), a.serverCmd(), a.statusCmd(), a.doctorCmd(), a.proxyCmd())
 	add("project", a.upCmd(), a.downCmd(), a.openCmd(), a.logsCmd(), a.execCmd(), a.routesCmd())
 	add("features", a.featureCmd(), a.dbCmd())
 	add("config", a.initCmd(), a.validateCmd(), a.exportCmd(), a.schemaCmd())

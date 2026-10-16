@@ -152,7 +152,7 @@ func TestRegisterRefreshAndReuse(t *testing.T) {
 		t.Fatalf("register = %+v", reg)
 	}
 	claims, err := e.svc.Verify(reg.Tokens.AccessToken)
-	if err != nil || claims.Subject != reg.User.Id || claims.Session != reg.Tokens.Session.Id || claims.Audience != token.DefaultAudience {
+	if err != nil || claims.Subject != reg.User.Id || claims.Session != reg.Tokens.Session.Id || claims.Email != "admin@acme.dev" || claims.Audience != token.DefaultAudience {
 		t.Fatalf("access token: %+v %v", claims, err)
 	}
 	if got := reg.Tokens.AccessExpiresAt.AsTime().Sub(e.clock.Now()); got != AccessTTL {
@@ -568,15 +568,44 @@ func TestWorkspaceRegistry(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
 	reg := e.register(t, "admin@acme.dev")
-	_, err := e.client.RegisterWorkspace(ctx, withToken(&authv1.RegisterWorkspaceRequest{Name: "acme", ServerUrl: "ftp://x"}, reg.Tokens.AccessToken))
-	wantCode(t, err, connect.CodeInvalidArgument)
-	if _, err := e.client.RegisterWorkspace(ctx, withToken(&authv1.RegisterWorkspaceRequest{Name: "acme", ServerUrl: "https://acme.devopus.example"}, reg.Tokens.AccessToken)); err != nil {
+	other := e.register(t, "other@acme.dev")
+	add := func(access, id, name, server string) error {
+		_, err := e.client.RegisterWorkspace(ctx, withToken(&authv1.RegisterWorkspaceRequest{Id: id, Name: name, ServerUrl: server}, access))
+		return err
+	}
+	wantCode(t, add(reg.Tokens.AccessToken, "wsp_1", "acme", "ftp://x"), connect.CodeInvalidArgument)
+	wantCode(t, add(reg.Tokens.AccessToken, "", "acme", "https://x"), connect.CodeInvalidArgument)
+	for _, err := range []error{
+		add(reg.Tokens.AccessToken, "wsp_1", "acme", "https://old.example"),
+		add(reg.Tokens.AccessToken, "wsp_1", "Acme", "https://acme.example"), // an update
+		add(reg.Tokens.AccessToken, "wsp_2", "beta", "https://beta.example"),
+		add(other.Tokens.AccessToken, "wsp_1", "acme", "https://acme.example"),
+	} {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	list := func(access string) []*authv1.Workspace {
+		t.Helper()
+		res, err := e.client.ListWorkspaces(ctx, withToken(&authv1.ListWorkspacesRequest{}, access))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.Msg.Workspaces
+	}
+	if ws := list(reg.Tokens.AccessToken); len(ws) != 2 || ws[0].Name != "Acme" || ws[0].ServerUrl != "https://acme.example" {
+		t.Fatalf("registry = %v", ws)
+	}
+	if _, err := e.client.ForgetWorkspace(ctx, withToken(&authv1.ForgetWorkspaceRequest{Id: "wsp_1"}, reg.Tokens.AccessToken)); err != nil {
 		t.Fatal(err)
 	}
-	list, err := e.client.ListWorkspaces(ctx, withToken(&authv1.ListWorkspacesRequest{}, reg.Tokens.AccessToken))
-	if err != nil || len(list.Msg.Workspaces) != 1 || list.Msg.Workspaces[0].ServerUrl != "https://acme.devopus.example" {
-		t.Fatalf("workspaces = %v %v", list, err)
+	if ws := list(reg.Tokens.AccessToken); len(ws) != 1 || ws[0].Id != "wsp_2" {
+		t.Errorf("after forget: %v", ws)
 	}
-	_, err = e.client.ListWorkspaces(ctx, connect.NewRequest(&authv1.ListWorkspacesRequest{}))
+	// Each user has a registry of their own.
+	if ws := list(other.Tokens.AccessToken); len(ws) != 1 || ws[0].Id != "wsp_1" {
+		t.Errorf("other's registry: %v", ws)
+	}
+	_, err := e.client.ListWorkspaces(ctx, connect.NewRequest(&authv1.ListWorkspacesRequest{}))
 	wantCode(t, err, connect.CodeUnauthenticated)
 }

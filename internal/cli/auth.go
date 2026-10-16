@@ -35,6 +35,7 @@ var noSignIn = map[string]bool{
 	"devopus version": true, "devopus help": true, "devopus completion": true,
 	"devopus agent run": true, "devopus agent stop": true, "devopus agent uninstall": true,
 	"devopus panel run": true, "devopus panel stop": true, "devopus panel uninstall": true,
+	"devopus server run": true,
 }
 
 // requireSignIn refuses commands when nobody is signed in on this device. It checks
@@ -188,7 +189,7 @@ func (a *app) prompt(r *bufio.Reader, question string) (string, error) {
 func (a *app) choosePlan(ctx context.Context, c authv1connect.AuthServiceClient, want string) (authv1.Plan, error) {
 	res, err := c.ListPlans(ctx, connect.NewRequest(&authv1.ListPlansRequest{}))
 	if err != nil {
-		return 0, authErr(err)
+		return 0, rpcErr(err)
 	}
 	var availableNames, coming []string
 	var only *authv1.PlanInfo
@@ -235,7 +236,7 @@ func (a *app) emailSignIn(ctx context.Context, c authv1connect.AuthServiceClient
 	}
 	st, err := c.StartEmailSignIn(ctx, connect.NewRequest(&authv1.StartEmailSignInRequest{Email: email, Purpose: purpose, DeviceId: credentials.DeviceID()}))
 	if err != nil {
-		return nil, authErr(err)
+		return nil, rpcErr(err)
 	}
 	minutes := int(time.Until(st.Msg.ExpiresAt.AsTime()).Round(time.Minute).Minutes())
 	question := fmt.Sprintf("Code sent to %s (valid %d minutes): ", strings.ToLower(strings.TrimSpace(email)), minutes)
@@ -252,7 +253,7 @@ func (a *app) emailSignIn(ctx context.Context, c authv1connect.AuthServiceClient
 			continue
 		}
 		if err != nil {
-			return nil, authErr(err)
+			return nil, rpcErr(err)
 		}
 		return res.Msg, nil
 	}
@@ -331,7 +332,7 @@ func (a *app) browserSignIn(ctx context.Context, c authv1connect.AuthServiceClie
 		Code: res.code, CodeVerifier: verifier, RedirectUri: redirect, DeviceName: credentials.DeviceName(),
 	}))
 	if err != nil {
-		return nil, authErr(err)
+		return nil, rpcErr(err)
 	}
 	return out.Msg, nil
 }
@@ -340,7 +341,7 @@ func (a *app) browserSignIn(ctx context.Context, c authv1connect.AuthServiceClie
 func (a *app) deviceSignIn(ctx context.Context, c authv1connect.AuthServiceClient) (*authv1.PollDeviceSignInResponse, error) {
 	st, err := c.StartDeviceSignIn(ctx, connect.NewRequest(&authv1.StartDeviceSignInRequest{DeviceName: credentials.DeviceName(), DeviceId: credentials.DeviceID()}))
 	if err != nil {
-		return nil, authErr(err)
+		return nil, rpcErr(err)
 	}
 	m := st.Msg
 	fmt.Fprintf(a.stderr, "On another device, open %s\nand enter the code %s\n  (or open %s)\nWaiting for the confirmation…\n", m.VerificationUri, m.UserCode, m.VerificationUriComplete)
@@ -353,7 +354,7 @@ func (a *app) deviceSignIn(ctx context.Context, c authv1connect.AuthServiceClien
 		}
 		res, err := c.PollDeviceSignIn(ctx, connect.NewRequest(&authv1.PollDeviceSignInRequest{DeviceCode: m.DeviceCode}))
 		if err != nil {
-			return nil, authErr(err)
+			return nil, rpcErr(err)
 		}
 		switch res.Msg.Status {
 		case authv1.DeviceSignInStatus_DEVICE_SIGN_IN_STATUS_DONE:
@@ -423,7 +424,7 @@ func (a *app) whoamiCmd() *cobra.Command {
 			}
 			me, err := c.GetMe(cmd.Context(), bearer(&authv1.GetMeRequest{}, acc))
 			if err != nil {
-				return authErr(err)
+				return rpcErr(err)
 			}
 			if a.json {
 				return a.writeJSON(map[string]any{
@@ -462,7 +463,7 @@ func (a *app) authCmd() *cobra.Command {
 			}
 			res, err := c.ListSessions(cmd.Context(), bearer(&authv1.ListSessionsRequest{}, acc))
 			if err != nil {
-				return authErr(err)
+				return rpcErr(err)
 			}
 			if a.json {
 				var out []map[string]any
@@ -500,7 +501,7 @@ func (a *app) authCmd() *cobra.Command {
 				return err
 			}
 			if _, err := c.RevokeSession(cmd.Context(), bearer(&authv1.RevokeSessionRequest{SessionId: args[0]}, acc)); err != nil {
-				return authErr(err)
+				return rpcErr(err)
 			}
 			if args[0] == acc.Session.SessionID {
 				_ = credentials.Clear()
@@ -515,19 +516,20 @@ func (a *app) authCmd() *cobra.Command {
 
 func day(t time.Time) string { return t.Local().Format("2 Jan 2006") }
 
-// authErr turns an Auth error into a CLI failure with Auth's message.
-func authErr(err error) error {
+// rpcErr turns an error of Auth or the workspace server into a CLI failure with its
+// message. A missing permission exits with 5, like a missing sign-in.
+func rpcErr(err error) error {
 	var ce *connect.Error
 	if !errors.As(err, &ce) {
 		return fail(ExitError, "%v", err)
 	}
 	switch ce.Code() {
-	case connect.CodeUnauthenticated:
+	case connect.CodeUnauthenticated, connect.CodePermissionDenied:
 		return fail(ExitAuth, "%s", ce.Message())
-	case connect.CodeInvalidArgument, connect.CodeNotFound, connect.CodeFailedPrecondition:
+	case connect.CodeInvalidArgument, connect.CodeNotFound, connect.CodeFailedPrecondition, connect.CodeAlreadyExists:
 		return fail(ExitInvalid, "%s", ce.Message())
 	case connect.CodeUnavailable:
-		return fail(ExitError, "Auth is not reachable (%s); check the network, or where DEVOPUS_AUTH_URL points", ce.Message())
+		return fail(ExitError, "not reachable (%s); check the network, or where DEVOPUS_AUTH_URL and DEVOPUS_SERVER_URL point", ce.Message())
 	}
 	return fail(ExitError, "%s", ce.Message())
 }

@@ -1612,7 +1612,8 @@ type Workspace struct {
 	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Where the workspace server is.
-	ServerUrl     string                 `protobuf:"bytes,3,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
+	ServerUrl string `protobuf:"bytes,3,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
+	// When it was added to the user's registry.
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1757,9 +1758,11 @@ func (x *ListWorkspacesResponse) GetWorkspaces() []*Workspace {
 }
 
 type RegisterWorkspaceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	ServerUrl     string                 `protobuf:"bytes,2,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Name      string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ServerUrl string                 `protobuf:"bytes,2,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
+	// The workspace's id on its server.
+	Id            string `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1808,6 +1811,13 @@ func (x *RegisterWorkspaceRequest) GetServerUrl() string {
 	return ""
 }
 
+func (x *RegisterWorkspaceRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
 type RegisterWorkspaceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspace     *Workspace             `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
@@ -1850,6 +1860,86 @@ func (x *RegisterWorkspaceResponse) GetWorkspace() *Workspace {
 		return x.Workspace
 	}
 	return nil
+}
+
+type ForgetWorkspaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ForgetWorkspaceRequest) Reset() {
+	*x = ForgetWorkspaceRequest{}
+	mi := &file_devopus_auth_v1_auth_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ForgetWorkspaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ForgetWorkspaceRequest) ProtoMessage() {}
+
+func (x *ForgetWorkspaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_auth_v1_auth_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ForgetWorkspaceRequest.ProtoReflect.Descriptor instead.
+func (*ForgetWorkspaceRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_auth_v1_auth_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *ForgetWorkspaceRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ForgetWorkspaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ForgetWorkspaceResponse) Reset() {
+	*x = ForgetWorkspaceResponse{}
+	mi := &file_devopus_auth_v1_auth_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ForgetWorkspaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ForgetWorkspaceResponse) ProtoMessage() {}
+
+func (x *ForgetWorkspaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_auth_v1_auth_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ForgetWorkspaceResponse.ProtoReflect.Descriptor instead.
+func (*ForgetWorkspaceResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_auth_v1_auth_proto_rawDescGZIP(), []int{32}
 }
 
 var File_devopus_auth_v1_auth_proto protoreflect.FileDescriptor
@@ -1966,13 +2056,17 @@ const file_devopus_auth_v1_auth_proto_rawDesc = "" +
 	"\x16ListWorkspacesResponse\x12:\n" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2\x1a.devopus.auth.v1.WorkspaceR\n" +
-	"workspaces\"M\n" +
+	"workspaces\"]\n" +
 	"\x18RegisterWorkspaceRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
-	"server_url\x18\x02 \x01(\tR\tserverUrl\"U\n" +
+	"server_url\x18\x02 \x01(\tR\tserverUrl\x12\x0e\n" +
+	"\x02id\x18\x03 \x01(\tR\x02id\"U\n" +
 	"\x19RegisterWorkspaceResponse\x128\n" +
-	"\tworkspace\x18\x01 \x01(\v2\x1a.devopus.auth.v1.WorkspaceR\tworkspace*M\n" +
+	"\tworkspace\x18\x01 \x01(\v2\x1a.devopus.auth.v1.WorkspaceR\tworkspace\"(\n" +
+	"\x16ForgetWorkspaceRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x19\n" +
+	"\x17ForgetWorkspaceResponse*M\n" +
 	"\aPurpose\x12\x17\n" +
 	"\x13PURPOSE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10PURPOSE_REGISTER\x10\x01\x12\x13\n" +
@@ -1986,7 +2080,7 @@ const file_devopus_auth_v1_auth_proto_rawDesc = "" +
 	"!DEVICE_SIGN_IN_STATUS_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dDEVICE_SIGN_IN_STATUS_PENDING\x10\x01\x12#\n" +
 	"\x1fDEVICE_SIGN_IN_STATUS_SLOW_DOWN\x10\x02\x12\x1e\n" +
-	"\x1aDEVICE_SIGN_IN_STATUS_DONE\x10\x032\x86\n" +
+	"\x1aDEVICE_SIGN_IN_STATUS_DONE\x10\x032\xec\n" +
 	"\n" +
 	"\vAuthService\x12g\n" +
 	"\x10StartEmailSignIn\x12(.devopus.auth.v1.StartEmailSignInRequest\x1a).devopus.auth.v1.StartEmailSignInResponse\x12p\n" +
@@ -2001,7 +2095,8 @@ const file_devopus_auth_v1_auth_proto_rawDesc = "" +
 	"\fListSessions\x12$.devopus.auth.v1.ListSessionsRequest\x1a%.devopus.auth.v1.ListSessionsResponse\x12^\n" +
 	"\rRevokeSession\x12%.devopus.auth.v1.RevokeSessionRequest\x1a&.devopus.auth.v1.RevokeSessionResponse\x12a\n" +
 	"\x0eListWorkspaces\x12&.devopus.auth.v1.ListWorkspacesRequest\x1a'.devopus.auth.v1.ListWorkspacesResponse\x12j\n" +
-	"\x11RegisterWorkspace\x12).devopus.auth.v1.RegisterWorkspaceRequest\x1a*.devopus.auth.v1.RegisterWorkspaceResponseB\xb7\x01\n" +
+	"\x11RegisterWorkspace\x12).devopus.auth.v1.RegisterWorkspaceRequest\x1a*.devopus.auth.v1.RegisterWorkspaceResponse\x12d\n" +
+	"\x0fForgetWorkspace\x12'.devopus.auth.v1.ForgetWorkspaceRequest\x1a(.devopus.auth.v1.ForgetWorkspaceResponseB\xb7\x01\n" +
 	"\x13com.devopus.auth.v1B\tAuthProtoP\x01Z7github.com/amalychev/devopus/gen/devopus/auth/v1;authv1\xa2\x02\x03DAX\xaa\x02\x0fDevopus.Auth.V1\xca\x02\x0fDevopus\\Auth\\V1\xe2\x02\x1bDevopus\\Auth\\V1\\GPBMetadata\xea\x02\x11Devopus::Auth::V1b\x06proto3"
 
 var (
@@ -2017,7 +2112,7 @@ func file_devopus_auth_v1_auth_proto_rawDescGZIP() []byte {
 }
 
 var file_devopus_auth_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_devopus_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_devopus_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_devopus_auth_v1_auth_proto_goTypes = []any{
 	(Purpose)(0),                              // 0: devopus.auth.v1.Purpose
 	(Plan)(0),                                 // 1: devopus.auth.v1.Plan
@@ -2053,19 +2148,21 @@ var file_devopus_auth_v1_auth_proto_goTypes = []any{
 	(*ListWorkspacesResponse)(nil),            // 31: devopus.auth.v1.ListWorkspacesResponse
 	(*RegisterWorkspaceRequest)(nil),          // 32: devopus.auth.v1.RegisterWorkspaceRequest
 	(*RegisterWorkspaceResponse)(nil),         // 33: devopus.auth.v1.RegisterWorkspaceResponse
-	(*timestamppb.Timestamp)(nil),             // 34: google.protobuf.Timestamp
+	(*ForgetWorkspaceRequest)(nil),            // 34: devopus.auth.v1.ForgetWorkspaceRequest
+	(*ForgetWorkspaceResponse)(nil),           // 35: devopus.auth.v1.ForgetWorkspaceResponse
+	(*timestamppb.Timestamp)(nil),             // 36: google.protobuf.Timestamp
 }
 var file_devopus_auth_v1_auth_proto_depIdxs = []int32{
 	1,  // 0: devopus.auth.v1.User.plan:type_name -> devopus.auth.v1.Plan
-	34, // 1: devopus.auth.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	34, // 2: devopus.auth.v1.Session.created_at:type_name -> google.protobuf.Timestamp
-	34, // 3: devopus.auth.v1.Session.last_used_at:type_name -> google.protobuf.Timestamp
-	34, // 4: devopus.auth.v1.Session.idle_expires_at:type_name -> google.protobuf.Timestamp
-	34, // 5: devopus.auth.v1.Session.expires_at:type_name -> google.protobuf.Timestamp
-	34, // 6: devopus.auth.v1.Tokens.access_expires_at:type_name -> google.protobuf.Timestamp
+	36, // 1: devopus.auth.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	36, // 2: devopus.auth.v1.Session.created_at:type_name -> google.protobuf.Timestamp
+	36, // 3: devopus.auth.v1.Session.last_used_at:type_name -> google.protobuf.Timestamp
+	36, // 4: devopus.auth.v1.Session.idle_expires_at:type_name -> google.protobuf.Timestamp
+	36, // 5: devopus.auth.v1.Session.expires_at:type_name -> google.protobuf.Timestamp
+	36, // 6: devopus.auth.v1.Tokens.access_expires_at:type_name -> google.protobuf.Timestamp
 	4,  // 7: devopus.auth.v1.Tokens.session:type_name -> devopus.auth.v1.Session
 	0,  // 8: devopus.auth.v1.StartEmailSignInRequest.purpose:type_name -> devopus.auth.v1.Purpose
-	34, // 9: devopus.auth.v1.StartEmailSignInResponse.expires_at:type_name -> google.protobuf.Timestamp
+	36, // 9: devopus.auth.v1.StartEmailSignInResponse.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 10: devopus.auth.v1.CompleteEmailSignInRequest.plan:type_name -> devopus.auth.v1.Plan
 	3,  // 11: devopus.auth.v1.CompleteEmailSignInResponse.user:type_name -> devopus.auth.v1.User
 	5,  // 12: devopus.auth.v1.CompleteEmailSignInResponse.tokens:type_name -> devopus.auth.v1.Tokens
@@ -2073,7 +2170,7 @@ var file_devopus_auth_v1_auth_proto_depIdxs = []int32{
 	11, // 14: devopus.auth.v1.ListPlansResponse.plans:type_name -> devopus.auth.v1.PlanInfo
 	3,  // 15: devopus.auth.v1.ExchangeAuthorizationCodeResponse.user:type_name -> devopus.auth.v1.User
 	5,  // 16: devopus.auth.v1.ExchangeAuthorizationCodeResponse.tokens:type_name -> devopus.auth.v1.Tokens
-	34, // 17: devopus.auth.v1.StartDeviceSignInResponse.expires_at:type_name -> google.protobuf.Timestamp
+	36, // 17: devopus.auth.v1.StartDeviceSignInResponse.expires_at:type_name -> google.protobuf.Timestamp
 	2,  // 18: devopus.auth.v1.PollDeviceSignInResponse.status:type_name -> devopus.auth.v1.DeviceSignInStatus
 	3,  // 19: devopus.auth.v1.PollDeviceSignInResponse.user:type_name -> devopus.auth.v1.User
 	5,  // 20: devopus.auth.v1.PollDeviceSignInResponse.tokens:type_name -> devopus.auth.v1.Tokens
@@ -2082,7 +2179,7 @@ var file_devopus_auth_v1_auth_proto_depIdxs = []int32{
 	3,  // 23: devopus.auth.v1.GetMeResponse.user:type_name -> devopus.auth.v1.User
 	4,  // 24: devopus.auth.v1.GetMeResponse.session:type_name -> devopus.auth.v1.Session
 	4,  // 25: devopus.auth.v1.ListSessionsResponse.sessions:type_name -> devopus.auth.v1.Session
-	34, // 26: devopus.auth.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
+	36, // 26: devopus.auth.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
 	29, // 27: devopus.auth.v1.ListWorkspacesResponse.workspaces:type_name -> devopus.auth.v1.Workspace
 	29, // 28: devopus.auth.v1.RegisterWorkspaceResponse.workspace:type_name -> devopus.auth.v1.Workspace
 	6,  // 29: devopus.auth.v1.AuthService.StartEmailSignIn:input_type -> devopus.auth.v1.StartEmailSignInRequest
@@ -2098,21 +2195,23 @@ var file_devopus_auth_v1_auth_proto_depIdxs = []int32{
 	27, // 39: devopus.auth.v1.AuthService.RevokeSession:input_type -> devopus.auth.v1.RevokeSessionRequest
 	30, // 40: devopus.auth.v1.AuthService.ListWorkspaces:input_type -> devopus.auth.v1.ListWorkspacesRequest
 	32, // 41: devopus.auth.v1.AuthService.RegisterWorkspace:input_type -> devopus.auth.v1.RegisterWorkspaceRequest
-	7,  // 42: devopus.auth.v1.AuthService.StartEmailSignIn:output_type -> devopus.auth.v1.StartEmailSignInResponse
-	9,  // 43: devopus.auth.v1.AuthService.CompleteEmailSignIn:output_type -> devopus.auth.v1.CompleteEmailSignInResponse
-	12, // 44: devopus.auth.v1.AuthService.ListPlans:output_type -> devopus.auth.v1.ListPlansResponse
-	14, // 45: devopus.auth.v1.AuthService.ExchangeAuthorizationCode:output_type -> devopus.auth.v1.ExchangeAuthorizationCodeResponse
-	16, // 46: devopus.auth.v1.AuthService.StartDeviceSignIn:output_type -> devopus.auth.v1.StartDeviceSignInResponse
-	18, // 47: devopus.auth.v1.AuthService.PollDeviceSignIn:output_type -> devopus.auth.v1.PollDeviceSignInResponse
-	20, // 48: devopus.auth.v1.AuthService.Refresh:output_type -> devopus.auth.v1.RefreshResponse
-	22, // 49: devopus.auth.v1.AuthService.SignOut:output_type -> devopus.auth.v1.SignOutResponse
-	24, // 50: devopus.auth.v1.AuthService.GetMe:output_type -> devopus.auth.v1.GetMeResponse
-	26, // 51: devopus.auth.v1.AuthService.ListSessions:output_type -> devopus.auth.v1.ListSessionsResponse
-	28, // 52: devopus.auth.v1.AuthService.RevokeSession:output_type -> devopus.auth.v1.RevokeSessionResponse
-	31, // 53: devopus.auth.v1.AuthService.ListWorkspaces:output_type -> devopus.auth.v1.ListWorkspacesResponse
-	33, // 54: devopus.auth.v1.AuthService.RegisterWorkspace:output_type -> devopus.auth.v1.RegisterWorkspaceResponse
-	42, // [42:55] is the sub-list for method output_type
-	29, // [29:42] is the sub-list for method input_type
+	34, // 42: devopus.auth.v1.AuthService.ForgetWorkspace:input_type -> devopus.auth.v1.ForgetWorkspaceRequest
+	7,  // 43: devopus.auth.v1.AuthService.StartEmailSignIn:output_type -> devopus.auth.v1.StartEmailSignInResponse
+	9,  // 44: devopus.auth.v1.AuthService.CompleteEmailSignIn:output_type -> devopus.auth.v1.CompleteEmailSignInResponse
+	12, // 45: devopus.auth.v1.AuthService.ListPlans:output_type -> devopus.auth.v1.ListPlansResponse
+	14, // 46: devopus.auth.v1.AuthService.ExchangeAuthorizationCode:output_type -> devopus.auth.v1.ExchangeAuthorizationCodeResponse
+	16, // 47: devopus.auth.v1.AuthService.StartDeviceSignIn:output_type -> devopus.auth.v1.StartDeviceSignInResponse
+	18, // 48: devopus.auth.v1.AuthService.PollDeviceSignIn:output_type -> devopus.auth.v1.PollDeviceSignInResponse
+	20, // 49: devopus.auth.v1.AuthService.Refresh:output_type -> devopus.auth.v1.RefreshResponse
+	22, // 50: devopus.auth.v1.AuthService.SignOut:output_type -> devopus.auth.v1.SignOutResponse
+	24, // 51: devopus.auth.v1.AuthService.GetMe:output_type -> devopus.auth.v1.GetMeResponse
+	26, // 52: devopus.auth.v1.AuthService.ListSessions:output_type -> devopus.auth.v1.ListSessionsResponse
+	28, // 53: devopus.auth.v1.AuthService.RevokeSession:output_type -> devopus.auth.v1.RevokeSessionResponse
+	31, // 54: devopus.auth.v1.AuthService.ListWorkspaces:output_type -> devopus.auth.v1.ListWorkspacesResponse
+	33, // 55: devopus.auth.v1.AuthService.RegisterWorkspace:output_type -> devopus.auth.v1.RegisterWorkspaceResponse
+	35, // 56: devopus.auth.v1.AuthService.ForgetWorkspace:output_type -> devopus.auth.v1.ForgetWorkspaceResponse
+	43, // [43:57] is the sub-list for method output_type
+	29, // [29:43] is the sub-list for method input_type
 	29, // [29:29] is the sub-list for extension type_name
 	29, // [29:29] is the sub-list for extension extendee
 	0,  // [0:29] is the sub-list for field type_name
@@ -2129,7 +2228,7 @@ func file_devopus_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_devopus_auth_v1_auth_proto_rawDesc), len(file_devopus_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   31,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

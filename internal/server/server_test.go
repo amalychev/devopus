@@ -1,0 +1,364 @@
+package server
+
+import (
+	"bytes"
+	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
+	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
+	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
+	"github.com/amalychev/devopus/internal/auth/mail"
+	"github.com/amalychev/devopus/internal/auth/token"
+	"github.com/amalychev/devopus/internal/authz"
+	"github.com/amalychev/devopus/internal/pgtest"
+	"github.com/amalychev/devopus/internal/server/store"
+)
+
+func TestMain(m *testing.M) { os.Exit(pgtest.Run(m)) }
+
+const issuer = "https://auth.test"
+
+type inbox struct {
+	mu   sync.Mutex
+	msgs []mail.Message
+}
+
+func (b *inbox) Send(_ context.Context, m mail.Message) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.msgs = append(b.msgs, m)
+	return nil
+}
+
+type env struct {
+	svc    *Service
+	url    string
+	key    token.Key
+	client workspacev1connect.WorkspaceServiceClient
+	inbox  *inbox
+}
+
+func newEnv(t *testing.T) *env {
+	t.Helper()
+	pool := pgtest.Pool(t)
+	if err := store.Migrate(context.Background(), pool); err != nil {
+		t.Fatal(err)
+	}
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	key := token.Key{ID: "k1", Private: priv}
+	set := token.JWKS{Keys: []token.JWK{token.PublicJWK(key)}}
+	in := &inbox{}
+	svc, err := New(pool, Config{Keys: set.Find, AuthIssuer: issuer, Mailer: in})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(svc.Handler())
+	t.Cleanup(srv.Close)
+	return &env{svc: svc, url: srv.URL, key: key, client: workspacev1connect.NewWorkspaceServiceClient(http.DefaultClient, srv.URL), inbox: in}
+}
+
+// token is an access token Auth would issue to the user with this email.
+func (e *env) token(email string) string {
+	id := "usr_" + strings.Split(email, "@")[0]
+	tok, err := token.Sign(e.key, token.Claims{Issuer: issuer, Subject: id, Session: "ses_" + id, Email: email,
+		Audience: token.DefaultAudience, IssuedAt: time.Now().Unix(), Expiry: time.Now().Add(time.Hour).Unix()})
+	if err != nil {
+		panic(err)
+	}
+	return tok
+}
+
+func as[T any](e *env, email string, msg *T) *connect.Request[T] {
+	r := connect.NewRequest(msg)
+	r.Header().Set("Authorization", "Bearer "+e.token(email))
+	return r
+}
+
+func wantCode(t *testing.T, err error, code connect.Code) {
+	t.Helper()
+	if connect.CodeOf(err) != code {
+		t.Fatalf("want %v, got %v", code, err)
+	}
+}
+
+func must[T any](t *testing.T) func(*connect.Response[T], error) *T {
+	return func(r *connect.Response[T], err error) *T {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.Msg
+	}
+}
+
+func service() protoreflect.ServiceDescriptor {
+	return workspacev1.File_devopus_workspace_v1_workspace_proto.Services().ByName("WorkspaceService")
+}
+
+// TestEveryCallDeclaresAccess: a call without a declared permission would be refused
+// by the interceptor, and must not reach production either.
+func TestEveryCallDeclaresAccess(t *testing.T) {
+	ms := service().Methods()
+	for i := range ms.Len() {
+		m := ms.Get(i)
+		a := AccessOf(m)
+		if a == nil {
+			t.Errorf("%s declares no access", m.Name())
+			continue
+		}
+		if a.Scope == workspacev1.Scope_SCOPE_SIGNED_IN {
+			if a.Permission != "" {
+				t.Errorf("%s: a signed-in call with a permission", m.Name())
+			}
+			continue
+		}
+		if !authz.Valid(authz.Permission(a.Permission)) {
+			t.Errorf("%s: unknown permission %q", m.Name(), a.Permission)
+		}
+		if a.Scope == workspacev1.Scope_SCOPE_PROJECT && m.Input().Fields().ByName("project") == nil {
+			t.Errorf("%s is checked in a project but has no project field", m.Name())
+		}
+		if m.Input().Fields().ByName("workspace_id") == nil {
+			t.Errorf("%s is checked in a workspace but has no workspace_id", m.Name())
+		}
+	}
+}
+
+// fixture is a workspace with an admin, a teamlead and a developer of project shop,
+// and an outsider who is a member elsewhere. Every user gets a unique email.
+type fixture struct {
+	ws                         string
+	admin, lead, dev, outsider string
+	subjects                   map[string]authz.Subject
+}
+
+var fixtures int
+
+func (e *env) fixture(t *testing.T) fixture {
+	t.Helper()
+	fixtures++
+	n := fixtures
+	f := fixture{
+		admin: fmt.Sprintf("admin%d@acme.dev", n), lead: fmt.Sprintf("lead%d@acme.dev", n),
+		dev: fmt.Sprintf("dev%d@acme.dev", n), outsider: fmt.Sprintf("out%d@acme.dev", n),
+	}
+	ctx := context.Background()
+	f.ws = must[workspacev1.CreateWorkspaceResponse](t)(e.client.CreateWorkspace(ctx, as(e, f.admin, &workspacev1.CreateWorkspaceRequest{Name: fmt.Sprintf("acme %d", n)}))).Workspace.Id
+	must[workspacev1.CreateWorkspaceResponse](t)(e.client.CreateWorkspace(ctx, as(e, f.outsider, &workspacev1.CreateWorkspaceRequest{Name: "elsewhere"})))
+	must[workspacev1.CreateProjectResponse](t)(e.client.CreateProject(ctx, as(e, f.admin, &workspacev1.CreateProjectRequest{WorkspaceId: f.ws, Name: "shop"})))
+	for _, m := range []struct{ email, role string }{{f.lead, "teamlead"}, {f.dev, "developer"}} {
+		inv := must[workspacev1.CreateInviteResponse](t)(e.client.CreateInvite(ctx, as(e, f.admin, &workspacev1.CreateInviteRequest{WorkspaceId: f.ws, Email: m.email, Role: m.role, Projects: []string{"shop"}})))
+		must[workspacev1.AcceptInviteResponse](t)(e.client.AcceptInvite(ctx, as(e, m.email, &workspacev1.AcceptInviteRequest{Code: inv.Code})))
+	}
+	f.subjects = map[string]authz.Subject{
+		f.admin:    {Role: authz.Admin},
+		f.lead:     {Role: authz.Teamlead, Projects: map[string]authz.Role{"shop": authz.Teamlead}},
+		f.dev:      {Role: authz.Developer, Projects: map[string]authz.Role{"shop": authz.Developer}},
+		f.outsider: {},
+	}
+	return f
+}
+
+// call calls a method over HTTP as a client of any language would, with only the
+// fields that locate it: the workspace and the project.
+func (e *env) call(t *testing.T, method protoreflect.MethodDescriptor, bearer, ws string) string {
+	t.Helper()
+	body := map[string]string{}
+	in := method.Input().Fields()
+	if in.ByName("workspace_id") != nil {
+		body["workspaceId"] = ws
+	}
+	if in.ByName("project") != nil {
+		body["project"] = "shop"
+	}
+	b, _ := json.Marshal(body)
+	req, _ := http.NewRequest(http.MethodPost, e.url+"/"+string(service().FullName())+"/"+string(method.Name()), bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		return "ok"
+	}
+	var out struct{ Code, Message string }
+	_ = json.NewDecoder(resp.Body).Decode(&out)
+	return out.Code + ": " + out.Message
+}
+
+// TestRoleMatrix calls every method as every role, straight over HTTP: the roles
+// without the declared permission are refused, the others get past the check.
+func TestRoleMatrix(t *testing.T) {
+	e := newEnv(t)
+	ms := service().Methods()
+	for i := range ms.Len() {
+		m := ms.Get(i)
+		a := AccessOf(m)
+		for _, role := range []string{"admin", "teamlead", "developer", "outsider", "anonymous"} {
+			// A fresh workspace for every call: the admin's DeleteWorkspace must not
+			// spoil the next one.
+			f := e.fixture(t)
+			email := map[string]string{"admin": f.admin, "teamlead": f.lead, "developer": f.dev, "outsider": f.outsider}[role]
+			bearer := ""
+			if email != "" {
+				bearer = e.token(email)
+			}
+			got := e.call(t, m, bearer, f.ws)
+			var allowed bool
+			switch {
+			case role == "anonymous":
+				if !strings.HasPrefix(got, "unauthenticated") {
+					t.Errorf("%s as anonymous: %s", m.Name(), got)
+				}
+				continue
+			case a.Scope == workspacev1.Scope_SCOPE_SIGNED_IN:
+				allowed = true
+			case a.Scope == workspacev1.Scope_SCOPE_PROJECT:
+				allowed = f.subjects[email].Can(authz.Permission(a.Permission), "shop")
+			default:
+				allowed = f.subjects[email].Can(authz.Permission(a.Permission), "")
+			}
+			deniedNow := strings.HasPrefix(got, "permission_denied")
+			if allowed == deniedNow || strings.HasPrefix(got, "unauthenticated") || strings.HasPrefix(got, "internal") {
+				t.Errorf("%s as %s (allowed %v): %s", m.Name(), role, allowed, got)
+			}
+			if deniedNow && !strings.Contains(got, a.Permission) && !strings.Contains(got, "not a member") {
+				t.Errorf("%s as %s: the refusal does not name %s: %s", m.Name(), role, a.Permission, got)
+			}
+		}
+	}
+	// A token Auth did not sign.
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	forged, _ := token.Sign(token.Key{ID: "k1", Private: priv}, token.Claims{Issuer: issuer, Subject: "usr_x", Session: "s", Email: "x@acme.dev", Audience: token.DefaultAudience, Expiry: time.Now().Add(time.Hour).Unix()})
+	if got := e.call(t, service().Methods().ByName("ListWorkspaces"), forged, ""); !strings.HasPrefix(got, "unauthenticated") {
+		t.Errorf("forged token: %s", got)
+	}
+}
+
+func TestAdminTeamleadDeveloper(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	const admin, lead, dev, stranger = "admin@acme.dev", "lead@acme.dev", "dev@acme.dev", "stranger@acme.dev"
+
+	ws := must[workspacev1.CreateWorkspaceResponse](t)(e.client.CreateWorkspace(ctx, as(e, admin, &workspacev1.CreateWorkspaceRequest{Name: "Acme"}))).Workspace
+	if ws.Role != "admin" || ws.AdminEmail != admin {
+		t.Fatalf("workspace = %+v", ws)
+	}
+	must[workspacev1.CreateProjectResponse](t)(e.client.CreateProject(ctx, as(e, admin, &workspacev1.CreateProjectRequest{WorkspaceId: ws.Id, Name: "shop"})))
+	_, err := e.client.CreateProject(ctx, as(e, admin, &workspacev1.CreateProjectRequest{WorkspaceId: ws.Id, Name: "Bad Name"}))
+	wantCode(t, err, connect.CodeInvalidArgument)
+
+	// The admin invites a teamlead into shop; the invite email carries the code.
+	inv := must[workspacev1.CreateInviteResponse](t)(e.client.CreateInvite(ctx, as(e, admin, &workspacev1.CreateInviteRequest{WorkspaceId: ws.Id, Email: "Lead@Acme.dev", Role: "teamlead", Projects: []string{"shop"}})))
+	if len(e.inbox.msgs) != 1 || !strings.Contains(e.inbox.msgs[0].Text, "devopus invite accept "+inv.Code) || e.inbox.msgs[0].To != lead {
+		t.Fatalf("invite email: %+v", e.inbox.msgs)
+	}
+	_, err = e.client.AcceptInvite(ctx, as(e, stranger, &workspacev1.AcceptInviteRequest{Code: inv.Code}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	must[workspacev1.AcceptInviteResponse](t)(e.client.AcceptInvite(ctx, as(e, lead, &workspacev1.AcceptInviteRequest{Code: inv.Code})))
+	_, err = e.client.AcceptInvite(ctx, as(e, lead, &workspacev1.AcceptInviteRequest{Code: inv.Code}))
+	wantCode(t, err, connect.CodeFailedPrecondition)
+
+	// The teamlead invites developers into the projects they lead, and only developers.
+	_, err = e.client.CreateInvite(ctx, as(e, lead, &workspacev1.CreateInviteRequest{WorkspaceId: ws.Id, Email: "x@acme.dev", Role: "teamlead", Projects: []string{"shop"}}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	must[workspacev1.CreateProjectResponse](t)(e.client.CreateProject(ctx, as(e, lead, &workspacev1.CreateProjectRequest{WorkspaceId: ws.Id, Name: "blog"})))
+	must[workspacev1.CreateProjectResponse](t)(e.client.CreateProject(ctx, as(e, admin, &workspacev1.CreateProjectRequest{WorkspaceId: ws.Id, Name: "crm"})))
+	_, err = e.client.CreateInvite(ctx, as(e, lead, &workspacev1.CreateInviteRequest{WorkspaceId: ws.Id, Email: dev, Role: "developer", Projects: []string{"crm"}}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	devInv := must[workspacev1.CreateInviteResponse](t)(e.client.CreateInvite(ctx, as(e, lead, &workspacev1.CreateInviteRequest{WorkspaceId: ws.Id, Email: dev, Role: "developer", Projects: []string{"shop", "blog"}})))
+	must[workspacev1.AcceptInviteResponse](t)(e.client.AcceptInvite(ctx, as(e, dev, &workspacev1.AcceptInviteRequest{Code: devInv.Code})))
+
+	// The developer may not invite: refused by the permission, which the message names.
+	_, err = e.client.CreateInvite(ctx, as(e, dev, &workspacev1.CreateInviteRequest{WorkspaceId: ws.Id, Email: "y@acme.dev", Role: "developer", Projects: []string{"shop"}}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	if !strings.Contains(err.Error(), "members.invite") {
+		t.Errorf("refusal: %v", err)
+	}
+	projects := must[workspacev1.ListProjectsResponse](t)(e.client.ListProjects(ctx, as(e, dev, &workspacev1.ListProjectsRequest{WorkspaceId: ws.Id}))).Projects
+	if len(projects) != 2 {
+		t.Errorf("the developer sees %d projects", len(projects))
+	}
+
+	// Grants: the teamlead gives the developer services.manage in shop, not more.
+	must[workspacev1.GrantPermissionResponse](t)(e.client.GrantPermission(ctx, as(e, lead, &workspacev1.GrantPermissionRequest{WorkspaceId: ws.Id, Project: "shop", Email: dev, Permission: "services.manage"})))
+	_, err = e.client.GrantPermission(ctx, as(e, lead, &workspacev1.GrantPermissionRequest{WorkspaceId: ws.Id, Project: "shop", Email: dev, Permission: "members.manage"}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	_, err = e.client.GrantPermission(ctx, as(e, lead, &workspacev1.GrantPermissionRequest{WorkspaceId: ws.Id, Project: "crm", Email: dev, Permission: "services.manage"}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	me := must[workspacev1.GetWorkspaceResponse](t)(e.client.GetWorkspace(ctx, as(e, dev, &workspacev1.GetWorkspaceRequest{WorkspaceId: ws.Id})))
+	if len(me.Projects) != 2 || me.Projects[1].Project != "shop" || !strings.Contains(strings.Join(me.Projects[1].Permissions, ","), "services.manage") {
+		t.Fatalf("developer's permissions: %v", me.Projects)
+	}
+	members := must[workspacev1.ListMembersResponse](t)(e.client.ListMembers(ctx, as(e, dev, &workspacev1.ListMembersRequest{WorkspaceId: ws.Id}))).Members
+	if len(members) != 3 || members[0].Email != admin || members[2].Email != dev || len(members[2].Projects) != 2 || members[2].Projects[1].Grants[0] != "services.manage" {
+		t.Fatalf("members: %v", members)
+	}
+
+	// A teamlead removes developers from a project, not other teamleads.
+	_, err = e.client.RemoveFromProject(ctx, as(e, lead, &workspacev1.RemoveFromProjectRequest{WorkspaceId: ws.Id, Project: "shop", Email: lead}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	must[workspacev1.RemoveFromProjectResponse](t)(e.client.RemoveFromProject(ctx, as(e, lead, &workspacev1.RemoveFromProjectRequest{WorkspaceId: ws.Id, Project: "shop", Email: dev})))
+	me = must[workspacev1.GetWorkspaceResponse](t)(e.client.GetWorkspace(ctx, as(e, dev, &workspacev1.GetWorkspaceRequest{WorkspaceId: ws.Id})))
+	if len(me.Projects) != 1 || me.Projects[0].Project != "blog" {
+		t.Fatalf("after removal from shop: %v", me.Projects)
+	}
+
+	// Invites: the teamlead sees their own; a revoked one cannot be accepted.
+	late := must[workspacev1.CreateInviteResponse](t)(e.client.CreateInvite(ctx, as(e, admin, &workspacev1.CreateInviteRequest{WorkspaceId: ws.Id, Email: "late@acme.dev", Role: "developer", Projects: []string{"crm"}})))
+	if n := len(must[workspacev1.ListInvitesResponse](t)(e.client.ListInvites(ctx, as(e, lead, &workspacev1.ListInvitesRequest{WorkspaceId: ws.Id}))).Invites); n != 0 {
+		t.Errorf("the teamlead sees %d invites of others", n)
+	}
+	_, err = e.client.RevokeInvite(ctx, as(e, lead, &workspacev1.RevokeInviteRequest{WorkspaceId: ws.Id, InviteId: late.Invite.Id}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	must[workspacev1.RevokeInviteResponse](t)(e.client.RevokeInvite(ctx, as(e, admin, &workspacev1.RevokeInviteRequest{WorkspaceId: ws.Id, InviteId: late.Invite.Id})))
+	_, err = e.client.AcceptInvite(ctx, as(e, "late@acme.dev", &workspacev1.AcceptInviteRequest{Code: late.Code}))
+	wantCode(t, err, connect.CodeFailedPrecondition)
+
+	// Transfer: the teamlead becomes the admin, the old admin a teamlead.
+	_, err = e.client.TransferWorkspace(ctx, as(e, admin, &workspacev1.TransferWorkspaceRequest{WorkspaceId: ws.Id, Email: stranger}))
+	wantCode(t, err, connect.CodeNotFound)
+	must[workspacev1.TransferWorkspaceResponse](t)(e.client.TransferWorkspace(ctx, as(e, admin, &workspacev1.TransferWorkspaceRequest{WorkspaceId: ws.Id, Email: lead})))
+	_, err = e.client.ListAudit(ctx, as(e, admin, &workspacev1.ListAuditRequest{WorkspaceId: ws.Id}))
+	wantCode(t, err, connect.CodePermissionDenied)
+	audit := must[workspacev1.ListAuditResponse](t)(e.client.ListAudit(ctx, as(e, lead, &workspacev1.ListAuditRequest{WorkspaceId: ws.Id}))).Events
+	var actions []string
+	for _, ev := range audit {
+		actions = append(actions, ev.Action)
+	}
+	if got := strings.Join(actions, ","); !strings.HasPrefix(got, "workspace.transferred,invite.revoked,member.invited,member.removed_from_project,permission.granted,member.joined") {
+		t.Errorf("audit: %s", got)
+	}
+
+	// The admin cannot be removed; a removed member loses access at once.
+	_, err = e.client.RemoveMember(ctx, as(e, lead, &workspacev1.RemoveMemberRequest{WorkspaceId: ws.Id, Email: lead}))
+	wantCode(t, err, connect.CodeFailedPrecondition)
+	must[workspacev1.RemoveMemberResponse](t)(e.client.RemoveMember(ctx, as(e, lead, &workspacev1.RemoveMemberRequest{WorkspaceId: ws.Id, Email: dev})))
+	_, err = e.client.GetWorkspace(ctx, as(e, dev, &workspacev1.GetWorkspaceRequest{WorkspaceId: ws.Id}))
+	wantCode(t, err, connect.CodePermissionDenied)
+
+	// Deleting takes the name again.
+	_, err = e.client.DeleteWorkspace(ctx, as(e, lead, &workspacev1.DeleteWorkspaceRequest{WorkspaceId: ws.Id, ConfirmName: "acme"}))
+	wantCode(t, err, connect.CodeInvalidArgument)
+	must[workspacev1.DeleteWorkspaceResponse](t)(e.client.DeleteWorkspace(ctx, as(e, lead, &workspacev1.DeleteWorkspaceRequest{WorkspaceId: ws.Id, ConfirmName: "Acme"})))
+	if n := len(must[workspacev1.ListWorkspacesResponse](t)(e.client.ListWorkspaces(ctx, as(e, admin, &workspacev1.ListWorkspacesRequest{}))).Workspaces); n != 0 {
+		t.Errorf("%d workspaces after delete", n)
+	}
+}

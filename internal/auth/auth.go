@@ -232,7 +232,7 @@ func (s *Service) JWKS() token.JWKS {
 	return set
 }
 
-func (s *Service) signAccess(userID, sessionID, audience string) (string, time.Time, error) {
+func (s *Service) signAccess(user store.User, sessionID, audience string) (string, time.Time, error) {
 	keys := s.published()
 	if len(keys) == 0 {
 		return "", time.Time{}, errors.New("no signing key")
@@ -243,7 +243,7 @@ func (s *Service) signAccess(userID, sessionID, audience string) (string, time.T
 	now := s.now()
 	exp := now.Add(AccessTTL)
 	tok, err := token.Sign(keys[0], token.Claims{
-		Issuer: s.cfg.Issuer, Subject: userID, Session: sessionID, Audience: audience,
+		Issuer: s.cfg.Issuer, Subject: user.ID, Session: sessionID, Email: user.Email, Audience: audience,
 		IssuedAt: now.Unix(), Expiry: exp.Unix(),
 	})
 	return tok, exp.Truncate(time.Second), err

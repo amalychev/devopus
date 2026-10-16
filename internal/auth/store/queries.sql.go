@@ -45,22 +45,6 @@ func (q *Queries) AddEvent(ctx context.Context, arg AddEventParams) error {
 	return err
 }
 
-const addWorkspaceMember = `-- name: AddWorkspaceMember :exec
-INSERT INTO workspace_members (workspace_id, user_id, added_at) VALUES ($1, $2, $3)
-ON CONFLICT DO NOTHING
-`
-
-type AddWorkspaceMemberParams struct {
-	WorkspaceID string
-	UserID      string
-	AddedAt     time.Time
-}
-
-func (q *Queries) AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) error {
-	_, err := q.db.Exec(ctx, addWorkspaceMember, arg.WorkspaceID, arg.UserID, arg.AddedAt)
-	return err
-}
-
 const approveDeviceCode = `-- name: ApproveDeviceCode :execrows
 UPDATE device_codes SET user_id = $2, approved_at = $3
 WHERE user_code = $1 AND approved_at IS NULL AND expires_at > $3
@@ -381,39 +365,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
-const createWorkspace = `-- name: CreateWorkspace :one
-INSERT INTO workspaces (id, name, server_url, created_by, created_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, name, server_url, created_by, created_at
-`
-
-type CreateWorkspaceParams struct {
-	ID        string
-	Name      string
-	ServerUrl string
-	CreatedBy string
-	CreatedAt time.Time
-}
-
-func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (Workspace, error) {
-	row := q.db.QueryRow(ctx, createWorkspace,
-		arg.ID,
-		arg.Name,
-		arg.ServerUrl,
-		arg.CreatedBy,
-		arg.CreatedAt,
-	)
-	var i Workspace
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.ServerUrl,
-		&i.CreatedBy,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const deleteExpired = `-- name: DeleteExpired :exec
 WITH c AS (DELETE FROM email_challenges WHERE email_challenges.expires_at < $1),
      a AS (DELETE FROM authorization_codes WHERE authorization_codes.expires_at < $1),
@@ -468,6 +419,20 @@ func (q *Queries) DeviceCodeForUpdate(ctx context.Context, deviceCodeHash []byte
 		&i.ConsumedAt,
 	)
 	return i, err
+}
+
+const forgetWorkspace = `-- name: ForgetWorkspace :exec
+DELETE FROM user_workspaces WHERE user_id = $1 AND workspace_id = $2
+`
+
+type ForgetWorkspaceParams struct {
+	UserID      string
+	WorkspaceID string
+}
+
+func (q *Queries) ForgetWorkspace(ctx context.Context, arg ForgetWorkspaceParams) error {
+	_, err := q.db.Exec(ctx, forgetWorkspace, arg.UserID, arg.WorkspaceID)
+	return err
 }
 
 const liveSessions = `-- name: LiveSessions :many
@@ -538,6 +503,40 @@ func (q *Queries) RefreshTokenForUpdate(ctx context.Context, tokenHash []byte) (
 		&i.SessionID,
 		&i.CreatedAt,
 		&i.UsedAt,
+	)
+	return i, err
+}
+
+const registerWorkspace = `-- name: RegisterWorkspace :one
+INSERT INTO user_workspaces (user_id, workspace_id, name, server_url, added_at)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (user_id, workspace_id) DO UPDATE SET name = excluded.name, server_url = excluded.server_url
+RETURNING user_id, workspace_id, name, server_url, added_at
+`
+
+type RegisterWorkspaceParams struct {
+	UserID      string
+	WorkspaceID string
+	Name        string
+	ServerUrl   string
+	AddedAt     time.Time
+}
+
+func (q *Queries) RegisterWorkspace(ctx context.Context, arg RegisterWorkspaceParams) (UserWorkspace, error) {
+	row := q.db.QueryRow(ctx, registerWorkspace,
+		arg.UserID,
+		arg.WorkspaceID,
+		arg.Name,
+		arg.ServerUrl,
+		arg.AddedAt,
+	)
+	var i UserWorkspace
+	err := row.Scan(
+		&i.UserID,
+		&i.WorkspaceID,
+		&i.Name,
+		&i.ServerUrl,
+		&i.AddedAt,
 	)
 	return i, err
 }
@@ -747,27 +746,24 @@ func (q *Queries) UserEvents(ctx context.Context, userID string) ([]SecurityEven
 }
 
 const userWorkspaces = `-- name: UserWorkspaces :many
-SELECT w.id, w.name, w.server_url, w.created_by, w.created_at FROM workspaces w
-JOIN workspace_members m ON m.workspace_id = w.id
-WHERE m.user_id = $1
-ORDER BY w.name
+SELECT user_id, workspace_id, name, server_url, added_at FROM user_workspaces WHERE user_id = $1 ORDER BY name
 `
 
-func (q *Queries) UserWorkspaces(ctx context.Context, userID string) ([]Workspace, error) {
+func (q *Queries) UserWorkspaces(ctx context.Context, userID string) ([]UserWorkspace, error) {
 	rows, err := q.db.Query(ctx, userWorkspaces, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Workspace
+	var items []UserWorkspace
 	for rows.Next() {
-		var i Workspace
+		var i UserWorkspace
 		if err := rows.Scan(
-			&i.ID,
+			&i.UserID,
+			&i.WorkspaceID,
 			&i.Name,
 			&i.ServerUrl,
-			&i.CreatedBy,
-			&i.CreatedAt,
+			&i.AddedAt,
 		); err != nil {
 			return nil, err
 		}

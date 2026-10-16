@@ -82,7 +82,7 @@ func (s *Service) Refresh(ctx context.Context, req *connect.Request[authv1.Refre
 		if user, err = q.UserByID(ctx, ses.UserID); err != nil {
 			return internal(err)
 		}
-		tokens, err = s.issue(ctx, q, ses, req.Msg.Audience)
+		tokens, err = s.issue(ctx, q, user, ses, req.Msg.Audience)
 		return err
 	})
 	if err != nil {
@@ -227,7 +227,10 @@ func (s *Service) RegisterWorkspace(ctx context.Context, req *connect.Request[au
 	if err != nil {
 		return nil, err
 	}
-	name := strings.TrimSpace(req.Msg.Name)
+	name, id := strings.TrimSpace(req.Msg.Name), strings.TrimSpace(req.Msg.Id)
+	if id == "" || len(id) > 64 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("the workspace id is missing"))
+	}
 	if name == "" || len(name) > 64 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a workspace name is 1 to 64 characters"))
 	}
@@ -235,25 +238,24 @@ func (s *Service) RegisterWorkspace(ctx context.Context, req *connect.Request[au
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("server URL %q: want https://host", req.Msg.ServerUrl))
 	}
-	var w store.Workspace
-	err = s.tx(ctx, func(q *store.Queries) error {
-		now := s.now()
-		w, err = q.CreateWorkspace(ctx, store.CreateWorkspaceParams{ID: newID("wsp"), Name: name, ServerUrl: u.String(), CreatedBy: c.user.ID, CreatedAt: now})
-		if err != nil {
-			return internal(err)
-		}
-		if err := q.AddWorkspaceMember(ctx, store.AddWorkspaceMemberParams{WorkspaceID: w.ID, UserID: c.user.ID, AddedAt: now}); err != nil {
-			return internal(err)
-		}
-		s.event(ctx, q, c.user.ID, c.session.ID, "workspace_registered", c.ip, w.ID)
-		return nil
-	})
+	w, err := s.q.RegisterWorkspace(ctx, store.RegisterWorkspaceParams{UserID: c.user.ID, WorkspaceID: id, Name: name, ServerUrl: u.String(), AddedAt: s.now()})
 	if err != nil {
-		return nil, err
+		return nil, internal(err)
 	}
 	return connect.NewResponse(&authv1.RegisterWorkspaceResponse{Workspace: workspaceInfo(w)}), nil
 }
 
-func workspaceInfo(w store.Workspace) *authv1.Workspace {
-	return &authv1.Workspace{Id: w.ID, Name: w.Name, ServerUrl: w.ServerUrl, CreatedAt: timestamppb.New(w.CreatedAt)}
+func (s *Service) ForgetWorkspace(ctx context.Context, req *connect.Request[authv1.ForgetWorkspaceRequest]) (*connect.Response[authv1.ForgetWorkspaceResponse], error) {
+	c, err := s.authenticate(ctx, req.Peer().Addr, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	if err := s.q.ForgetWorkspace(ctx, store.ForgetWorkspaceParams{UserID: c.user.ID, WorkspaceID: req.Msg.Id}); err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&authv1.ForgetWorkspaceResponse{}), nil
+}
+
+func workspaceInfo(w store.UserWorkspace) *authv1.Workspace {
+	return &authv1.Workspace{Id: w.WorkspaceID, Name: w.Name, ServerUrl: w.ServerUrl, CreatedAt: timestamppb.New(w.AddedAt)}
 }

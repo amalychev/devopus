@@ -18,9 +18,11 @@ const DefaultAudience = "devopus"
 
 // Claims are what an access token says: the user (sub) and the session (sid).
 type Claims struct {
-	Issuer   string `json:"iss"`
-	Subject  string `json:"sub"`
-	Session  string `json:"sid"`
+	Issuer  string `json:"iss"`
+	Subject string `json:"sub"`
+	Session string `json:"sid"`
+	// Email is the user's email: workspace servers match invites by it.
+	Email    string `json:"email,omitempty"`
 	Audience string `json:"aud"`
 	IssuedAt int64  `json:"iat"`
 	Expiry   int64  `json:"exp"`

@@ -225,16 +225,16 @@ func (s *Service) openSession(ctx context.Context, q *store.Queries, user store.
 		return nil, internal(err)
 	}
 	s.event(ctx, q, user.ID, ses.ID, "signed_in", ip, device)
-	return s.issue(ctx, q, ses, audience)
+	return s.issue(ctx, q, user, ses, audience)
 }
 
 // issue makes a new refresh token for a session and an access token.
-func (s *Service) issue(ctx context.Context, q *store.Queries, ses store.Session, audience string) (*authv1.Tokens, error) {
+func (s *Service) issue(ctx context.Context, q *store.Queries, user store.User, ses store.Session, audience string) (*authv1.Tokens, error) {
 	refresh := secret("dvr_")
 	if err := q.CreateRefreshToken(ctx, store.CreateRefreshTokenParams{TokenHash: hash(refresh), SessionID: ses.ID, CreatedAt: s.now()}); err != nil {
 		return nil, internal(err)
 	}
-	access, exp, err := s.signAccess(ses.UserID, ses.ID, audience)
+	access, exp, err := s.signAccess(user, ses.ID, audience)
 	if err != nil {
 		return nil, internal(err)
 	}

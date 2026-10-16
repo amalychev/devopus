@@ -87,16 +87,10 @@ type User struct {
 	CreatedAt time.Time
 }
 
-type Workspace struct {
-	ID        string
-	Name      string
-	ServerUrl string
-	CreatedBy string
-	CreatedAt time.Time
-}
-
-type WorkspaceMember struct {
-	WorkspaceID string
+type UserWorkspace struct {
 	UserID      string
+	WorkspaceID string
+	Name        string
+	ServerUrl   string
 	AddedAt     time.Time
 }

@@ -42,8 +42,12 @@ service AuthService {
   // ListWorkspaces is the user's workspace registry: which workspaces they have and
   // where their servers are. Signed in.
   rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
-  // RegisterWorkspace adds a workspace with its server to the user's registry. Signed in.
+  // RegisterWorkspace adds a workspace with its server to the user's registry, or
+  // updates its name and server. The workspace server gives the id. Signed in.
   rpc RegisterWorkspace(RegisterWorkspaceRequest) returns (RegisterWorkspaceResponse);
+  // ForgetWorkspace removes a workspace from the user's registry: the user left it,
+  // or it is gone. Signed in.
+  rpc ForgetWorkspace(ForgetWorkspaceRequest) returns (ForgetWorkspaceResponse);
 }
 
 enum Purpose {
@@ -220,6 +224,7 @@ message Workspace {
   string name = 2;
   // Where the workspace server is.
   string server_url = 3;
+  // When it was added to the user's registry.
   google.protobuf.Timestamp created_at = 4;
 }
 
@@ -232,8 +237,16 @@ message ListWorkspacesResponse {
 message RegisterWorkspaceRequest {
   string name = 1;
   string server_url = 2;
+  // The workspace's id on its server.
+  string id = 3;
 }
 
 message RegisterWorkspaceResponse {
   Workspace workspace = 1;
 }
+
+message ForgetWorkspaceRequest {
+  string id = 1;
+}
+
+message ForgetWorkspaceResponse {}

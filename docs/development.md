@@ -108,6 +108,7 @@ devopus proxy coexist --off           # вернуть как было
 |---|---|
 | `state.json` | Желаемое состояние: проекты, окружения, фичи |
 | `session.json`, `session.lock` | Вход на этом устройстве: пользователь, сессия, её сроки, где лежит refresh-токен; блокировка обновления токенов |
+| `workspace.json` | Текущий воркспейс: id, имя, адрес его сервера |
 | `refresh-token`, `device-id` | Refresh-токен, только если нет системного хранилища ключей (файл `0600`); случайный id устройства для лимитов Auth |
 | `agent.sock`, `agent.lock`, `agent.log` | Локальный API, блокировка «один агент на каталог», лог |
 | `ca/`, `certs/` | Локальный CA (`ca/root.pem` — то, чему доверяет система) и сертификаты окружений |
@@ -133,6 +134,21 @@ devopus proxy coexist --off           # вернуть как было
 
 CLI и агент на машине делят одну сессию: агент сам обновляет токены и показывает аккаунт в `devopus status`. У второго экземпляра (`DEVOPUS_HOME`) — свой вход.
 
+### Сервер воркспейса
+
+`devopus server run` — «пульт» с воркспейсами, участниками, ролями, правами, инвайтами и проектами ([ADR-0016](../adr/0016-workspace-server.md)). В разработке — на `127.0.0.1:7481` с отдельной базой рядом с базой Auth:
+
+```bash
+docker exec devopus-auth-pg psql -U postgres -c 'CREATE DATABASE server'
+DEVOPUS_SERVER_DATABASE_URL='postgres://postgres:dev@127.0.0.1:5433/server?sslmode=disable' \
+  devopus server run            # письма с инвайтами — в его выводе
+devopus workspace create acme
+devopus project create shop
+devopus invite create lead@acme.dev --role teamlead --project shop
+```
+
+Токены сервер проверяет по ключам Auth (`--auth-url`, по умолчанию `DEVOPUS_AUTH_URL`). CLI ходит на `DEVOPUS_SERVER_URL` (по умолчанию `http://127.0.0.1:7481`); текущий воркспейс — `~/.devopus/workspace.json`, сменить — `devopus workspace use <имя>`. Несколько участников на одной машине — разные `DEVOPUS_HOME`.
+
 ## 4. Разработка
 
 ### Тесты
@@ -152,7 +168,7 @@ DOCKER_HOST=unix://$HOME/.orbstack/run/docker.sock  go test ./internal/agent/...
 
 `colima start` и `orb start` переключают Docker-контекст на себя — потом верните его: `docker context use desktop-linux`.
 
-Тесты Auth, `credentials` и входа в CLI работают с настоящим PostgreSQL: `internal/pgtest` поднимает контейнер `postgres:17-alpine` на тестовый бинарник и создаёт базу на каждый тест; без Docker они пропускаются. Свой сервер вместо контейнера: `DEVOPUS_TEST_DATABASE_URL=postgres://…` (так их гоняет CI). Тест с настоящим Keychain — `DEVOPUS_TEST_KEYCHAIN=1 go test ./internal/credentials -run Keychain`.
+Тесты Auth, сервера воркспейса, `credentials` и CLI работают с настоящим PostgreSQL: `internal/pgtest` поднимает контейнер `postgres:17-alpine` на тестовый бинарник и создаёт базу на каждый тест; без Docker они пропускаются. Свой сервер вместо контейнера: `DEVOPUS_TEST_DATABASE_URL=postgres://…` (так их гоняет CI). Тест с настоящим Keychain — `DEVOPUS_TEST_KEYCHAIN=1 go test ./internal/credentials -run Keychain`.
 
 Для замера NFR-2 (база 1 ГБ): `DEVOPUS_TEST_PG_SCALE=68 go test ./internal/agent -run TestFeatureData`.
 
@@ -161,7 +177,7 @@ DOCKER_HOST=unix://$HOME/.orbstack/run/docker.sock  go test ./internal/agent/...
 | После правок | Команда |
 |---|---|
 | `proto/` | `go tool -modfile=tools/go.mod buf generate`, затем `cd web && npm run gen` |
-| `internal/auth/store/migrations`, `queries.sql` | `go tool -modfile=tools/go.mod sqlc generate -f internal/auth/store/sqlc.yaml` (CI проверяет `sqlc diff`) |
+| `internal/auth/store/…`, `internal/server/store/…` (миграции, `queries.sql`) | `go tool -modfile=tools/go.mod sqlc generate -f internal/<auth\|server>/store/sqlc.yaml` (CI проверяет `sqlc diff`) |
 | `web/` | `cd web && npm ci && npm run build` — и закоммитить `internal/panel/dist` вместе с исходниками (CI проверяет, что сборка совпадает) |
 | Панель с горячей перезагрузкой | `cd web && npm run dev` — API идёт через работающую панель (`devopus panel start`) |
 

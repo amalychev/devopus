@@ -1,0 +1,364 @@
+// The workspace server (ADR-0016): workspaces, members, roles, permissions, invites,
+// projects and the audit log. Every call takes the user's access token from Auth
+// ("Authorization: Bearer <token>") and declares the permission it needs (ADR-0015):
+// one check for the CLI and the web interface.
+syntax = "proto3";
+
+package devopus.workspace.v1;
+
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
+
+// Scope says where a call's permission is checked.
+enum Scope {
+  SCOPE_UNSPECIFIED = 0;
+  // Any signed-in user: no workspace yet (create one, accept an invite).
+  SCOPE_SIGNED_IN = 1;
+  // In the request's workspace_id.
+  SCOPE_WORKSPACE = 2;
+  // In the request's project of workspace_id.
+  SCOPE_PROJECT = 3;
+}
+
+// Access is what a call needs.
+message Access {
+  Scope scope = 1;
+  // A permission of internal/authz: members.invite, project.create…
+  string permission = 2;
+}
+
+extend google.protobuf.MethodOptions {
+  Access access = 51000;
+}
+
+service WorkspaceService {
+  // CreateWorkspace makes a workspace; its creator is its admin.
+  rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse) {
+    option (access) = {scope: SCOPE_SIGNED_IN};
+  }
+  // ListWorkspaces lists the workspaces the user is a member of on this server.
+  rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse) {
+    option (access) = {scope: SCOPE_SIGNED_IN};
+  }
+  // GetWorkspace describes a workspace and what the caller may do in it.
+  rpc GetWorkspace(GetWorkspaceRequest) returns (GetWorkspaceResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  rpc RenameWorkspace(RenameWorkspaceRequest) returns (RenameWorkspaceResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.manage"
+    };
+  }
+  // TransferWorkspace makes another member the admin; the old admin stays a teamlead.
+  rpc TransferWorkspace(TransferWorkspaceRequest) returns (TransferWorkspaceResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.manage"
+    };
+  }
+  // DeleteWorkspace removes a workspace with its projects, members and invites.
+  rpc DeleteWorkspace(DeleteWorkspaceRequest) returns (DeleteWorkspaceResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.manage"
+    };
+  }
+  // ListAudit is the workspace's log: who changed members, roles and permissions.
+  rpc ListAudit(ListAuditRequest) returns (ListAuditResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.manage"
+    };
+  }
+
+  // CreateProject adds a project; a teamlead who creates it leads it.
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "project.create"
+    };
+  }
+  // ListProjects lists the workspace's projects with the caller's role in each.
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+
+  // CreateInvite invites an email with a role: the admin invites teamleads and
+  // developers, a teamlead invites developers into the projects they lead.
+  rpc CreateInvite(CreateInviteRequest) returns (CreateInviteResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "members.invite"
+    };
+  }
+  // ListInvites lists open invites: all for the admin, their own for a teamlead.
+  rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "members.invite"
+    };
+  }
+  rpc RevokeInvite(RevokeInviteRequest) returns (RevokeInviteResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "members.invite"
+    };
+  }
+  // AcceptInvite joins the workspace of an invite to the caller's email.
+  rpc AcceptInvite(AcceptInviteRequest) returns (AcceptInviteResponse) {
+    option (access) = {scope: SCOPE_SIGNED_IN};
+  }
+
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  // GrantPermission gives a developer of a project a permission on top of the role.
+  rpc GrantPermission(GrantPermissionRequest) returns (GrantPermissionResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "members.manage"
+    };
+  }
+  rpc RevokePermission(RevokePermissionRequest) returns (RevokePermissionResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "members.manage"
+    };
+  }
+  // RemoveFromProject takes a member out of a project: a teamlead removes developers.
+  rpc RemoveFromProject(RemoveFromProjectRequest) returns (RemoveFromProjectResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "members.manage"
+    };
+  }
+  // RemoveMember removes a member from the workspace; their access ends at once.
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "members.manage"
+    };
+  }
+}
+
+message Workspace {
+  string id = 1;
+  string name = 2;
+  string admin_email = 3;
+  google.protobuf.Timestamp created_at = 4;
+  // The caller's role in it: admin, teamlead or developer.
+  string role = 5;
+}
+
+message Project {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  // The caller's role in it; empty when they have none (the admin has all).
+  string role = 4;
+}
+
+message ProjectRole {
+  string project = 1;
+  // teamlead or developer.
+  string role = 2;
+  // Permissions given on top of the role.
+  repeated string grants = 3;
+}
+
+message Member {
+  string user_id = 1;
+  string email = 2;
+  // In the workspace: admin, teamlead or developer.
+  string role = 3;
+  repeated ProjectRole projects = 4;
+  google.protobuf.Timestamp joined_at = 5;
+}
+
+message Invite {
+  string id = 1;
+  string email = 2;
+  string role = 3;
+  repeated string projects = 4;
+  string invited_by = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp expires_at = 7;
+}
+
+message AuditEvent {
+  string actor = 1;
+  // member.invited, member.joined, member.removed, permission.granted…
+  string action = 2;
+  string target = 3;
+  string detail = 4;
+  google.protobuf.Timestamp at = 5;
+}
+
+message CreateWorkspaceRequest {
+  string name = 1;
+}
+
+message CreateWorkspaceResponse {
+  Workspace workspace = 1;
+}
+
+message ListWorkspacesRequest {}
+
+message ListWorkspacesResponse {
+  repeated Workspace workspaces = 1;
+}
+
+message GetWorkspaceRequest {
+  string workspace_id = 1;
+}
+
+message ProjectPermissions {
+  string project = 1;
+  repeated string permissions = 2;
+}
+
+message GetWorkspaceResponse {
+  Workspace workspace = 1;
+  // The caller's permissions in the workspace and in each project they have a role in.
+  repeated string permissions = 2;
+  repeated ProjectPermissions projects = 3;
+}
+
+message RenameWorkspaceRequest {
+  string workspace_id = 1;
+  string name = 2;
+}
+
+message RenameWorkspaceResponse {
+  Workspace workspace = 1;
+}
+
+message TransferWorkspaceRequest {
+  string workspace_id = 1;
+  string email = 2;
+}
+
+message TransferWorkspaceResponse {}
+
+message DeleteWorkspaceRequest {
+  string workspace_id = 1;
+  // Must repeat the workspace's name.
+  string confirm_name = 2;
+}
+
+message DeleteWorkspaceResponse {}
+
+message ListAuditRequest {
+  string workspace_id = 1;
+  int32 limit = 2;
+}
+
+message ListAuditResponse {
+  repeated AuditEvent events = 1;
+}
+
+message CreateProjectRequest {
+  string workspace_id = 1;
+  string name = 2;
+}
+
+message CreateProjectResponse {
+  Project project = 1;
+}
+
+message ListProjectsRequest {
+  string workspace_id = 1;
+}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+}
+
+message CreateInviteRequest {
+  string workspace_id = 1;
+  string email = 2;
+  // teamlead or developer.
+  string role = 3;
+  // Projects the invitee gets the role in.
+  repeated string projects = 4;
+}
+
+message CreateInviteResponse {
+  Invite invite = 1;
+  // The code the invitee accepts with; shown once.
+  string code = 2;
+}
+
+message ListInvitesRequest {
+  string workspace_id = 1;
+}
+
+message ListInvitesResponse {
+  repeated Invite invites = 1;
+}
+
+message RevokeInviteRequest {
+  string workspace_id = 1;
+  string invite_id = 2;
+}
+
+message RevokeInviteResponse {}
+
+message AcceptInviteRequest {
+  string code = 1;
+}
+
+message AcceptInviteResponse {
+  Workspace workspace = 1;
+}
+
+message ListMembersRequest {
+  string workspace_id = 1;
+}
+
+message ListMembersResponse {
+  repeated Member members = 1;
+}
+
+message GrantPermissionRequest {
+  string workspace_id = 1;
+  string project = 2;
+  string email = 3;
+  string permission = 4;
+}
+
+message GrantPermissionResponse {}
+
+message RevokePermissionRequest {
+  string workspace_id = 1;
+  string project = 2;
+  string email = 3;
+  string permission = 4;
+}
+
+message RevokePermissionResponse {}
+
+message RemoveFromProjectRequest {
+  string workspace_id = 1;
+  string project = 2;
+  string email = 3;
+}
+
+message RemoveFromProjectResponse {}
+
+message RemoveMemberRequest {
+  string workspace_id = 1;
+  string email = 2;
+}
+
+message RemoveMemberResponse {}

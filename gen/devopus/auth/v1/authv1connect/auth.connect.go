@@ -75,6 +75,9 @@ const (
 	// AuthServiceRegisterWorkspaceProcedure is the fully-qualified name of the AuthService's
 	// RegisterWorkspace RPC.
 	AuthServiceRegisterWorkspaceProcedure = "/devopus.auth.v1.AuthService/RegisterWorkspace"
+	// AuthServiceForgetWorkspaceProcedure is the fully-qualified name of the AuthService's
+	// ForgetWorkspace RPC.
+	AuthServiceForgetWorkspaceProcedure = "/devopus.auth.v1.AuthService/ForgetWorkspace"
 )
 
 // AuthServiceClient is a client for the devopus.auth.v1.AuthService service.
@@ -110,8 +113,12 @@ type AuthServiceClient interface {
 	// ListWorkspaces is the user's workspace registry: which workspaces they have and
 	// where their servers are. Signed in.
 	ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error)
-	// RegisterWorkspace adds a workspace with its server to the user's registry. Signed in.
+	// RegisterWorkspace adds a workspace with its server to the user's registry, or
+	// updates its name and server. The workspace server gives the id. Signed in.
 	RegisterWorkspace(context.Context, *connect.Request[v1.RegisterWorkspaceRequest]) (*connect.Response[v1.RegisterWorkspaceResponse], error)
+	// ForgetWorkspace removes a workspace from the user's registry: the user left it,
+	// or it is gone. Signed in.
+	ForgetWorkspace(context.Context, *connect.Request[v1.ForgetWorkspaceRequest]) (*connect.Response[v1.ForgetWorkspaceResponse], error)
 }
 
 // NewAuthServiceClient constructs a client for the devopus.auth.v1.AuthService service. By default,
@@ -203,6 +210,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("RegisterWorkspace")),
 			connect.WithClientOptions(opts...),
 		),
+		forgetWorkspace: connect.NewClient[v1.ForgetWorkspaceRequest, v1.ForgetWorkspaceResponse](
+			httpClient,
+			baseURL+AuthServiceForgetWorkspaceProcedure,
+			connect.WithSchema(authServiceMethods.ByName("ForgetWorkspace")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -221,6 +234,7 @@ type authServiceClient struct {
 	revokeSession             *connect.Client[v1.RevokeSessionRequest, v1.RevokeSessionResponse]
 	listWorkspaces            *connect.Client[v1.ListWorkspacesRequest, v1.ListWorkspacesResponse]
 	registerWorkspace         *connect.Client[v1.RegisterWorkspaceRequest, v1.RegisterWorkspaceResponse]
+	forgetWorkspace           *connect.Client[v1.ForgetWorkspaceRequest, v1.ForgetWorkspaceResponse]
 }
 
 // StartEmailSignIn calls devopus.auth.v1.AuthService.StartEmailSignIn.
@@ -288,6 +302,11 @@ func (c *authServiceClient) RegisterWorkspace(ctx context.Context, req *connect.
 	return c.registerWorkspace.CallUnary(ctx, req)
 }
 
+// ForgetWorkspace calls devopus.auth.v1.AuthService.ForgetWorkspace.
+func (c *authServiceClient) ForgetWorkspace(ctx context.Context, req *connect.Request[v1.ForgetWorkspaceRequest]) (*connect.Response[v1.ForgetWorkspaceResponse], error) {
+	return c.forgetWorkspace.CallUnary(ctx, req)
+}
+
 // AuthServiceHandler is an implementation of the devopus.auth.v1.AuthService service.
 type AuthServiceHandler interface {
 	// StartEmailSignIn sends a one-time code to an email. The answer is the same whether
@@ -321,8 +340,12 @@ type AuthServiceHandler interface {
 	// ListWorkspaces is the user's workspace registry: which workspaces they have and
 	// where their servers are. Signed in.
 	ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error)
-	// RegisterWorkspace adds a workspace with its server to the user's registry. Signed in.
+	// RegisterWorkspace adds a workspace with its server to the user's registry, or
+	// updates its name and server. The workspace server gives the id. Signed in.
 	RegisterWorkspace(context.Context, *connect.Request[v1.RegisterWorkspaceRequest]) (*connect.Response[v1.RegisterWorkspaceResponse], error)
+	// ForgetWorkspace removes a workspace from the user's registry: the user left it,
+	// or it is gone. Signed in.
+	ForgetWorkspace(context.Context, *connect.Request[v1.ForgetWorkspaceRequest]) (*connect.Response[v1.ForgetWorkspaceResponse], error)
 }
 
 // NewAuthServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -410,6 +433,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("RegisterWorkspace")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceForgetWorkspaceHandler := connect.NewUnaryHandler(
+		AuthServiceForgetWorkspaceProcedure,
+		svc.ForgetWorkspace,
+		connect.WithSchema(authServiceMethods.ByName("ForgetWorkspace")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/devopus.auth.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AuthServiceStartEmailSignInProcedure:
@@ -438,6 +467,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceListWorkspacesHandler.ServeHTTP(w, r)
 		case AuthServiceRegisterWorkspaceProcedure:
 			authServiceRegisterWorkspaceHandler.ServeHTTP(w, r)
+		case AuthServiceForgetWorkspaceProcedure:
+			authServiceForgetWorkspaceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -497,4 +528,8 @@ func (UnimplementedAuthServiceHandler) ListWorkspaces(context.Context, *connect.
 
 func (UnimplementedAuthServiceHandler) RegisterWorkspace(context.Context, *connect.Request[v1.RegisterWorkspaceRequest]) (*connect.Response[v1.RegisterWorkspaceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.auth.v1.AuthService.RegisterWorkspace is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) ForgetWorkspace(context.Context, *connect.Request[v1.ForgetWorkspaceRequest]) (*connect.Response[v1.ForgetWorkspaceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.auth.v1.AuthService.ForgetWorkspace is not implemented"))
 }
