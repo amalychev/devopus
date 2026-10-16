@@ -19,13 +19,13 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/internal/agent/git"
-	"github.com/devopus/devopus/internal/agent/pki"
-	"github.com/devopus/devopus/internal/agent/proxy"
-	"github.com/devopus/devopus/internal/agent/runtime"
-	"github.com/devopus/devopus/internal/agent/stack"
-	"github.com/devopus/devopus/internal/workspace"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/internal/agent/git"
+	"github.com/amalychev/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/agent/proxy"
+	"github.com/amalychev/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/agent/stack"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // Runtime is the part of the container runtime the reconciler uses.

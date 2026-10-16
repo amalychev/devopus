@@ -14,14 +14,14 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/internal/agent/client"
-	"github.com/devopus/devopus/internal/agent/paths"
-	"github.com/devopus/devopus/internal/agent/pki"
-	"github.com/devopus/devopus/internal/agent/proxy"
-	"github.com/devopus/devopus/internal/agent/reconcile"
-	"github.com/devopus/devopus/internal/agent/runtime"
-	"github.com/devopus/devopus/internal/trust"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/internal/agent/client"
+	"github.com/amalychev/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/agent/proxy"
+	"github.com/amalychev/devopus/internal/agent/reconcile"
+	"github.com/amalychev/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/trust"
 )
 
 // check is one preflight result.

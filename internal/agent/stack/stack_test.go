@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/devopus/devopus/internal/agent/runtime"
-	"github.com/devopus/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 const config = `version: 1

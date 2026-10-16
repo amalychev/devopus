@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/devopus/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // Engines whose data a feature gets as a copy of the base environment's (ADR-0007).

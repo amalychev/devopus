@@ -1,4 +1,4 @@
-module github.com/devopus/devopus
+module github.com/amalychev/devopus
 
 go 1.27.2
 

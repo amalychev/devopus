@@ -15,7 +15,7 @@ import (
 	"golang.org/x/text/message"
 	"gopkg.in/yaml.v3"
 
-	"github.com/devopus/devopus/schema"
+	"github.com/amalychev/devopus/schema"
 )
 
 // Result is a loaded file: the model (nil if the file could not be decoded) and

@@ -11,11 +11,11 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/gen/devopus/agent/v1/agentv1connect"
-	"github.com/devopus/devopus/internal/agent/paths"
-	"github.com/devopus/devopus/internal/daemon"
-	"github.com/devopus/devopus/internal/service"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/gen/devopus/agent/v1/agentv1connect"
+	"github.com/amalychev/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/daemon"
+	"github.com/amalychev/devopus/internal/service"
 )
 
 // New returns an API client over the agent's unix socket.

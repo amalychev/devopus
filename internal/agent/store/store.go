@@ -18,7 +18,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
 )
 
 // Store is the desired state persisted as JSON. Every change bumps the revision,

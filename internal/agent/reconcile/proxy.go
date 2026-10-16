@@ -13,11 +13,11 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/internal/agent/proxy"
-	"github.com/devopus/devopus/internal/agent/runtime"
-	"github.com/devopus/devopus/internal/agent/stack"
-	"github.com/devopus/devopus/internal/workspace"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/internal/agent/proxy"
+	"github.com/amalychev/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/agent/stack"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // LabelGeneration is the proxy generation the container was made for; a newer one in

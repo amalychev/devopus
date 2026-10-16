@@ -22,8 +22,8 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	"github.com/devopus/devopus/internal/agent/pki"
-	"github.com/devopus/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/agent/runtime"
 )
 
 // Image is the Envoy the agent runs, pinned by digest: a tag can move under us.

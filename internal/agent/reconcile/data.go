@@ -14,9 +14,9 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/internal/agent/runtime"
-	"github.com/devopus/devopus/internal/agent/stack"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/agent/stack"
 )
 
 // roleCopy is the one-shot container that copies a golden copy into a feature's volume.

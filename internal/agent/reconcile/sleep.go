@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/internal/agent/lifecycle"
-	"github.com/devopus/devopus/internal/agent/proxy"
-	"github.com/devopus/devopus/internal/agent/stack"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/internal/agent/lifecycle"
+	"github.com/amalychev/devopus/internal/agent/proxy"
+	"github.com/amalychev/devopus/internal/agent/stack"
 )
 
 // Lifecycle is the part of the lifecycle manager the reconciler uses: it does not start

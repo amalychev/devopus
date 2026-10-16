@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/devopus/devopus/internal/compose"
-	"github.com/devopus/devopus/internal/workspace"
-	"github.com/devopus/devopus/schema"
+	"github.com/amalychev/devopus/internal/compose"
+	"github.com/amalychev/devopus/internal/workspace"
+	"github.com/amalychev/devopus/schema"
 )
 
 func (a *app) validateCmd() *cobra.Command {

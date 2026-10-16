@@ -22,6 +22,17 @@ jobs:
           # Docker Desktop, Colima and OrbStack; Linux hosts are not verified yet.
           DOCKER_HOST: unix:///nonexistent/docker.sock
 
+  proto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: go tool -modfile=tools/go.mod buf lint
+      # gen/ is committed: it must match proto/.
+      - run: go tool -modfile=tools/go.mod buf generate && git diff --exit-code -- gen
+
   web:
     runs-on: ubuntu-latest
     defaults:

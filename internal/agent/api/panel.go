@@ -17,11 +17,11 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/internal/agent/runtime"
-	"github.com/devopus/devopus/internal/agent/stack"
-	"github.com/devopus/devopus/internal/agent/store"
-	"github.com/devopus/devopus/internal/workspace"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/agent/stack"
+	"github.com/amalychev/devopus/internal/agent/store"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // Containers is what the panel's logs and resources need from the runtime.

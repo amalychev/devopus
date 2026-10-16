@@ -14,10 +14,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/devopus/devopus/internal/agent/client"
-	"github.com/devopus/devopus/internal/agent/paths"
-	"github.com/devopus/devopus/internal/panel"
-	"github.com/devopus/devopus/internal/service"
+	"github.com/amalychev/devopus/internal/agent/client"
+	"github.com/amalychev/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/panel"
+	"github.com/amalychev/devopus/internal/service"
 )
 
 func (a *app) panelCmd() *cobra.Command {

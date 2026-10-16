@@ -4,7 +4,7 @@ package main
 import (
 	"os"
 
-	"github.com/devopus/devopus/internal/cli"
+	"github.com/amalychev/devopus/internal/cli"
 )
 
 func main() {

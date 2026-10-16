@@ -12,15 +12,15 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/internal/agent/client"
-	"github.com/devopus/devopus/internal/agent/paths"
-	"github.com/devopus/devopus/internal/agent/pki"
-	"github.com/devopus/devopus/internal/agent/runtime"
-	"github.com/devopus/devopus/internal/agent/store"
-	"github.com/devopus/devopus/internal/panel"
-	"github.com/devopus/devopus/internal/service"
-	"github.com/devopus/devopus/internal/trust"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/internal/agent/client"
+	"github.com/amalychev/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/agent/store"
+	"github.com/amalychev/devopus/internal/panel"
+	"github.com/amalychev/devopus/internal/service"
+	"github.com/amalychev/devopus/internal/trust"
 )
 
 func (a *app) agentInstallCmd() *cobra.Command {

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/devopus/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/agent/runtime"
 )
 
 // DNSImage answers *.localhost inside environment networks, pinned by digest.

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/internal/agent/runtime"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/internal/agent/runtime"
 )
 
 type fakeRT struct {

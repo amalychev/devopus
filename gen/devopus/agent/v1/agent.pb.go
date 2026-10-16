@@ -4018,9 +4018,9 @@ const file_devopus_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"LogSources\x12#.devopus.agent.v1.LogSourcesRequest\x1a$.devopus.agent.v1.LogSourcesResponse\x12G\n" +
 	"\x04Logs\x12\x1d.devopus.agent.v1.LogsRequest\x1a\x1e.devopus.agent.v1.LogsResponse0\x01\x12T\n" +
-	"\tResources\x12\".devopus.agent.v1.ResourcesRequest\x1a#.devopus.agent.v1.ResourcesResponseB\xbd\x01\n" +
+	"\tResources\x12\".devopus.agent.v1.ResourcesRequest\x1a#.devopus.agent.v1.ResourcesResponseB\xbf\x01\n" +
 	"\x14com.devopus.agent.v1B\n" +
-	"AgentProtoP\x01Z7github.com/devopus/devopus/gen/devopus/agent/v1;agentv1\xa2\x02\x03DAX\xaa\x02\x10Devopus.Agent.V1\xca\x02\x10Devopus\\Agent\\V1\xe2\x02\x1cDevopus\\Agent\\V1\\GPBMetadata\xea\x02\x12Devopus::Agent::V1b\x06proto3"
+	"AgentProtoP\x01Z9github.com/amalychev/devopus/gen/devopus/agent/v1;agentv1\xa2\x02\x03DAX\xaa\x02\x10Devopus.Agent.V1\xca\x02\x10Devopus\\Agent\\V1\xe2\x02\x1cDevopus\\Agent\\V1\\GPBMetadata\xea\x02\x12Devopus::Agent::V1b\x06proto3"
 
 var (
 	file_devopus_agent_v1_agent_proto_rawDescOnce sync.Once

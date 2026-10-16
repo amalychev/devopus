@@ -12,7 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/devopus/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // Exit codes of specs/cli.md.

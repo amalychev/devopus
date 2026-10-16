@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devopus/devopus/internal/agent/paths"
-	"github.com/devopus/devopus/internal/daemon"
+	"github.com/amalychev/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/daemon"
 )
 
 // ErrAlreadyRunning: another panel holds the lock of this data directory.

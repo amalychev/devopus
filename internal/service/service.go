@@ -16,7 +16,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/devopus/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/agent/paths"
 )
 
 // ErrUnsupported: this OS has no service manager Devopus knows.

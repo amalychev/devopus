@@ -10,7 +10,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"google.golang.org/protobuf/encoding/prototext"
 
-	"github.com/devopus/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/agent/pki"
 )
 
 func target(name string, port uint32, ip string) SharedTarget {

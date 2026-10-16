@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devopus/devopus/internal/agent/paths"
-	"github.com/devopus/devopus/internal/daemon"
-	"github.com/devopus/devopus/internal/service"
+	"github.com/amalychev/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/daemon"
+	"github.com/amalychev/devopus/internal/service"
 )
 
 // ErrNotRunning: nothing answers on the panel's port.

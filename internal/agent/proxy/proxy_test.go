@@ -19,8 +19,8 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 
-	"github.com/devopus/devopus/internal/agent/pki"
-	"github.com/devopus/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/agent/runtime"
 )
 
 func TestResourcesAreConsistentAndStable(t *testing.T) {

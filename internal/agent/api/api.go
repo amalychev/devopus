@@ -14,11 +14,11 @@ import (
 
 	"connectrpc.com/connect"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/gen/devopus/agent/v1/agentv1connect"
-	"github.com/devopus/devopus/internal/agent/stack"
-	"github.com/devopus/devopus/internal/agent/store"
-	"github.com/devopus/devopus/internal/workspace"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/gen/devopus/agent/v1/agentv1connect"
+	"github.com/amalychev/devopus/internal/agent/stack"
+	"github.com/amalychev/devopus/internal/agent/store"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // Backend is what the API needs from the running agent.

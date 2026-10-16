@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devopus/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/agent/pki"
 )
 
 // Trusted reports whether the system verifier accepts a certificate the local CA

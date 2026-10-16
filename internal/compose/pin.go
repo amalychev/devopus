@@ -10,7 +10,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 
-	"github.com/devopus/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // Pinner resolves an image tag to the digest it points to today.

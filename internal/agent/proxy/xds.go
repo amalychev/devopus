@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 
-	"github.com/devopus/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/agent/pki"
 )
 
 // NodeID is the node Envoy announces in its bootstrap.

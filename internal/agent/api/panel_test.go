@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
 )
 
 func collect(ch chan string) func(*agentv1.LogLine) error {

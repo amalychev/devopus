@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/internal/workspace"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 func TestCheckMerged(t *testing.T) {

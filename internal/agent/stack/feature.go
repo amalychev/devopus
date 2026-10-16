@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/devopus/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // Isolation is what a feature environment runs itself and what it takes from the base

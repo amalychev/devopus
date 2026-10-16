@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devopus/devopus/internal/agent/proxy"
+	"github.com/amalychev/devopus/internal/agent/proxy"
 )
 
 // browserWait is how long a browser waits before it gets the "Starting…" page instead

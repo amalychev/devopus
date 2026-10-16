@@ -20,14 +20,14 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/gen/devopus/agent/v1/agentv1connect"
-	"github.com/devopus/devopus/internal/agent"
-	"github.com/devopus/devopus/internal/agent/client"
-	"github.com/devopus/devopus/internal/agent/paths"
-	"github.com/devopus/devopus/internal/agent/pki"
-	"github.com/devopus/devopus/internal/service"
-	"github.com/devopus/devopus/internal/trust"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/gen/devopus/agent/v1/agentv1connect"
+	"github.com/amalychev/devopus/internal/agent"
+	"github.com/amalychev/devopus/internal/agent/client"
+	"github.com/amalychev/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/service"
+	"github.com/amalychev/devopus/internal/trust"
 )
 
 func (a *app) agentCmd() *cobra.Command {

@@ -12,7 +12,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/types"
 
-	"github.com/devopus/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 var (

@@ -15,10 +15,10 @@ import (
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 
-	agentv1 "github.com/devopus/devopus/gen/devopus/agent/v1"
-	"github.com/devopus/devopus/internal/agent/pki"
-	"github.com/devopus/devopus/internal/agent/proxy"
-	"github.com/devopus/devopus/internal/agent/runtime"
+	agentv1 "github.com/amalychev/devopus/gen/devopus/agent/v1"
+	"github.com/amalychev/devopus/internal/agent/pki"
+	"github.com/amalychev/devopus/internal/agent/proxy"
+	"github.com/amalychev/devopus/internal/agent/runtime"
 )
 
 // fakeRuntime keeps networks and containers in memory and refuses overlapping subnets

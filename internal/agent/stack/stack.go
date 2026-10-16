@@ -20,8 +20,8 @@ import (
 
 	"github.com/mattn/go-shellwords"
 
-	"github.com/devopus/devopus/internal/agent/runtime"
-	"github.com/devopus/devopus/internal/workspace"
+	"github.com/amalychev/devopus/internal/agent/runtime"
+	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // Labels on the containers of an environment, besides the common ones.
