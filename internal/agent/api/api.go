@@ -37,6 +37,10 @@ type Backend interface {
 	// Sleep and Wake switch a feature; they return once it started switching.
 	Sleep(envID string) error
 	Wake(envID string) error
+	Containers() Containers
+	PanelURL() string
+	// EnvsDir holds the hook and build logs of each environment.
+	EnvsDir() string
 }
 
 type Server struct {
@@ -62,6 +66,7 @@ func (s *Server) Status(context.Context, *connect.Request[agentv1.StatusRequest]
 		Environments:    s.b.Statuses(),
 		Proxy:           s.b.Proxy(),
 		Ca:              s.b.CA(),
+		PanelUrl:        s.b.PanelURL(),
 	}), nil
 }
 
@@ -96,11 +101,11 @@ func (s *Server) SetProxy(_ context.Context, req *connect.Request[agentv1.SetPro
 }
 
 func (s *Server) Up(_ context.Context, req *connect.Request[agentv1.UpRequest]) (*connect.Response[agentv1.UpResponse], error) {
-	ws, err := parseWorkspace(req.Msg.WorkspacePath, req.Msg.Config)
+	ws, path, config, err := s.workspaceOf(req.Msg.Project, req.Msg.WorkspacePath, req.Msg.Config)
 	if err != nil {
 		return nil, err
 	}
-	envID, rev, err := s.b.Store().Up(ws.Project, filepath.Dir(req.Msg.WorkspacePath), req.Msg.Config)
+	envID, rev, err := s.b.Store().Up(ws.Project, filepath.Dir(path), config)
 	if err != nil {
 		return nil, storeError(err)
 	}
@@ -139,7 +144,7 @@ func storeError(err error) error {
 
 func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv1.CreateFeatureRequest]) (*connect.Response[agentv1.CreateFeatureResponse], error) {
 	m := req.Msg
-	ws, err := parseWorkspace(m.WorkspacePath, m.Config)
+	ws, path, config, err := s.workspaceOf(m.Project, m.WorkspacePath, m.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +167,7 @@ func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv1.C
 			reserved = append(reserved, e)
 		}
 	}
-	f, base, rev, err := s.b.Store().CreateFeature(ws.Project, filepath.Dir(m.WorkspacePath), m.Config,
+	f, base, rev, err := s.b.Store().CreateFeature(ws.Project, filepath.Dir(path), config,
 		store.NewFeature{Name: m.Name, Branch: branch, Modules: m.Modules, Reserved: reserved})
 	if err != nil {
 		return nil, storeError(err)
@@ -172,7 +177,7 @@ func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv1.C
 
 func (s *Server) AddFeatureModules(_ context.Context, req *connect.Request[agentv1.AddFeatureModulesRequest]) (*connect.Response[agentv1.AddFeatureModulesResponse], error) {
 	m := req.Msg
-	ws, err := parseWorkspace(m.WorkspacePath, m.Config)
+	ws, path, config, err := s.workspaceOf(m.Project, m.WorkspacePath, m.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +187,7 @@ func (s *Server) AddFeatureModules(_ context.Context, req *connect.Request[agent
 	if _, err := stack.Feature(ws, m.Modules); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	env, rev, err := s.b.Store().AddFeatureModules(ws.Project, filepath.Dir(m.WorkspacePath), m.Config, m.Feature, m.Modules)
+	env, rev, err := s.b.Store().AddFeatureModules(ws.Project, filepath.Dir(path), config, m.Feature, m.Modules)
 	if err != nil {
 		return nil, storeError(err)
 	}

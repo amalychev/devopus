@@ -1,6 +1,6 @@
 # Спецификация: CLI агента (MVP)
 
-**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (M1), `agent run`, `status`, `up`, `down` (M2), `doctor [--fix]`, `routes`, `open`, `proxy restart`, `proxy coexist` (M3), `logs`, `exec` (M4; `up` поднимает сервисы и модули, `status` показывает их), `feature create/add/list/rm/path` (M5), `db reset`, `db golden refresh`, `db lag` (M6), `feature sleep/wake` (M7). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
+**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (M1), `agent run`, `status`, `up`, `down` (M2), `doctor [--fix]`, `routes`, `open`, `proxy restart`, `proxy coexist` (M3), `logs`, `exec` (M4; `up` поднимает сервисы и модули, `status` показывает их), `feature create/add/list/rm/path` (M5), `db reset`, `db golden refresh`, `db lag` (M6), `feature sleep/wake` (M7), `ui` (M8). CLI — тонкий клиент к локальному API агента (unix-сокет / named pipe). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
 
 ## Установка и служба
 
@@ -12,7 +12,7 @@
 | `devopus status` | Агент, runtime, прокси (режим портов default / coexist / fallback, владельцы занятых портов, связь с Envoy), CA и доверие к нему, окружения с URL |
 | `devopus proxy restart` | Пересоздать прокси: он заново проверит 80/443 (URL меняются, если меняются порты) |
 | `devopus proxy coexist --http <port> [--https <port>]` / `--off` | Режим сосуществования: dev-сервер (Herd, Valet, nginx) перенесён на другие порты, Devopus занимает 80/443 и отдаёт ему все незнакомые хосты (HTTPS — без расшифровки) |
-| `devopus ui` | Открыть локальную панель |
+| `devopus ui [--no-open]` | Открыть локальную панель в браузере (ссылка с токеном, панель только на `127.0.0.1`); `--no-open` — напечатать ссылку. Запускает агента, если он не запущен. `status` показывает адрес панели |
 | `devopus agent run` | Агент на переднем плане (до `install` CLI запускает его в фоне сам) |
 | `devopus version` | Версия |
 

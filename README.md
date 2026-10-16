@@ -65,6 +65,7 @@ go build -o devopus ./cmd/devopus      # бинарник
 ./devopus up                           # поднять базовое окружение (стартует агента в фоне)
 ./devopus status                       # агент, runtime, прокси, окружения и их модули
 ./devopus open                         # открыть окружение в браузере
+./devopus ui                           # локальная панель: окружения, прогресс, логи, фичи
 ./devopus routes                       # таблица маршрутов прокси
 ./devopus logs api --follow            # вывод модуля или сервиса
 ./devopus exec api -- sh               # команда в контейнере модуля
@@ -84,6 +85,7 @@ go build -o devopus ./cmd/devopus      # бинарник
 ./devopus down --volumes               # удалить окружения проекта с данными
 
 go tool -modfile=tools/go.mod buf generate   # после правок proto/
+(cd web && npm ci && npm run gen && npm run build)  # после правок proto/ или web/: TypeScript и сборка панели
 ```
 
 Данные агента — в `~/.devopus` (или `$DEVOPUS_HOME`).

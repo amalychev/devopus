@@ -107,6 +107,9 @@ func (a *app) printStatus(s *agentv1.StatusResponse) {
 	}
 	a.printProxy(s.Proxy)
 	a.printCA(s.Ca)
+	if s.PanelUrl != "" {
+		fmt.Fprintf(a.stdout, "Panel    %s ('devopus ui' opens it signed in)\n", s.PanelUrl)
+	}
 	if len(s.Projects) == 0 {
 		fmt.Fprintln(a.stdout, "\nNo projects. Run 'devopus up' in a folder with workspace.yaml.")
 		return

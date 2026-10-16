@@ -62,6 +62,15 @@ const (
 	AgentServiceResetDataProcedure = "/devopus.agent.v1.AgentService/ResetData"
 	// AgentServiceSetSleepProcedure is the fully-qualified name of the AgentService's SetSleep RPC.
 	AgentServiceSetSleepProcedure = "/devopus.agent.v1.AgentService/SetSleep"
+	// AgentServiceDescribeProjectProcedure is the fully-qualified name of the AgentService's
+	// DescribeProject RPC.
+	AgentServiceDescribeProjectProcedure = "/devopus.agent.v1.AgentService/DescribeProject"
+	// AgentServiceLogSourcesProcedure is the fully-qualified name of the AgentService's LogSources RPC.
+	AgentServiceLogSourcesProcedure = "/devopus.agent.v1.AgentService/LogSources"
+	// AgentServiceLogsProcedure is the fully-qualified name of the AgentService's Logs RPC.
+	AgentServiceLogsProcedure = "/devopus.agent.v1.AgentService/Logs"
+	// AgentServiceResourcesProcedure is the fully-qualified name of the AgentService's Resources RPC.
+	AgentServiceResourcesProcedure = "/devopus.agent.v1.AgentService/Resources"
 )
 
 // AgentServiceClient is a client for the devopus.agent.v1.AgentService service.
@@ -90,6 +99,12 @@ type AgentServiceClient interface {
 	ResetData(context.Context, *connect.Request[v1.ResetDataRequest]) (*connect.Response[v1.ResetDataResponse], error)
 	// SetSleep puts a feature to sleep or wakes it up.
 	SetSleep(context.Context, *connect.Request[v1.SetSleepRequest]) (*connect.Response[v1.SetSleepResponse], error)
+	// DescribeProject reads a registered project's workspace.yaml from its folder: what
+	// the panel offers to fork, and what a feature that forks the given modules gets.
+	DescribeProject(context.Context, *connect.Request[v1.DescribeProjectRequest]) (*connect.Response[v1.DescribeProjectResponse], error)
+	LogSources(context.Context, *connect.Request[v1.LogSourcesRequest]) (*connect.Response[v1.LogSourcesResponse], error)
+	Logs(context.Context, *connect.Request[v1.LogsRequest]) (*connect.ServerStreamForClient[v1.LogsResponse], error)
+	Resources(context.Context, *connect.Request[v1.ResourcesRequest]) (*connect.Response[v1.ResourcesResponse], error)
 }
 
 // NewAgentServiceClient constructs a client for the devopus.agent.v1.AgentService service. By
@@ -169,6 +184,30 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(agentServiceMethods.ByName("SetSleep")),
 			connect.WithClientOptions(opts...),
 		),
+		describeProject: connect.NewClient[v1.DescribeProjectRequest, v1.DescribeProjectResponse](
+			httpClient,
+			baseURL+AgentServiceDescribeProjectProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("DescribeProject")),
+			connect.WithClientOptions(opts...),
+		),
+		logSources: connect.NewClient[v1.LogSourcesRequest, v1.LogSourcesResponse](
+			httpClient,
+			baseURL+AgentServiceLogSourcesProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("LogSources")),
+			connect.WithClientOptions(opts...),
+		),
+		logs: connect.NewClient[v1.LogsRequest, v1.LogsResponse](
+			httpClient,
+			baseURL+AgentServiceLogsProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("Logs")),
+			connect.WithClientOptions(opts...),
+		),
+		resources: connect.NewClient[v1.ResourcesRequest, v1.ResourcesResponse](
+			httpClient,
+			baseURL+AgentServiceResourcesProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("Resources")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -185,6 +224,10 @@ type agentServiceClient struct {
 	removeFeature     *connect.Client[v1.RemoveFeatureRequest, v1.RemoveFeatureResponse]
 	resetData         *connect.Client[v1.ResetDataRequest, v1.ResetDataResponse]
 	setSleep          *connect.Client[v1.SetSleepRequest, v1.SetSleepResponse]
+	describeProject   *connect.Client[v1.DescribeProjectRequest, v1.DescribeProjectResponse]
+	logSources        *connect.Client[v1.LogSourcesRequest, v1.LogSourcesResponse]
+	logs              *connect.Client[v1.LogsRequest, v1.LogsResponse]
+	resources         *connect.Client[v1.ResourcesRequest, v1.ResourcesResponse]
 }
 
 // Status calls devopus.agent.v1.AgentService.Status.
@@ -242,6 +285,26 @@ func (c *agentServiceClient) SetSleep(ctx context.Context, req *connect.Request[
 	return c.setSleep.CallUnary(ctx, req)
 }
 
+// DescribeProject calls devopus.agent.v1.AgentService.DescribeProject.
+func (c *agentServiceClient) DescribeProject(ctx context.Context, req *connect.Request[v1.DescribeProjectRequest]) (*connect.Response[v1.DescribeProjectResponse], error) {
+	return c.describeProject.CallUnary(ctx, req)
+}
+
+// LogSources calls devopus.agent.v1.AgentService.LogSources.
+func (c *agentServiceClient) LogSources(ctx context.Context, req *connect.Request[v1.LogSourcesRequest]) (*connect.Response[v1.LogSourcesResponse], error) {
+	return c.logSources.CallUnary(ctx, req)
+}
+
+// Logs calls devopus.agent.v1.AgentService.Logs.
+func (c *agentServiceClient) Logs(ctx context.Context, req *connect.Request[v1.LogsRequest]) (*connect.ServerStreamForClient[v1.LogsResponse], error) {
+	return c.logs.CallServerStream(ctx, req)
+}
+
+// Resources calls devopus.agent.v1.AgentService.Resources.
+func (c *agentServiceClient) Resources(ctx context.Context, req *connect.Request[v1.ResourcesRequest]) (*connect.Response[v1.ResourcesResponse], error) {
+	return c.resources.CallUnary(ctx, req)
+}
+
 // AgentServiceHandler is an implementation of the devopus.agent.v1.AgentService service.
 type AgentServiceHandler interface {
 	// Status reports the agent, the container runtime and every environment.
@@ -268,6 +331,12 @@ type AgentServiceHandler interface {
 	ResetData(context.Context, *connect.Request[v1.ResetDataRequest]) (*connect.Response[v1.ResetDataResponse], error)
 	// SetSleep puts a feature to sleep or wakes it up.
 	SetSleep(context.Context, *connect.Request[v1.SetSleepRequest]) (*connect.Response[v1.SetSleepResponse], error)
+	// DescribeProject reads a registered project's workspace.yaml from its folder: what
+	// the panel offers to fork, and what a feature that forks the given modules gets.
+	DescribeProject(context.Context, *connect.Request[v1.DescribeProjectRequest]) (*connect.Response[v1.DescribeProjectResponse], error)
+	LogSources(context.Context, *connect.Request[v1.LogSourcesRequest]) (*connect.Response[v1.LogSourcesResponse], error)
+	Logs(context.Context, *connect.Request[v1.LogsRequest], *connect.ServerStream[v1.LogsResponse]) error
+	Resources(context.Context, *connect.Request[v1.ResourcesRequest]) (*connect.Response[v1.ResourcesResponse], error)
 }
 
 // NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -343,6 +412,30 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(agentServiceMethods.ByName("SetSleep")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentServiceDescribeProjectHandler := connect.NewUnaryHandler(
+		AgentServiceDescribeProjectProcedure,
+		svc.DescribeProject,
+		connect.WithSchema(agentServiceMethods.ByName("DescribeProject")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServiceLogSourcesHandler := connect.NewUnaryHandler(
+		AgentServiceLogSourcesProcedure,
+		svc.LogSources,
+		connect.WithSchema(agentServiceMethods.ByName("LogSources")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServiceLogsHandler := connect.NewServerStreamHandler(
+		AgentServiceLogsProcedure,
+		svc.Logs,
+		connect.WithSchema(agentServiceMethods.ByName("Logs")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServiceResourcesHandler := connect.NewUnaryHandler(
+		AgentServiceResourcesProcedure,
+		svc.Resources,
+		connect.WithSchema(agentServiceMethods.ByName("Resources")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/devopus.agent.v1.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentServiceStatusProcedure:
@@ -367,6 +460,14 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 			agentServiceResetDataHandler.ServeHTTP(w, r)
 		case AgentServiceSetSleepProcedure:
 			agentServiceSetSleepHandler.ServeHTTP(w, r)
+		case AgentServiceDescribeProjectProcedure:
+			agentServiceDescribeProjectHandler.ServeHTTP(w, r)
+		case AgentServiceLogSourcesProcedure:
+			agentServiceLogSourcesHandler.ServeHTTP(w, r)
+		case AgentServiceLogsProcedure:
+			agentServiceLogsHandler.ServeHTTP(w, r)
+		case AgentServiceResourcesProcedure:
+			agentServiceResourcesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -418,4 +519,20 @@ func (UnimplementedAgentServiceHandler) ResetData(context.Context, *connect.Requ
 
 func (UnimplementedAgentServiceHandler) SetSleep(context.Context, *connect.Request[v1.SetSleepRequest]) (*connect.Response[v1.SetSleepResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.SetSleep is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) DescribeProject(context.Context, *connect.Request[v1.DescribeProjectRequest]) (*connect.Response[v1.DescribeProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.DescribeProject is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) LogSources(context.Context, *connect.Request[v1.LogSourcesRequest]) (*connect.Response[v1.LogSourcesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.LogSources is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) Logs(context.Context, *connect.Request[v1.LogsRequest], *connect.ServerStream[v1.LogsResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.Logs is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) Resources(context.Context, *connect.Request[v1.ResourcesRequest]) (*connect.Response[v1.ResourcesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v1.AgentService.Resources is not implemented"))
 }

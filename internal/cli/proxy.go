@@ -3,8 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os/exec"
-	goruntime "runtime"
 	"text/tabwriter"
 	"time"
 
@@ -85,14 +83,7 @@ func (a *app) openCmd() *cobra.Command {
 				return a.writeJSON(map[string]string{"url": env.Url})
 			}
 			fmt.Fprintln(a.stdout, env.Url)
-			opener := "xdg-open"
-			if goruntime.GOOS == "darwin" {
-				opener = "open"
-			}
-			if err := exec.Command(opener, env.Url).Run(); err != nil {
-				return fail(ExitError, "%s %s: %v", opener, env.Url, err)
-			}
-			return nil
+			return openBrowser(env.Url)
 		},
 	}
 }

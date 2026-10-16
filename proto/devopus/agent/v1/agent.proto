@@ -32,6 +32,12 @@ service AgentService {
   rpc ResetData(ResetDataRequest) returns (ResetDataResponse);
   // SetSleep puts a feature to sleep or wakes it up.
   rpc SetSleep(SetSleepRequest) returns (SetSleepResponse);
+  // DescribeProject reads a registered project's workspace.yaml from its folder: what
+  // the panel offers to fork, and what a feature that forks the given modules gets.
+  rpc DescribeProject(DescribeProjectRequest) returns (DescribeProjectResponse);
+  rpc LogSources(LogSourcesRequest) returns (LogSourcesResponse);
+  rpc Logs(LogsRequest) returns (stream LogsResponse);
+  rpc Resources(ResourcesRequest) returns (ResourcesResponse);
 }
 
 // DesiredState is what must exist on this device. Revision grows with every change.
@@ -225,6 +231,8 @@ message StatusResponse {
   repeated EnvironmentStatus environments = 5;
   ProxyStatus proxy = 6;
   CAInfo ca = 7;
+  // The local panel, without the token: `devopus ui` opens it signed in.
+  string panel_url = 8;
 }
 
 message PortConflict {
@@ -306,6 +314,10 @@ message UpRequest {
   // Absolute path of workspace.yaml.
   string workspace_path = 1;
   bytes config = 2;
+  // Instead of the file: a registered project, whose workspace.yaml the agent reads
+  // from its folder (the panel has no file to send). Also in CreateFeature and
+  // AddFeatureModules.
+  string project = 3;
 }
 
 message UpResponse {
@@ -343,6 +355,7 @@ message CreateFeatureRequest {
   repeated string modules = 4;
   // Default: features.branch_prefix + name.
   string branch = 5;
+  string project = 6;
 }
 
 message CreateFeatureResponse {
@@ -359,6 +372,7 @@ message AddFeatureModulesRequest {
   // Name, slug or ID of the feature.
   string feature = 3;
   repeated string modules = 4;
+  string project = 5;
 }
 
 message AddFeatureModulesResponse {
@@ -402,4 +416,87 @@ message SetSleepRequest {
 
 message SetSleepResponse {
   string environment_id = 1;
+}
+
+message DescribeProjectRequest {
+  string project = 1;
+  // forks, if any, plans a feature that forks these modules.
+  repeated string forks = 2;
+}
+
+message ModuleInfo {
+  string name = 1;
+  repeated string routes = 2;
+  bool optional = 3;
+  repeated string uses = 4;
+}
+
+message FeaturePlan {
+  repeated string forked = 1;
+  // dependents use forked modules and run in the feature on the base branch.
+  repeated string dependents = 2;
+  // copies are databases that start as a copy of main's data.
+  repeated string copies = 3;
+  // own are services the feature runs empty.
+  repeated string own = 4;
+  repeated string shared = 5;
+  repeated string warnings = 6;
+}
+
+message DescribeProjectResponse {
+  string project = 1;
+  string workspace_path = 2;
+  string domain = 3;
+  repeated ModuleInfo modules = 4;
+  repeated string services = 5;
+  string branch_prefix = 6;
+  FeaturePlan plan = 7;
+}
+
+message LogSource {
+  // unit is a module, worker or service; file is a hook or build log of the environment.
+  string unit = 1;
+  string file = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message LogSourcesRequest {
+  string environment_id = 1;
+}
+
+message LogSourcesResponse {
+  repeated LogSource sources = 1;
+}
+
+message LogsRequest {
+  string environment_id = 1;
+  LogSource source = 2;
+  // tail is how many last lines to send first; 0 sends them all.
+  uint32 tail = 3;
+  bool follow = 4;
+}
+
+message LogLine {
+  string text = 1;
+  bool stderr = 2;
+  google.protobuf.Timestamp time = 3;
+}
+
+message LogsResponse {
+  repeated LogLine lines = 1;
+}
+
+message ResourcesRequest {
+  string environment_id = 1;
+}
+
+message UnitResources {
+  string name = 1;
+  double cpu_percent = 2;
+  uint64 memory_bytes = 3;
+  uint64 memory_limit = 4;
+}
+
+message ResourcesResponse {
+  repeated UnitResources units = 1;
 }
