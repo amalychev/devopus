@@ -23,7 +23,7 @@ archives:
     formats: [tar.gz]
     # Stable names: install.sh builds the URL from the OS and the architecture.
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
-    files: [README.md]
+    files: [README.md, LICENSE]
 
 checksum:
   name_template: checksums.txt
@@ -33,7 +33,7 @@ nfpms:
     package_name: devopus
     file_name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     vendor: Devopus
-    homepage: https://github.com/devopus/devopus
+    homepage: https://github.com/amalychev/devopus
     maintainer: Devopus  # an address, once the domain is chosen (STATUS.md)
     description: Local environments for every feature branch, with their own data and URL.
     license: Apache-2.0
@@ -44,10 +44,10 @@ nfpms:
 homebrew_casks:
   - name: devopus
     repository:
-      owner: devopus
+      owner: amalychev
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: https://github.com/devopus/devopus
+    homepage: https://github.com/amalychev/devopus
     description: Local environments for every feature branch, with their own data and URL
     binaries: [devopus]
     caveats: "Run 'devopus agent install' to start the agent as a service, 'devopus panel open' for the web panel."
@@ -61,7 +61,7 @@ homebrew_casks:
 
 release:
   github:
-    owner: devopus
+    owner: amalychev
     name: devopus
   draft: true
 

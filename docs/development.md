@@ -19,7 +19,7 @@ Node для обычной сборки не нужен: собранная па
 ## 2. Быстрый старт
 
 ```bash
-git clone https://github.com/amalychev/docklet.git devopus   # позже — devopus/devopus
+git clone git@github.com:amalychev/devopus.git
 cd devopus
 go build -o devopus ./cmd/devopus
 
@@ -149,9 +149,9 @@ DOCKER_HOST=unix://$HOME/.orbstack/run/docker.sock  go test ./internal/agent/...
 
 Один раз (пока не сделано, см. [STATUS.md](../STATUS.md)):
 
-1. Репозиторий `devopus/devopus` публичный.
-2. Пустой репозиторий `devopus/homebrew-tap`.
-3. Секрет `HOMEBREW_TAP_TOKEN` в `devopus/devopus` — токен с правом записи в tap.
+1. Репозиторий `amalychev/devopus` публичный: `curl` и Homebrew скачивают релизы без авторизации.
+2. Публичный репозиторий `amalychev/homebrew-tap` — туда CI кладёт cask.
+3. Секрет `HOMEBREW_TAP_TOKEN` в `amalychev/devopus` — токен с правом записи в `amalychev/homebrew-tap`.
 
 Проверить сборку локально, ничего не публикуя:
 
@@ -172,8 +172,8 @@ git tag v0.1.0 && git push origin v0.1.0
 `.github/workflows/release.yml` соберёт всё, создаст **черновик** релиза на GitHub и обновит cask в tap. Проверьте черновик и опубликуйте его — после этого работают:
 
 ```bash
-brew install devopus/tap/devopus
-curl -fsSL https://raw.githubusercontent.com/devopus/devopus/main/install.sh | sh
+brew install amalychev/tap/devopus
+curl -fsSL https://raw.githubusercontent.com/amalychev/devopus/main/install.sh | sh
 ```
 
 Версия попадает в бинарник из тега (`devopus version`).

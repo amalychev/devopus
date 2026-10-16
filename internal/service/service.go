@@ -276,7 +276,7 @@ const plistTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 
 const unitTemplate = `[Unit]
 Description=Devopus {{.Component}}
-Documentation=https://github.com/devopus/devopus
+Documentation=https://github.com/amalychev/devopus
 
 [Service]
 ExecStart={{q .Exe}} {{.Component}} run

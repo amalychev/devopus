@@ -43,7 +43,7 @@ func (a *app) agentInstallCmd() *cobra.Command {
 				return fail(ExitError, "%v", err)
 			}
 			if temporary(s.Exe) {
-				return fail(ExitInvalid, "this devopus is a temporary build (%s); install it first (brew install devopus/tap/devopus, or the install script) and run 'devopus agent install' from there", s.Exe)
+				return fail(ExitInvalid, "this devopus is a temporary build (%s); install it first (brew install amalychev/tap/devopus, or the install script) and run 'devopus agent install' from there", s.Exe)
 			}
 			ok, err := a.confirm(yes, fmt.Sprintf("Run the Devopus agent as a service?\n  %s\n  It runs %s at login and restarts it after a crash.", file, s.Exe))
 			if err != nil {

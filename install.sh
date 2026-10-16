@@ -1,10 +1,10 @@
 #!/bin/sh
 # Installs the devopus binary from GitHub releases and runs 'devopus agent install':
-#   curl -fsSL https://raw.githubusercontent.com/devopus/devopus/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/amalychev/devopus/main/install.sh | sh
 #
 # DEVOPUS_VERSION   a version such as 0.1.0 (default: the latest release)
 # DEVOPUS_BIN_DIR   where to put the binary (default: /usr/local/bin if writable, else ~/.local/bin)
-# DEVOPUS_BASE_URL  where the release files are (default: GitHub releases of devopus/devopus)
+# DEVOPUS_BASE_URL  where the release files are (default: GitHub releases of amalychev/devopus)
 # DEVOPUS_NO_SETUP  set to skip 'devopus agent install'
 set -eu
 
@@ -26,9 +26,9 @@ version="${DEVOPUS_VERSION:-latest}"
 base="${DEVOPUS_BASE_URL:-}"
 if [ -z "$base" ]; then
 	if [ "$version" = latest ]; then
-		base="https://github.com/devopus/devopus/releases/latest/download"
+		base="https://github.com/amalychev/devopus/releases/latest/download"
 	else
-		base="https://github.com/devopus/devopus/releases/download/v${version#v}"
+		base="https://github.com/amalychev/devopus/releases/download/v${version#v}"
 	fi
 fi
 

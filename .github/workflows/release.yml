@@ -1,5 +1,5 @@
 # A tag v* builds the binaries, .deb and .rpm, publishes a draft GitHub release and
-# updates the Homebrew cask in devopus/homebrew-tap (secret HOMEBREW_TAP_TOKEN).
+# updates the Homebrew cask in amalychev/homebrew-tap (secret HOMEBREW_TAP_TOKEN).
 name: release
 on:
   push:

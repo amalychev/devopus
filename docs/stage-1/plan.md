@@ -60,7 +60,7 @@
 
 ### Открытые вопросы M1
 
-- **URL схемы для редактора.** `devopus init` пишет `# yaml-language-server: $schema=https://raw.githubusercontent.com/devopus/devopus/main/schema/workspace.v1.json`. Заработает, когда репозиторий станет публичным под этим именем; после выбора домена — перенести на него (константа `schema.URL`).
+- **URL схемы для редактора.** `devopus init` пишет `# yaml-language-server: $schema=https://raw.githubusercontent.com/amalychev/devopus/main/schema/workspace.v1.json`. Заработает, когда репозиторий станет публичным под этим именем; после выбора домена — перенести на него (константа `schema.URL`).
 - **Образы рантаймов.** `runtime: php:8.3` пока экспортируется в официальный образ языка; собственные образы рантаймов (с `ext-opentelemetry` для PHP) — в M4.
 
 ### Решения M2
@@ -181,7 +181,7 @@
 
 ### Открытые вопросы M9
 
-- **Первый релиз.** Нужны публичный репозиторий `devopus/devopus` (сейчас приватный `amalychev/docklet`), репозиторий `devopus/homebrew-tap` и секрет `HOMEBREW_TAP_TOKEN`. До этого `brew install devopus/tap/devopus` и `curl … | sh` с GitHub не работают — проверены на локальной сборке.
+- **Первый релиз.** Релизы — из `amalychev/devopus`, cask — в `amalychev/homebrew-tap` (с 16.10.2026; Go-модуль остаётся `github.com/devopus/devopus`, поэтому `go install …@latest` не работает — только сборка из клона). Нужны публичный репозиторий, tap и секрет `HOMEBREW_TAP_TOKEN`. До этого `brew install devopus/tap/devopus` и `curl … | sh` с GitHub не работают — проверены на локальной сборке.
 - **Нотаризация macOS.** Бинарник не подписан: cask снимает карантин сам, `curl` карантин не ставит. Для `.pkg` и доверия безопасников — Developer ID и нотаризация.
 - **Чистая машина.** Time-to-first-page < 15 мин не замерен: нужна чистая macOS (VM или новый пользователь) и опубликованный релиз.
 - **Linux.** Служба systemd написана и покрыта тестом определения, но на Linux-хосте не запускалась; CA на Linux — вручную (`doctor` печатает команды), `uninstall` тоже печатает команды удаления.

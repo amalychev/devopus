@@ -27,7 +27,7 @@
 1. **Предложить пилот** подходящим командам ([pilot.md](docs/stage-0/pilot.md)) и **подписать 5 LOI** ([loi.md](docs/stage-0/loi.md)).
 2. **Попросить у пилотных команд compose-файлы** (без секретов).
 3. **Решить по staging/production** — брать ли направление ([roadmap](roadmap.md#кандидаты-по-итогам-интервью)).
-4. **Первый релиз** — нужны твои действия на GitHub: переименовать `amalychev/docklet` в `devopus/devopus` (организация `devopus`) и сделать публичным, создать пустой `devopus/homebrew-tap`, добавить секрет `HOMEBREW_TAP_TOKEN` (токен с правом записи в tap). Затем тег `v0.1.0` — CI соберёт черновик релиза. Решить про `LICENSE` (Apache 2.0 по ADR-0010 — файла ещё нет) и адрес maintainer'а для пакетов.
+4. **Первый релиз** из `amalychev/devopus`: сделать репозиторий публичным, создать публичный `amalychev/homebrew-tap`, добавить секрет `HOMEBREW_TAP_TOKEN` (токен с правом записи в tap), затем тег `v0.1.0` — CI соберёт черновик релиза, его нужно опубликовать. Остаётся адрес maintainer'а для пакетов.
 
 ### Claude — по мере появления данных
 
@@ -49,7 +49,7 @@
 ## Состояние окружения
 
 - Docker-контекст: `desktop-linux`.
-- Репозиторий: https://github.com/amalychev/docklet (приватный; на GitHub ещё старое имя — переименовать в `devopus` и обновить `origin`, когда удобно).
+- Репозиторий: `origin` — git@github.com:amalychev/devopus.git (приватный); старый `amalychev/docklet` — remote `docklet`. Релизы и cask Homebrew — `amalychev/devopus` и `amalychev/homebrew-tap`.
 - Colima и OrbStack установлены, VM остановлены (`colima start` / `orb start`, если понадобятся). `colima start` и `orb start` переключают Docker-контекст на себя — после них вернуть `docker context use desktop-linux`. Тесты на них запускать через `DOCKER_HOST` (`~/.colima/default/docker.sock`, `~/.orbstack/run/docker.sock`).
 - На этой машине 80/443 занимает brew-nginx, поэтому прокси Devopus работает на 18080/18443 (fallback).
 - Агента, панели и демо на машине сейчас нет: всё удалено 16.10.2026 для проверки с нуля (`devopus agent install` → `devopus panel open`). Панель — отдельный компонент (`devopus panel …`, [ADR-0012](adr/0012-devopus-cli-control-point.md)); после правок в `web/` — `npm run build` в `web/` и пересобрать бинарник: панель встроена в него.

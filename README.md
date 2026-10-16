@@ -54,15 +54,15 @@
 ## Установка
 
 ```bash
-brew install devopus/tap/devopus                                              # macOS
-curl -fsSL https://raw.githubusercontent.com/devopus/devopus/main/install.sh | sh  # macOS и Linux
+brew install amalychev/tap/devopus                                            # macOS
+curl -fsSL https://raw.githubusercontent.com/amalychev/devopus/main/install.sh | sh  # macOS и Linux
 devopus agent install                  # агент — служба пользователя, проверки, доверие к CA
 devopus panel open                     # локальная веб-панель (или devopus panel install — службой)
 devopus agent uninstall [--purge]      # всё обратно; --purge — с данными окружений и панелью
 devopus --help                         # все команды по группам
 ```
 
-Пакеты `.deb` и `.rpm` — в релизах на GitHub. Первого публичного релиза ещё нет: репозиторий пока приватный (см. [STATUS.md](STATUS.md)).
+Пакеты `.deb` и `.rpm` — в [релизах на GitHub](https://github.com/amalychev/devopus/releases). Релизы публикуются из `amalychev/devopus`, cask Homebrew — в `amalychev/homebrew-tap`.
 
 ## Разработка
 

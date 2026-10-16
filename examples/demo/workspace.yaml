@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/devopus/devopus/main/schema/workspace.v1.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/amalychev/devopus/main/schema/workspace.v1.json
 #
 # Demo project of stage 1: three modules on one host, a database and a mail catcher.
 #   cd examples/demo && devopus up

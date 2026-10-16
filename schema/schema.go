@@ -11,4 +11,4 @@ var WorkspaceV1 []byte
 const WorkspaceV1ID = "urn:devopus:workspace:v1"
 
 // URL is where the schema is published for editors (yaml-language-server).
-const URL = "https://raw.githubusercontent.com/devopus/devopus/main/schema/workspace.v1.json"
+const URL = "https://raw.githubusercontent.com/amalychev/devopus/main/schema/workspace.v1.json"
