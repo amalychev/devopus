@@ -234,6 +234,16 @@ message StatusResponse {
   // Was the local panel's address: the panel is its own process now (`devopus panel`).
   reserved 8;
   reserved "panel_url";
+  // Who the agent works for: the user signed in on this device. Absent when nobody is.
+  AccountInfo account = 9;
+}
+
+message AccountInfo {
+  string email = 1;
+  string user_id = 2;
+  string session_id = 3;
+  // The Auth service the session belongs to.
+  string auth_url = 4;
 }
 
 message PortConflict {

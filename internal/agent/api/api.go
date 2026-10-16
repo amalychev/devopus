@@ -32,6 +32,8 @@ type Backend interface {
 	Proxy() *agentv2.ProxyStatus
 	Routes() []*agentv2.Route
 	CA() *agentv2.CAInfo
+	// Account is the user the agent works for; nil when nobody is signed in.
+	Account() *agentv2.AccountInfo
 	// Unsaved describes work in a feature's worktrees that exists nowhere else.
 	Unsaved(ctx context.Context, env *agentv2.EnvironmentSpec, ws *spec.Project) (map[string]string, error)
 	// Force lets the removal of a feature drop its worktrees even with work in them.
@@ -67,6 +69,7 @@ func (s *Server) Status(context.Context, *connect.Request[agentv2.StatusRequest]
 		Environments:    s.b.Statuses(),
 		Proxy:           s.b.Proxy(),
 		Ca:              s.b.CA(),
+		Account:         s.b.Account(),
 	}), nil
 }
 

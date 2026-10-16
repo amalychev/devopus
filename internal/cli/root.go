@@ -22,6 +22,7 @@ const (
 	ExitInvalid      = 2 // bad arguments or configuration
 	ExitConfirm      = 3 // confirmation needed in a non-interactive run
 	ExitPreflightErr = 4
+	ExitAuth         = 5 // not signed in, or not allowed
 )
 
 // Version is set by the release build.
@@ -43,14 +44,21 @@ func fail(code int, format string, a ...any) error {
 func silent(code int) error { return &exitError{code: code} }
 
 type app struct {
+	stdin          io.Reader
 	stdout, stderr io.Writer
 	json           bool
 	file           string
+	// openURL opens a link in the browser.
+	openURL func(string) error
 }
 
 // Run executes the command line and returns the process exit code.
 func Run(args []string, stdout, stderr io.Writer) int {
-	a := &app{stdout: stdout, stderr: stderr}
+	return execute(&app{stdin: os.Stdin, stdout: stdout, stderr: stderr, openURL: openBrowser}, args)
+}
+
+func execute(a *app, args []string) int {
+	stdout, stderr := a.stdout, a.stderr
 	root := &cobra.Command{
 		Use:   "devopus",
 		Short: "Local environments for every feature branch",
@@ -62,6 +70,7 @@ projects and their features. Workspaces, agents on servers and the team's remote
 panel come with the Devopus server (stage 2) as more devopus commands.
 
 Get started:
+  devopus register                create an account (or 'devopus login')
   devopus agent install           run the agent as a service and check this machine
   devopus init                    create workspace.yaml from docker-compose.yml
   devopus up                      start the project's main environment
@@ -69,6 +78,9 @@ Get started:
   devopus panel open              the web panel`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			return requireSignIn(cmd)
+		},
 	}
 	root.SetArgs(args)
 	root.SetOut(stdout)
@@ -82,6 +94,7 @@ Get started:
 	// Commands keep the order below: the most used first.
 	cobra.EnableCommandSorting = false
 	root.AddGroup(
+		&cobra.Group{ID: "account", Title: "Your account:"},
 		&cobra.Group{ID: "machine", Title: "This machine: the agent, the panel and what they need:"},
 		&cobra.Group{ID: "project", Title: "Projects and their main environment:"},
 		&cobra.Group{ID: "features", Title: "Features and data:"},
@@ -93,6 +106,7 @@ Get started:
 			root.AddCommand(c)
 		}
 	}
+	add("account", a.registerCmd(), a.loginCmd(), a.logoutCmd(), a.whoamiCmd(), a.authCmd())
 	add("machine", a.agentCmd(), a.panelCmd(), a.statusCmd(), a.doctorCmd(), a.proxyCmd())
 	add("project", a.upCmd(), a.downCmd(), a.openCmd(), a.logsCmd(), a.execCmd(), a.routesCmd())
 	add("features", a.featureCmd(), a.dbCmd())

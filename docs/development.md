@@ -23,6 +23,13 @@ git clone git@github.com:amalychev/devopus.git
 cd devopus
 go build -o devopus ./cmd/devopus
 
+# Auth и его Postgres (с этапа 2 все команды, кроме входа, требуют входа) — §3а
+docker run -d --name devopus-auth-pg -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=auth \
+  -p 127.0.0.1:5433:5432 -v devopus-auth-pg:/var/lib/postgresql/data postgres:17-alpine
+DEVOPUS_AUTH_DATABASE_URL='postgres://postgres:dev@127.0.0.1:5433/auth?sslmode=disable' \
+  go run ./cmd/devopus-auth run     # в отдельном терминале; коды из писем — в его выводе
+./devopus register                # email, код из вывода devopus-auth, план Free
+
 ./devopus doctor          # runtime, порты 80/443, *.localhost, CA
 ./devopus doctor --fix    # доверить локальный CA (macOS спросит пароль) — один раз
 
@@ -100,6 +107,8 @@ devopus proxy coexist --off           # вернуть как было
 | Путь | Что |
 |---|---|
 | `state.json` | Желаемое состояние: проекты, окружения, фичи |
+| `session.json`, `session.lock` | Вход на этом устройстве: пользователь, сессия, её сроки, где лежит refresh-токен; блокировка обновления токенов |
+| `refresh-token`, `device-id` | Refresh-токен, только если нет системного хранилища ключей (файл `0600`); случайный id устройства для лимитов Auth |
 | `agent.sock`, `agent.lock`, `agent.log` | Локальный API, блокировка «один агент на каталог», лог |
 | `ca/`, `certs/` | Локальный CA (`ca/root.pem` — то, чему доверяет система) и сертификаты окружений |
 | `proxy/` | Ключи mTLS к Envoy и порт xDS |
@@ -109,6 +118,20 @@ devopus proxy coexist --off           # вернуть как было
 | `panel/` | Локальная панель: `port`, `token` (вход по ссылке `devopus panel open`), `panel.lock`, `panel.log` |
 
 Контейнеры, тома и сети Devopus помечены `com.devopus.*`: `docker ps --filter label=com.devopus.managed=true`.
+
+## 3а. Вход и Auth
+
+Сервис Auth ([ADR-0014](../adr/0014-auth-service.md), [auth](architecture/auth.md)) — отдельный бинарник `cmd/devopus-auth`. Пока у продукта нет домена и хостинга, он работает на Mac разработчика: `127.0.0.1:7480`, письма с кодом пишутся в его лог.
+
+| Что | Как |
+|---|---|
+| Запустить | `DEVOPUS_AUTH_DATABASE_URL=postgres://… go run ./cmd/devopus-auth run` — миграции применяются сами; `devopus-auth migrate` — только миграции |
+| Настройки | Флаги или переменные: `--listen` (`DEVOPUS_AUTH_LISTEN`), `--issuer` — публичный адрес (`DEVOPUS_AUTH_ISSUER`), `--mail log\|smtp://user:pass@host:587` и `--mail-from` (`DEVOPUS_AUTH_MAIL`, `DEVOPUS_AUTH_MAIL_FROM`), `--trust-proxy` |
+| Куда идёт CLI | `http://127.0.0.1:7480` по умолчанию; другой Auth — `DEVOPUS_AUTH_URL` или `--auth-url` у `register`/`login`. Адрес запоминается в сессии |
+| Войти | `devopus register` (новый аккаунт), `devopus login` (браузер), `--email` (код в терминале), `--device` (код на другом устройстве); `devopus whoami`, `devopus auth sessions`, `devopus logout` |
+| Где сессия | Refresh-токен — в Keychain (элемент `devopus`, аккаунт — каталог данных) или в Secret Service; без них — файл `refresh-token`. Выбрать явно: `DEVOPUS_CREDENTIAL_STORE=keychain\|secret-service\|file` |
+
+CLI и агент на машине делят одну сессию: агент сам обновляет токены и показывает аккаунт в `devopus status`. У второго экземпляра (`DEVOPUS_HOME`) — свой вход.
 
 ## 4. Разработка
 
@@ -129,6 +152,8 @@ DOCKER_HOST=unix://$HOME/.orbstack/run/docker.sock  go test ./internal/agent/...
 
 `colima start` и `orb start` переключают Docker-контекст на себя — потом верните его: `docker context use desktop-linux`.
 
+Тесты Auth, `credentials` и входа в CLI работают с настоящим PostgreSQL: `internal/pgtest` поднимает контейнер `postgres:17-alpine` на тестовый бинарник и создаёт базу на каждый тест; без Docker они пропускаются. Свой сервер вместо контейнера: `DEVOPUS_TEST_DATABASE_URL=postgres://…` (так их гоняет CI). Тест с настоящим Keychain — `DEVOPUS_TEST_KEYCHAIN=1 go test ./internal/credentials -run Keychain`.
+
 Для замера NFR-2 (база 1 ГБ): `DEVOPUS_TEST_PG_SCALE=68 go test ./internal/agent -run TestFeatureData`.
 
 ### Протокол и панель
@@ -136,6 +161,7 @@ DOCKER_HOST=unix://$HOME/.orbstack/run/docker.sock  go test ./internal/agent/...
 | После правок | Команда |
 |---|---|
 | `proto/` | `go tool -modfile=tools/go.mod buf generate`, затем `cd web && npm run gen` |
+| `internal/auth/store/migrations`, `queries.sql` | `go tool -modfile=tools/go.mod sqlc generate -f internal/auth/store/sqlc.yaml` (CI проверяет `sqlc diff`) |
 | `web/` | `cd web && npm ci && npm run build` — и закоммитить `internal/panel/dist` вместе с исходниками (CI проверяет, что сборка совпадает) |
 | Панель с горячей перезагрузкой | `cd web && npm run dev` — API идёт через работающую панель (`devopus panel start`) |
 
@@ -143,7 +169,7 @@ DOCKER_HOST=unix://$HOME/.orbstack/run/docker.sock  go test ./internal/agent/...
 
 ### CI
 
-`.github/workflows/ci.yml` на каждый push: `go vet` и `go test -race` на Ubuntu и macOS (тесты с Docker в CI выключены), линт, типы и сборка панели, `goreleaser check`.
+`.github/workflows/ci.yml` на каждый push: `go vet` и `go test -race` на Ubuntu и macOS (тесты с Docker в CI выключены), тесты Auth и входа с сервисом Postgres, `buf lint` и совпадение `gen/` и кода sqlc, линт, типы и сборка панели, `goreleaser check`.
 
 ## 5. Релиз
 
@@ -182,6 +208,8 @@ curl -fsSL https://raw.githubusercontent.com/amalychev/devopus/main/install.sh |
 
 | Симптом | Что делать |
 |---|---|
+| `sign in first` (код 5) | `devopus login` или `devopus register`; Auth должен работать (§3а) |
+| `Auth is not reachable` | `devopus-auth run` не запущен или `DEVOPUS_AUTH_URL` указывает не туда |
 | Браузер ругается на сертификат | `devopus doctor --fix`. В связке ключей мог остаться корень от прежних названий (Docklet, Devcorb) — удалите его в «Связке ключей» |
 | Адреса на `:18443` | 80/443 кто-то занял — `devopus status`; см. «Порты 80/443» |
 | `the agent did not answer` | `devopus agent logs`. `bind: invalid argument` — слишком длинный `$DEVOPUS_HOME` |

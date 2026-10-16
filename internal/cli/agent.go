@@ -258,6 +258,11 @@ func (a *app) statusCmd() *cobra.Command {
 
 func (a *app) printStatus(s *agentv2.StatusResponse) {
 	fmt.Fprintf(a.stdout, "Agent    %s · desired revision %d\n", s.AgentVersion, s.DesiredRevision)
+	if s.Account != nil {
+		fmt.Fprintf(a.stdout, "Account  %s\n", s.Account.Email)
+	} else {
+		fmt.Fprintln(a.stdout, "Account  the agent has no session yet ('devopus agent logs' tells why)")
+	}
 	rt := s.Runtime
 	if rt.Reachable {
 		fmt.Fprintf(a.stdout, "Runtime  %s %s (%s)\n", rt.Name, rt.ServerVersion, rt.Endpoint)

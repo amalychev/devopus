@@ -35,7 +35,7 @@ jobs:
       # Auth's queries (sqlc) are committed too: they must match the schema and queries.
       - run: go tool -modfile=tools/go.mod sqlc diff -f internal/auth/store/sqlc.yaml
 
-  # Auth against a real PostgreSQL.
+  # Auth, credentials and sign-in in the CLI against a real PostgreSQL.
   postgres:
     runs-on: ubuntu-latest
     services:
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - run: go test -race ./internal/auth/...
+      - run: go test -race ./internal/auth/... ./internal/credentials/... ./internal/cli/...
         env:
           DEVOPUS_TEST_DATABASE_URL: postgres://postgres:test@127.0.0.1:5432/postgres?sslmode=disable
           DOCKER_HOST: unix:///nonexistent/docker.sock

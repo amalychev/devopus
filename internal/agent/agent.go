@@ -32,6 +32,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/reconcile"
 	"github.com/amalychev/devopus/internal/agent/runtime"
 	"github.com/amalychev/devopus/internal/agent/store"
+	"github.com/amalychev/devopus/internal/credentials"
 	"github.com/amalychev/devopus/internal/daemon"
 	"github.com/amalychev/devopus/internal/spec"
 )
@@ -65,6 +66,8 @@ type Agent struct {
 	ca    *pki.CA
 
 	life *lifecycle.Manager
+	// creds keeps the access token of the user signed in on this device.
+	creds *credentials.Keeper
 	// kick asks the loop for a pass now.
 	kick chan struct{}
 
@@ -117,6 +120,15 @@ func (a *Agent) Routes() []*agentv2.Route    { return a.rec.Routes() }
 
 func (a *Agent) CA() *agentv2.CAInfo {
 	return &agentv2.CAInfo{RootPath: a.ca.RootPath(), Fingerprint: a.ca.Fingerprint(), NotAfter: timestamppb.New(a.ca.Root.NotAfter)}
+}
+
+// Account is the user signed in on this device, whose session the agent keeps fresh.
+func (a *Agent) Account() *agentv2.AccountInfo {
+	s := a.creds.Session()
+	if s == nil {
+		return nil
+	}
+	return &agentv2.AccountInfo{Email: s.Email, UserId: s.UserID, SessionId: s.SessionID, AuthUrl: s.AuthURL}
 }
 
 func (a *Agent) Runtime() *agentv2.RuntimeInfo {
@@ -186,7 +198,8 @@ func Run(ctx context.Context, opt Options) error {
 	relays := &proxy.Relays{}
 	defer relays.Close()
 
-	a := &Agent{opt: opt, log: log, store: st, rt: rt, hub: api.NewHub(), ca: ca, kick: make(chan struct{}, 1)}
+	a := &Agent{opt: opt, log: log, store: st, rt: rt, hub: api.NewHub(), ca: ca, kick: make(chan struct{}, 1), creds: &credentials.Keeper{Log: log}}
+	go a.creds.Run(ctx)
 	wakerLn, err := listenPinned(filepath.Join(paths.Proxy(), "waker-port"), lifecycle.ListenWaker)
 	if err != nil {
 		return fmt.Errorf("waker: %w", err)

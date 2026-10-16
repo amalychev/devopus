@@ -10,7 +10,7 @@
 - **Один бинарник:** все компоненты — подкоманды `devopus` одной версии. Компонент другой версии (после обновления) CLI перезапускает сам.
 - **Команды, которым нужен агент, запускают его сами:** через службу, если она установлена, иначе в фоне.
 - `devopus --help` показывает команды по группам и как начать работу.
-- **Сначала вход** (с этапа 2, [ADR-0014](../adr/0014-auth-service.md)). Все команды, кроме `register`, `login`, `version`, `help` и `completion`, требуют входа; что можно — решает роль и права пользователя на сервере воркспейса ([роли](../docs/product/roles.md)). Без нужного права команда отказывает с кодом 5 и называет недостающее право.
+- **Сначала вход** (с этапа 2, [ADR-0014](../adr/0014-auth-service.md)). Все команды, кроме `register`, `login`, `logout`, `version`, `help` и `completion`, требуют входа; что можно — решает роль и права пользователя на сервере воркспейса ([роли](../docs/product/roles.md)). Без нужного права команда отказывает с кодом 5 и называет недостающее право. Без входа работают ещё `agent run` и `panel run` (их запускают службы до входа пользователя) и `agent stop/uninstall`, `panel stop/uninstall` — чтобы после выхода можно было почистить машину.
 - **Всё, что есть в CLI, повторяет веб-интерфейс** с теми же правами.
 
 ## Карта команд
@@ -19,7 +19,7 @@
 
 | Группа | Команды | Кто может | Этап |
 |---|---|---|---|
-| **Аккаунт** | `register`, `login [--email\|--device]`, `logout`, `whoami`, `auth sessions`, `auth revoke <id>` | все | 2 |
+| **Аккаунт** | `register [--email] [--plan]`, `login [--email\|--device] [--no-open]`, `logout`, `whoami`, `auth sessions`, `auth revoke <id>`; адрес Auth — `--auth-url` или `DEVOPUS_AUTH_URL` | все | ✅ (R4) |
 | **Воркспейсы** | `workspace create <имя> [--plan]`, `list`, `use <имя>`, `show`, `rename`, `transfer <email>`, `delete` | создать, передать, удалить — админ; список — все свои | 2 |
 | **Участники** | `invite create <email> --role teamlead\|developer [--project …]`, `invite list`, `invite revoke`, `invite accept <код>`, `member list`, `member grant\|revoke <email> <право> [--project]`, `member remove` | админ; тимлид — разработчиков в свои проекты | 2 |
 | **Проекты** | `project create <имя> [--from-compose …]`, `list`, `show`, `config show [--effective] [-o yaml]`, `config history`, `config rollback <версия>`, `rm` | создать и настроить — админ, тимлид; смотреть — все в проекте | 3 |
