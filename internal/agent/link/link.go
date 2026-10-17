@@ -238,6 +238,9 @@ func (l *Link) watch(ctx context.Context, ws *credentials.Workspace, tok string)
 	defer stream.Close()
 	for stream.Receive() {
 		m := stream.Msg()
+		if m.Keepalive {
+			continue
+		}
 		projects := make([]store.ServerProject, 0, len(m.Projects))
 		for _, p := range m.Projects {
 			projects = append(projects, store.ServerProject{Name: p.Name, Spec: []byte(p.ConfigYaml), Version: p.Version, Secrets: p.Secrets,

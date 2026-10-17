@@ -99,6 +99,10 @@ message WatchResponse {
   // Devices waiting for the key: sent to the devices of admins and teamleads, which
   // wrap it for them (ADR-0009, variant A).
   repeated PendingDevice pending_devices = 6;
+  // Nothing but a sign of life, at least every 30 s while nothing changes: proxies
+  // (Cloudflare, corporate ones) cut connections silent for 100 s. The other fields
+  // are empty; the agent skips it.
+  bool keepalive = 7;
 }
 
 message EnvironmentReport {

@@ -568,7 +568,10 @@ func TestWatch(t *testing.T) {
 		t.Fatalf("removed member's stream: %+v", g)
 	}
 
-	// The stream ends with the access token.
+	// The stream ends with the access token. While nothing changes, it carries signs
+	// of life: proxies cut silent connections.
+	defer func(was time.Duration) { recheck = was }(recheck)
+	recheck = 300 * time.Millisecond
 	short, _ := token.Sign(e.key, token.Claims{Issuer: issuer, Subject: "usr_" + strings.Split(f.lead, "@")[0], Session: "s", Email: f.lead,
 		Audience: e.url, Expiry: time.Now().Add(2 * time.Second).Unix()})
 	r := connect.NewRequest(&syncv1.WatchRequest{WorkspaceId: f.ws, Device: device})
@@ -577,12 +580,16 @@ func TestWatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n := 0
+	n, alive := 0, 0
 	for st.Receive() {
-		n++
+		if n++; st.Msg().Keepalive {
+			alive++
+		} else if n != 1 || len(st.Msg().Projects) == 0 {
+			t.Errorf("message %d is the state again: %v", n, st.Msg())
+		}
 	}
-	if n != 1 || st.Err() != nil {
-		t.Errorf("short token: %d messages, %v", n, st.Err())
+	if alive < 3 || st.Err() != nil {
+		t.Errorf("short token: %d messages, %d of them keepalives, %v", n, alive, st.Err())
 	}
 }
 

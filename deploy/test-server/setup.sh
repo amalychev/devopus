@@ -4,21 +4,28 @@
 # and the autodeploy timer that builds every new commit of main in Docker (no Go on
 # the server). Idempotent: running it again keeps the database and its password.
 #
-#   sudo DOMAIN=devopus.webapace.ink SRC=/opt/devopus/src ACME_EMAIL=you@example.com \
-#     bash deploy/test-server/setup.sh
+#   sudo SRC=/opt/devopus/src TLS=cert CERT=/etc/ssl/x.pem KEY=/etc/ssl/x.key bash deploy/test-server/setup.sh
+#   sudo SRC=/opt/devopus/src ACME_EMAIL=you@example.com bash deploy/test-server/setup.sh   # certbot
 set -euo pipefail
 
 DOMAIN=${DOMAIN:-devopus.webapace.ink}
-AUTH_DOMAIN=${AUTH_DOMAIN:-auth.$DOMAIN}
+# One level under the zone (devopus-auth.webapace.ink): Cloudflare's free certificate
+# covers *.webapace.ink, not *.devopus.webapace.ink.
+AUTH_DOMAIN=${AUTH_DOMAIN:-${DOMAIN%%.*}-auth.${DOMAIN#*.}}
 SRC=${SRC:-$(cd "$(dirname "$0")/../.." && pwd)}
 BRANCH=${BRANCH:-main}
 # Local ports: nginx proxies to them; nothing else listens on them.
 AUTH_PORT=${AUTH_PORT:-7480}
 SERVER_PORT=${SERVER_PORT:-7481}
 PG_PORT=${PG_PORT:-5440}
-# HTTPS: "certbot" gets Let's Encrypt certificates for both names through nginx;
-# "none" leaves TLS to whoever set up nginx (the server block then only has :80).
+# HTTPS:
+#   cert    — nginx serves :443 with a certificate that covers both names (CERT, KEY),
+#             e.g. a Cloudflare Origin Certificate for *.webapace.ink, as other sites do;
+#   certbot — Let's Encrypt certificates through nginx (the names must not be proxied);
+#   none    — only :80: Cloudflare's "Flexible" mode, or TLS set up by hand.
 TLS=${TLS:-certbot}
+CERT=${CERT:-}
+KEY=${KEY:-}
 ACME_EMAIL=${ACME_EMAIL:-}
 # Login codes and invites: "log" (read them with journalctl) or smtp://user:pass@host:587.
 MAIL=${MAIL:-log}
@@ -36,7 +43,12 @@ die() { echo "error: $*" >&2; exit 1; }
 SRC=$(cd "$SRC" && pwd -P) # the timer runs from /: the path must be absolute
 command -v docker >/dev/null || die "Docker is needed: the build runs in a container"
 command -v nginx >/dev/null || die "nginx is needed: it serves 80/443 and proxies to the services"
-[ "$TLS" = none ] || [ -n "$ACME_EMAIL" ] || die "ACME_EMAIL is needed for Let's Encrypt (or TLS=none)"
+case "$TLS" in
+  certbot) [ -n "$ACME_EMAIL" ] || die "ACME_EMAIL is needed for Let's Encrypt" ;;
+  cert) [ -r "$CERT" ] && [ -r "$KEY" ] || die "TLS=cert needs CERT and KEY: readable files of the certificate and its key" ;;
+  none) ;;
+  *) die "TLS is cert, certbot or none" ;;
+esac
 
 say "ports 127.0.0.1:$AUTH_PORT (Auth), :$SERVER_PORT (workspace server), :$PG_PORT (PostgreSQL)"
 busy() { # port, the process that may hold it already
@@ -178,7 +190,8 @@ proxy() { # port
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        # Clients always come over https: through Cloudflare or nginx's own TLS.
+        proxy_set_header X-Forwarded-Proto https;
         proxy_set_header Connection "";
         # Agents keep a stream of settings open (Watch): no buffering, long reads.
         proxy_buffering off;
@@ -188,14 +201,23 @@ proxy() { # port
         client_max_body_size 10m;
 EOF
 }
+listen() {
+  echo "    listen 80;"
+  echo "    listen [::]:80;"
+  if [ "$TLS" = cert ]; then
+    echo "    listen 443 ssl;"
+    echo "    listen [::]:443 ssl;"
+    echo "    ssl_certificate $CERT;"
+    echo "    ssl_certificate_key $KEY;"
+  fi
+}
 # certbot adds the 443 parts and the redirect to these blocks; rewriting the file
-# drops them, so an existing file is kept unless REWRITE_NGINX=1.
-if [ ! -f "$site" ] || [ "${REWRITE_NGINX:-}" = 1 ]; then
+# drops them, so with certbot an existing file is kept unless REWRITE_NGINX=1.
+if [ "$TLS" != certbot ] || [ ! -f "$site" ] || [ "${REWRITE_NGINX:-}" = 1 ]; then
   cat > "$site" <<EOF
 # Devopus test server (deploy/test-server/setup.sh, docs/test-server.md)
 server {
-    listen 80;
-    listen [::]:80;
+$(listen)
     server_name $DOMAIN;
     # Builds of the CLI of the deployed commit.
     location /dl/ {
@@ -208,8 +230,7 @@ $(proxy "$SERVER_PORT")
 }
 
 server {
-    listen 80;
-    listen [::]:80;
+$(listen)
     server_name $AUTH_DOMAIN;
     location / {
 $(proxy "$AUTH_PORT")

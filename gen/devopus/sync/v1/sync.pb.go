@@ -396,8 +396,12 @@ type WatchResponse struct {
 	// Devices waiting for the key: sent to the devices of admins and teamleads, which
 	// wrap it for them (ADR-0009, variant A).
 	PendingDevices []*PendingDevice `protobuf:"bytes,6,rep,name=pending_devices,json=pendingDevices,proto3" json:"pending_devices,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Nothing but a sign of life, at least every 30 s while nothing changes: proxies
+	// (Cloudflare, corporate ones) cut connections silent for 100 s. The other fields
+	// are empty; the agent skips it.
+	Keepalive     bool `protobuf:"varint,7,opt,name=keepalive,proto3" json:"keepalive,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WatchResponse) Reset() {
@@ -470,6 +474,13 @@ func (x *WatchResponse) GetPendingDevices() []*PendingDevice {
 		return x.PendingDevices
 	}
 	return nil
+}
+
+func (x *WatchResponse) GetKeepalive() bool {
+	if x != nil {
+		return x.Keepalive
+	}
+	return false
 }
 
 type EnvironmentReport struct {
@@ -922,7 +933,7 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"\vdevice_name\x18\x04 \x01(\tR\n" +
 	"deviceName\x12\x1d\n" +
 	"\n" +
-	"public_key\x18\x05 \x01(\tR\tpublicKey\"\xaf\x02\n" +
+	"public_key\x18\x05 \x01(\tR\tpublicKey\"\xcd\x02\n" +
 	"\rWatchResponse\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12%\n" +
 	"\x0eworkspace_name\x18\x02 \x01(\tR\rworkspaceName\x12\x1f\n" +
@@ -930,7 +941,8 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"adminEmail\x12;\n" +
 	"\bprojects\x18\x04 \x03(\v2\x1f.devopus.sync.v1.DesiredProjectR\bprojects\x12-\n" +
 	"\x03key\x18\x05 \x01(\v2\x1b.devopus.sync.v1.SecretsKeyR\x03key\x12G\n" +
-	"\x0fpending_devices\x18\x06 \x03(\v2\x1e.devopus.sync.v1.PendingDeviceR\x0ependingDevices\"\xd8\x02\n" +
+	"\x0fpending_devices\x18\x06 \x03(\v2\x1e.devopus.sync.v1.PendingDeviceR\x0ependingDevices\x12\x1c\n" +
+	"\tkeepalive\x18\a \x01(\bR\tkeepalive\"\xd8\x02\n" +
 	"\x11EnvironmentReport\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +

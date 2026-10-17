@@ -26,7 +26,7 @@ import (
 
 // recheck is how often a watcher looks again without a wake-up: membership changes made
 // elsewhere, and the token's expiry, are seen within it.
-const recheck = 30 * time.Second
+var recheck = 30 * time.Second
 
 // onlineFor is how long a device counts as online after it was last seen.
 const onlineFor = 2 * time.Minute
@@ -176,6 +176,11 @@ func (x *syncService) Watch(ctx context.Context, req *connect.Request[syncv1.Wat
 			return nil
 		case <-wake:
 		case <-tick.C:
+			// Nothing may have changed for a long time: a sign of life keeps proxies
+			// from cutting the stream.
+			if err := stream.Send(&syncv1.WatchResponse{Keepalive: true}); err != nil {
+				return err
+			}
 		}
 	}
 }
