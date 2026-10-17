@@ -233,6 +233,40 @@ func (l *Leaf) Fresh(hosts []string, now time.Time) bool {
 	return l != nil && slices.Equal(l.Hosts, normalize(hosts)) && now.Add(RenewBefore).Before(l.NotAfter)
 }
 
+// SelfSigned is a certificate for hosts that no one trusts: what a server's public
+// environment shows for the minutes until Let's Encrypt's arrives.
+func SelfSigned(hosts []string) (*Leaf, error) {
+	hosts = normalize(hosts)
+	if len(hosts) == 0 {
+		return nil, errors.New("no hosts to issue a certificate for")
+	}
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	tmpl := &x509.Certificate{
+		SerialNumber: serial(),
+		Subject:      pkix.Name{CommonName: hosts[0], Organization: []string{"Devopus (temporary)"}},
+		DNSNames:     hosts,
+		NotBefore:    now.Add(-time.Hour),
+		NotAfter:     now.Add(7 * 24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		return nil, err
+	}
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	return &Leaf{Hosts: hosts, NotAfter: tmpl.NotAfter,
+		CertPEM: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
+		KeyPEM:  pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})}, nil
+}
+
 // TLS returns the leaf as a tls.Certificate, chain included.
 func (l *Leaf) TLS() (tls.Certificate, error) { return tls.X509KeyPair(l.CertPEM, l.KeyPEM) }
 

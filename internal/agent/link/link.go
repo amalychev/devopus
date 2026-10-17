@@ -266,7 +266,8 @@ func (l *Link) watch(ctx context.Context, ws *credentials.Workspace, tok string)
 		projects := make([]store.ServerProject, 0, len(m.Projects))
 		for _, p := range m.Projects {
 			projects = append(projects, store.ServerProject{Name: p.Name, Spec: []byte(p.ConfigYaml), Version: p.Version, Secrets: p.Secrets,
-				OverridesAllowed: p.OverridesAllowed, OverridesPermitted: p.OverridesPermitted, Signature: p.Signature, SignerDevice: p.SignerDevice})
+				OverridesAllowed: p.OverridesAllowed, OverridesPermitted: p.OverridesPermitted, Signature: p.Signature, SignerDevice: p.SignerDevice,
+				Environment: l.environment(p.Environment)})
 		}
 		key := store.ServerKey{Generation: m.GetKey().GetGeneration(), Wrapped: m.GetKey().GetWrapped()}
 		_, conflicts, err := l.opt.Store.SyncServer(m.WorkspaceId, m.AdminEmail, key, projects, TrustSet(m.WorkspaceId, m.Trust), root)
@@ -321,6 +322,14 @@ func (l *Link) report(ctx context.Context) {
 			l.opt.Log.Debug("report to the workspace server", "err", err)
 		}
 	}
+}
+
+// environment is a server's environment of a project as the store checks it.
+func (l *Link) environment(e *syncv1.ServerEnvironment) *store.ServerEnvironment {
+	if e == nil || l.opt.Server == nil {
+		return nil
+	}
+	return &store.ServerEnvironment{ServerID: l.opt.Server.ServerID, Kind: e.Kind, Domain: e.Domain, Signature: e.Signature, SignerDevice: e.SignerDevice}
 }
 
 // TrustSet is the server's word on signatures, as the store checks it: the root

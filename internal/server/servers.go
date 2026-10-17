@@ -250,8 +250,11 @@ func (s *Service) RemoveServer(ctx context.Context, req *connect.Request[workspa
 		if err != nil {
 			return err
 		}
-		if err := canManageServer(c.subject, r.Projects); err != nil {
-			return err
+		// Whoever added it may remove it; others need servers.manage in its projects.
+		if r.CreatedBy != c.userID {
+			if err := canManageServer(c.subject, r.Projects); err != nil {
+				return err
+			}
 		}
 		// The membership goes, and with it the server row, its devices and its keys.
 		if err := q.RemoveMember(ctx, store.RemoveMemberParams{WorkspaceID: c.workspace, UserID: r.ID}); err != nil {

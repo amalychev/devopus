@@ -233,7 +233,7 @@ func (r *Reconciler) attachProxy(ctx context.Context, px *proxyState, nw runtime
 // applyRoutes gives the proxy every site, waits until the new sites are served and
 // finishes the environments.
 func (r *Reconciler) applyRoutes(ctx context.Context, desired *agentv2.DesiredState, preps []*prepared, px *proxyState) error {
-	cfg := proxy.Config{HTTPPort: uint32(px.ports.HTTP), HTTPSPort: uint32(px.ports.HTTPS), Coexist: px.coexist, WakerPort: uint32(r.opt.WakerPort)}
+	cfg := proxy.Config{HTTPPort: uint32(px.ports.HTTP), HTTPSPort: uint32(px.ports.HTTPS), Coexist: px.coexist, WakerPort: uint32(r.opt.WakerPort), ACMEPort: uint32(r.opt.ACMEPort)}
 	var routes []*agentv2.Route
 	for _, p := range preps {
 		if p.leaf == nil {

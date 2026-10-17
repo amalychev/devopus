@@ -39,6 +39,9 @@ const bootstrapPath = "/etc/devopus/envoy.json"
 type Ports struct {
 	HTTP  uint16
 	HTTPS uint16
+	// Public publishes them on every address of the machine: an admin's server, whose
+	// environments the internet reaches (R14). Developers' machines keep the loopback.
+	Public bool
 }
 
 var (
@@ -49,6 +52,8 @@ var (
 // Mode names the port mode for people (local-networking.md §1).
 func (p Ports) Mode(coexist bool) string {
 	switch {
+	case p.Public:
+		return "public"
 	case p != DefaultPorts:
 		return "fallback"
 	case coexist:
@@ -70,7 +75,11 @@ func ContainerSpec(name string, labels map[string]string, ports Ports, xdsPort i
 		return runtime.ContainerSpec{}, err
 	}
 	var bind []runtime.PortBinding
-	for _, ip := range Loopback {
+	addrs := Loopback
+	if ports.Public {
+		addrs = []netip.Addr{{}} // no address: every address of the machine, both families
+	}
+	for _, ip := range addrs {
 		bind = append(bind,
 			runtime.PortBinding{HostIP: ip, HostPort: ports.HTTP, ContainerPort: ContainerHTTPPort},
 			runtime.PortBinding{HostIP: ip, HostPort: ports.HTTPS, ContainerPort: ContainerHTTPSPort},
@@ -78,6 +87,10 @@ func ContainerSpec(name string, labels map[string]string, ports Ports, xdsPort i
 	}
 	sum := sha256.New()
 	fmt.Fprintf(sum, "%s\n%d/%d\nunprivileged-ports\n", Image, ports.HTTP, ports.HTTPS)
+	if ports.Public {
+		sum.Write([]byte("public\n"))
+		labels = withLabel(labels, LabelPublic, "true")
+	}
 	sum.Write(boot)
 	all := map[string]string{}
 	for k, v := range labels {
@@ -106,7 +119,16 @@ func ContainerSpec(name string, labels map[string]string, ports Ports, xdsPort i
 const (
 	LabelHTTPPort  = "com.devopus.proxy.http-port"
 	LabelHTTPSPort = "com.devopus.proxy.https-port"
+	LabelPublic    = "com.devopus.proxy.public"
 )
+
+func withLabel(labels map[string]string, k, v string) map[string]string {
+	out := map[string]string{k: v}
+	for key, val := range labels {
+		out[key] = val
+	}
+	return out
+}
 
 // PortsOf reads the published ports back from a proxy container's labels.
 func PortsOf(labels map[string]string) (Ports, bool) {
@@ -117,6 +139,7 @@ func PortsOf(labels map[string]string) (Ports, bool) {
 	if _, err := fmt.Sscan(labels[LabelHTTPSPort], &p.HTTPS); err != nil {
 		return p, false
 	}
+	p.Public = labels[LabelPublic] == "true"
 	return p, true
 }
 

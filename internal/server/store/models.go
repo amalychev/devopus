@@ -145,6 +145,18 @@ type Server struct {
 	JoinedAt    *time.Time
 }
 
+type ServerEnvironment struct {
+	WorkspaceID  string
+	ServerID     string
+	ProjectID    string
+	Kind         string
+	Domain       string
+	Signature    []byte
+	SignerDevice string
+	CreatedBy    string
+	CreatedAt    time.Time
+}
+
 type SigningKey struct {
 	WorkspaceID string
 	DeviceID    string

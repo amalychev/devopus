@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/amalychev/devopus/internal/agent/pki"
 	"io"
 	"net"
 	"net/http"
@@ -59,7 +60,10 @@ func probeClient(roots *x509.CertPool, host, addr string, timeout time.Duration)
 	return &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			TLSClientConfig:   &tls.Config{RootCAs: roots, ServerName: host, MinVersion: tls.VersionTLS12},
+			// A public host's certificate (a server's environment) does not chain to the
+			// local CA, and may be a temporary one: the check dials the proxy itself on the
+			// loopback, so that it serves the host is what counts.
+			TLSClientConfig:   &tls.Config{RootCAs: roots, ServerName: host, MinVersion: tls.VersionTLS12, InsecureSkipVerify: !pki.Permitted(host)},
 			DisableKeepAlives: true,
 			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 				return (&net.Dialer{}).DialContext(ctx, network, addr)

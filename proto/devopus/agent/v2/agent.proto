@@ -145,6 +145,11 @@ message ProjectSpec {
   // Who signed the version the project runs, checked against the pinned root; empty:
   // unsigned or not trusted.
   string signed_by = 19;
+  // On an admin's server (R14, ADR-0020): the environment it runs the project as, its
+  // public domain and who signed it. Empty: the project's own (local) domain.
+  string env_kind = 20;
+  string public_domain = 21;
+  string environment_signed_by = 22;
 }
 
 message PendingChange {

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	syncv1 "github.com/amalychev/devopus/gen/devopus/sync/v1"
 	"github.com/amalychev/devopus/gen/devopus/sync/v1/syncv1connect"
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
+	"github.com/amalychev/devopus/internal/signing"
 )
 
 func TestServers(t *testing.T) {
@@ -95,5 +97,73 @@ func TestServers(t *testing.T) {
 	}
 	if connect.CodeOf(st.Err()) != connect.CodeUnauthenticated {
 		t.Errorf("removed server: %v", st.Err())
+	}
+}
+
+func TestEnvironments(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	f := e.fixture(t)
+	must[workspacev1.CreateProjectResponse](t)(e.client.CreateProject(ctx, as(e, f.admin, &workspacev1.CreateProjectRequest{WorkspaceId: f.ws, Name: "blog"})))
+	created := must[workspacev1.CreateServerResponse](t)(e.client.CreateServer(ctx, as(e, f.admin, &workspacev1.CreateServerRequest{WorkspaceId: f.ws, Name: "stage", Projects: []string{"blog"}})))
+	key, _ := signing.NewKey()
+	must[workspacev1.RegisterSigningKeyResponse](t)(e.client.RegisterSigningKey(ctx, as(e, f.admin, &workspacev1.RegisterSigningKeyRequest{WorkspaceId: f.ws, DeviceId: "admin-mac", PublicKey: key.Public()})))
+	create := func(email, project, domain string) error {
+		sig := key.Sign(signing.EnvironmentMessage(f.ws, created.Server.Id, project, "staging", strings.ToLower(strings.TrimSuffix(domain, "."))))
+		_, err := e.client.CreateEnvironment(ctx, as(e, email, &workspacev1.CreateEnvironmentRequest{WorkspaceId: f.ws, Project: project, Server: "stage", Kind: "staging", Domain: domain,
+			DeviceId: "admin-mac", Signature: sig}))
+		return err
+	}
+	// A signature of another domain does not do.
+	if _, err := e.client.CreateEnvironment(ctx, as(e, f.admin, &workspacev1.CreateEnvironmentRequest{WorkspaceId: f.ws, Project: "shop", Server: "stage", Kind: "staging",
+		Domain: "staging.shop.example.com", DeviceId: "admin-mac", Signature: key.Sign(signing.EnvironmentMessage(f.ws, created.Server.Id, "shop", "staging", "evil.example.com"))})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Errorf("a signature of another domain: %v", err)
+	}
+	for _, d := range []string{"", "shop.localhost", "10.0.0.1", "not a domain", "x.test"} {
+		if err := create(f.admin, "shop", d); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Errorf("domain %q: %v", d, err)
+		}
+	}
+	// The server runs blog, which the teamlead of shop does not lead: they cannot put
+	// shop on it.
+	if err := create(f.lead, "shop", "staging.shop.example.com"); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("lead on a server of another's project: %v", err)
+	}
+	if err := create(f.admin, "shop", "Staging.Shop.Example.com."); err != nil {
+		t.Fatal(err)
+	}
+	if err := create(f.admin, "blog", "staging.shop.example.com"); connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Errorf("a taken domain: %v", err)
+	}
+	if _, err := e.client.CreateEnvironment(ctx, as(e, f.admin, &workspacev1.CreateEnvironmentRequest{WorkspaceId: f.ws, Project: "shop", Server: "stage", Kind: "production", Domain: "shop.example.com"})); connect.CodeOf(err) != connect.CodeUnimplemented {
+		t.Errorf("production: %v", err)
+	}
+	envs := must[workspacev1.ListEnvironmentsResponse](t)(e.client.ListEnvironments(ctx, as(e, f.dev, &workspacev1.ListEnvironmentsRequest{WorkspaceId: f.ws}))).Environments
+	if len(envs) != 1 || envs[0].Domain != "staging.shop.example.com" || envs[0].CreatedBy != f.admin {
+		t.Errorf("the developer of shop sees: %v", envs)
+	}
+
+	// The server gets shop with its environment.
+	joined := must[workspacev1.JoinServerResponse](t)(e.client.JoinServer(ctx, connect.NewRequest(&workspacev1.JoinServerRequest{Code: created.JoinCode})))
+	r := connect.NewRequest(&syncv1.WatchRequest{WorkspaceId: f.ws, Device: &syncv1.Device{Id: "stage-1"}})
+	r.Header().Set("Authorization", "Bearer "+joined.Token)
+	wctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	st, err := syncv1connect.NewSyncServiceClient(http.DefaultClient, e.url).Watch(wctx, r)
+	if err != nil || !st.Receive() {
+		t.Fatalf("watch: %v %v", err, st.Err())
+	}
+	got := map[string]string{}
+	for _, p := range st.Msg().Projects {
+		got[p.Name] = p.GetEnvironment().GetDomain()
+	}
+	if len(got) != 2 || got["shop"] != "staging.shop.example.com" || got["blog"] != "" {
+		t.Errorf("the server's projects: %v", got)
+	}
+	cancel()
+
+	must[workspacev1.RemoveEnvironmentResponse](t)(e.client.RemoveEnvironment(ctx, as(e, f.admin, &workspacev1.RemoveEnvironmentRequest{WorkspaceId: f.ws, Project: "shop", Server: "stage"})))
+	if envs := must[workspacev1.ListEnvironmentsResponse](t)(e.client.ListEnvironments(ctx, as(e, f.admin, &workspacev1.ListEnvironmentsRequest{WorkspaceId: f.ws}))).Environments; len(envs) != 0 {
+		t.Errorf("after removal: %v", envs)
 	}
 }

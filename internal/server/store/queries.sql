@@ -276,3 +276,30 @@ ORDER BY s.name;
 
 -- name: DeleteProjectMembersOf :exec
 DELETE FROM project_members WHERE workspace_id = $1 AND user_id = $2;
+
+-- name: UpsertServerEnvironment :exec
+INSERT INTO server_environments (workspace_id, server_id, project_id, kind, domain, signature, signer_device, created_by, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+ON CONFLICT (workspace_id, server_id, project_id)
+DO UPDATE SET kind = excluded.kind, domain = excluded.domain, signature = excluded.signature, signer_device = excluded.signer_device,
+    created_by = excluded.created_by, created_at = excluded.created_at;
+
+-- name: ServerEnvironment :one
+SELECT * FROM server_environments WHERE workspace_id = $1 AND server_id = $2 AND project_id = $3;
+
+-- name: ServerEnvironments :many
+SELECT e.*, s.name AS server, p.name AS project, u.email AS creator FROM server_environments e
+JOIN servers s ON s.workspace_id = e.workspace_id AND s.id = e.server_id
+JOIN projects p ON p.id = e.project_id
+JOIN users u ON u.id = e.created_by
+WHERE e.workspace_id = $1
+ORDER BY p.name, e.kind, s.name;
+
+-- name: DeleteServerEnvironment :exec
+DELETE FROM server_environments WHERE workspace_id = $1 AND server_id = $2 AND project_id = $3;
+
+-- name: DomainTaken :one
+SELECT EXISTS (SELECT 1 FROM server_environments WHERE domain = $1 AND NOT (workspace_id = $2 AND server_id = $3 AND project_id = $4));
+
+-- name: DeleteProjectRole :exec
+DELETE FROM project_members WHERE project_id = $1 AND user_id = $2;

@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 
 	"github.com/containerd/errdefs"
@@ -188,4 +189,38 @@ func (d *Docker) RemoveNetwork(ctx context.Context, id string) error {
 		return nil
 	}
 	return err
+}
+
+// HostAddr is where the agent listens for what containers call on the host — the
+// proxy's xDS, the waker, the ACME answerer — as host.docker.internal resolves for
+// them. Docker Desktop, OrbStack and Colima bring those calls to the host's loopback;
+// a Linux engine sends them from its bridge, so there it is the bridge's gateway
+// (docker0, 172.17.0.1 by default): reachable from containers, not from the network.
+func (d *Docker) HostAddr(ctx context.Context) (netip.Addr, error) {
+	loopback := netip.MustParseAddr("127.0.0.1")
+	if goruntime.GOOS != "linux" {
+		return loopback, nil
+	}
+	info, err := d.Info(ctx)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	if info.Name != "docker-engine" {
+		return loopback, nil
+	}
+	res, err := d.cli.NetworkList(ctx, client.NetworkListOptions{})
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	for _, n := range res.Items {
+		if n.Name != "bridge" {
+			continue
+		}
+		for _, c := range n.IPAM.Config {
+			if c.Gateway.IsValid() && c.Gateway.Is4() {
+				return c.Gateway, nil
+			}
+		}
+	}
+	return netip.Addr{}, errors.New("the bridge network of the engine has no gateway: containers cannot reach the agent")
 }

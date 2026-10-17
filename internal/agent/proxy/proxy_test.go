@@ -177,6 +177,39 @@ func TestEnvoyServesSites(t *testing.T) {
 	}
 	waitBody(t, ctx, ports.HTTPS, "shop.localhost", roots, "first")
 
+	// Let's Encrypt's challenges on port 80 reach the agent on the host — on a site's
+	// host before its redirect, and on any other — while the rest still redirects.
+	answerer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "answer "+r.Host+r.URL.Path) }))
+	defer answerer.Close()
+	cfg.ACMEPort = portOf(answerer.URL)
+	if _, err := x.Set(ctx, cfg); err != nil {
+		t.Fatal(err)
+	}
+	plainGet := func(host, path string) (int, string, string) {
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d%s", ports.HTTP, path), nil)
+		req.Host = host
+		res, err := noFollow.Do(req)
+		if err != nil {
+			return 0, err.Error(), ""
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		return res.StatusCode, string(b), res.Header.Get("Location")
+	}
+	for _, host := range []string{"shop.localhost", "staging.shop.example.com"} {
+		var body string
+		for i := 0; i < 50 && !strings.HasPrefix(body, "answer"); i++ {
+			_, body, _ = plainGet(host, "/.well-known/acme-challenge/tok")
+			time.Sleep(100 * time.Millisecond)
+		}
+		if body != "answer "+host+"/.well-known/acme-challenge/tok" {
+			t.Errorf("challenge on %s: %q", host, body)
+		}
+	}
+	if code, _, loc := plainGet("shop.localhost", "/a"); code != http.StatusMovedPermanently || !strings.HasPrefix(loc, "https://shop.localhost") {
+		t.Errorf("redirect with ACME on: %d %q", code, loc)
+	}
+
 	// Over IPv6 loopback too; Colima needs the agent's relay for that.
 	rel := &Relays{}
 	defer rel.Close()

@@ -470,6 +470,20 @@ func (q *Queries) DeleteProjectMembersOf(ctx context.Context, arg DeleteProjectM
 	return err
 }
 
+const deleteProjectRole = `-- name: DeleteProjectRole :exec
+DELETE FROM project_members WHERE project_id = $1 AND user_id = $2
+`
+
+type DeleteProjectRoleParams struct {
+	ProjectID string
+	UserID    string
+}
+
+func (q *Queries) DeleteProjectRole(ctx context.Context, arg DeleteProjectRoleParams) error {
+	_, err := q.db.Exec(ctx, deleteProjectRole, arg.ProjectID, arg.UserID)
+	return err
+}
+
 const deleteSecret = `-- name: DeleteSecret :execrows
 DELETE FROM secrets WHERE project_id = $1 AND name = $2
 `
@@ -485,6 +499,21 @@ func (q *Queries) DeleteSecret(ctx context.Context, arg DeleteSecretParams) (int
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const deleteServerEnvironment = `-- name: DeleteServerEnvironment :exec
+DELETE FROM server_environments WHERE workspace_id = $1 AND server_id = $2 AND project_id = $3
+`
+
+type DeleteServerEnvironmentParams struct {
+	WorkspaceID string
+	ServerID    string
+	ProjectID   string
+}
+
+func (q *Queries) DeleteServerEnvironment(ctx context.Context, arg DeleteServerEnvironmentParams) error {
+	_, err := q.db.Exec(ctx, deleteServerEnvironment, arg.WorkspaceID, arg.ServerID, arg.ProjectID)
+	return err
 }
 
 const deleteWorkspace = `-- name: DeleteWorkspace :exec
@@ -602,6 +631,29 @@ func (q *Queries) Devices(ctx context.Context, workspaceID string) ([]DevicesRow
 		return nil, err
 	}
 	return items, nil
+}
+
+const domainTaken = `-- name: DomainTaken :one
+SELECT EXISTS (SELECT 1 FROM server_environments WHERE domain = $1 AND NOT (workspace_id = $2 AND server_id = $3 AND project_id = $4))
+`
+
+type DomainTakenParams struct {
+	Domain      string
+	WorkspaceID string
+	ServerID    string
+	ProjectID   string
+}
+
+func (q *Queries) DomainTaken(ctx context.Context, arg DomainTakenParams) (bool, error) {
+	row := q.db.QueryRow(ctx, domainTaken,
+		arg.Domain,
+		arg.WorkspaceID,
+		arg.ServerID,
+		arg.ProjectID,
+	)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const grant = `-- name: Grant :exec
@@ -1353,6 +1405,90 @@ func (q *Queries) ServerByToken(ctx context.Context, tokenHash *string) (Server,
 	return i, err
 }
 
+const serverEnvironment = `-- name: ServerEnvironment :one
+SELECT workspace_id, server_id, project_id, kind, domain, signature, signer_device, created_by, created_at FROM server_environments WHERE workspace_id = $1 AND server_id = $2 AND project_id = $3
+`
+
+type ServerEnvironmentParams struct {
+	WorkspaceID string
+	ServerID    string
+	ProjectID   string
+}
+
+func (q *Queries) ServerEnvironment(ctx context.Context, arg ServerEnvironmentParams) (ServerEnvironment, error) {
+	row := q.db.QueryRow(ctx, serverEnvironment, arg.WorkspaceID, arg.ServerID, arg.ProjectID)
+	var i ServerEnvironment
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.ServerID,
+		&i.ProjectID,
+		&i.Kind,
+		&i.Domain,
+		&i.Signature,
+		&i.SignerDevice,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const serverEnvironments = `-- name: ServerEnvironments :many
+SELECT e.workspace_id, e.server_id, e.project_id, e.kind, e.domain, e.signature, e.signer_device, e.created_by, e.created_at, s.name AS server, p.name AS project, u.email AS creator FROM server_environments e
+JOIN servers s ON s.workspace_id = e.workspace_id AND s.id = e.server_id
+JOIN projects p ON p.id = e.project_id
+JOIN users u ON u.id = e.created_by
+WHERE e.workspace_id = $1
+ORDER BY p.name, e.kind, s.name
+`
+
+type ServerEnvironmentsRow struct {
+	WorkspaceID  string
+	ServerID     string
+	ProjectID    string
+	Kind         string
+	Domain       string
+	Signature    []byte
+	SignerDevice string
+	CreatedBy    string
+	CreatedAt    time.Time
+	Server       string
+	Project      string
+	Creator      string
+}
+
+func (q *Queries) ServerEnvironments(ctx context.Context, workspaceID string) ([]ServerEnvironmentsRow, error) {
+	rows, err := q.db.Query(ctx, serverEnvironments, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ServerEnvironmentsRow
+	for rows.Next() {
+		var i ServerEnvironmentsRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.ServerID,
+			&i.ProjectID,
+			&i.Kind,
+			&i.Domain,
+			&i.Signature,
+			&i.SignerDevice,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.Server,
+			&i.Project,
+			&i.Creator,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const servers = `-- name: Servers :many
 SELECT s.workspace_id, s.id, s.name, s.created_by, s.created_at, s.join_hash, s.join_expires, s.token_hash, s.joined_at, d.last_seen, d.agent_version,
     COALESCE((SELECT array_agg(p.name ORDER BY p.name) FROM project_members pm JOIN projects p ON p.id = pm.project_id
@@ -1672,6 +1808,41 @@ func (q *Queries) UpsertDeviceKey(ctx context.Context, arg UpsertDeviceKeyParams
 		arg.UserID,
 		arg.Name,
 		arg.PublicKey,
+		arg.CreatedAt,
+	)
+	return err
+}
+
+const upsertServerEnvironment = `-- name: UpsertServerEnvironment :exec
+INSERT INTO server_environments (workspace_id, server_id, project_id, kind, domain, signature, signer_device, created_by, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+ON CONFLICT (workspace_id, server_id, project_id)
+DO UPDATE SET kind = excluded.kind, domain = excluded.domain, signature = excluded.signature, signer_device = excluded.signer_device,
+    created_by = excluded.created_by, created_at = excluded.created_at
+`
+
+type UpsertServerEnvironmentParams struct {
+	WorkspaceID  string
+	ServerID     string
+	ProjectID    string
+	Kind         string
+	Domain       string
+	Signature    []byte
+	SignerDevice string
+	CreatedBy    string
+	CreatedAt    time.Time
+}
+
+func (q *Queries) UpsertServerEnvironment(ctx context.Context, arg UpsertServerEnvironmentParams) error {
+	_, err := q.db.Exec(ctx, upsertServerEnvironment,
+		arg.WorkspaceID,
+		arg.ServerID,
+		arg.ProjectID,
+		arg.Kind,
+		arg.Domain,
+		arg.Signature,
+		arg.SignerDevice,
+		arg.CreatedBy,
 		arg.CreatedAt,
 	)
 	return err

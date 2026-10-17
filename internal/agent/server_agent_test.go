@@ -2,10 +2,12 @@ package agent
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -142,8 +144,10 @@ func TestServerAgent(t *testing.T) {
 	ports := proxy.Ports{HTTP: freePort(t), HTTPS: freePort(t)}
 	done := make(chan error, 1)
 	agentCtx, stop := context.WithCancel(context.Background())
+	acmeDir := pebble(t)
 	go func() {
-		done <- Run(agentCtx, Options{Version: "test", Log: slog.New(slog.NewTextHandler(io.Discard, nil)), ProxyPorts: &ports})
+		done <- Run(agentCtx, Options{Version: "test", Log: slog.New(slog.NewTextHandler(io.Discard, nil)), ProxyPorts: &ports,
+			ACMEDirectory: acmeDir, ACMEClient: insecureClient()})
 	}()
 	t.Cleanup(func() {
 		stop()
@@ -240,6 +244,86 @@ func TestServerAgent(t *testing.T) {
 		}
 		if time.Now().After(deadline) {
 			t.Fatalf("devices: %v", res.Msg.Devices)
+		}
+	}
+
+	// R14: the admin signs a staging environment at a public domain; the server's agent
+	// moves the project there and gets its certificate from the CA.
+	domain := strings.ToLower(project) + ".staging.example.com"
+	if _, err := ws.CreateEnvironment(ctx, bearer(&workspacev1.CreateEnvironmentRequest{WorkspaceId: wsID, Project: project, Server: "stage", Kind: "staging",
+		Domain: domain, DeviceId: "admin-mac", Signature: key.Sign(signing.EnvironmentMessage(wsID, j.ServerId, project, "staging", domain))}, admin)); err != nil {
+		t.Fatal(err)
+	}
+	var issuer string
+	for deadline := time.Now().Add(3 * time.Minute); ; time.Sleep(500 * time.Millisecond) {
+		body, cert, err := publicGet(ctx, ports.HTTPS, domain)
+		if err == nil && strings.Contains(body, "server settings v2") && cert != nil && !strings.Contains(cert.Issuer.String(), "Devopus") {
+			issuer = cert.Issuer.String()
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%s is not served with the CA's certificate: %v %v %q", domain, cert, err, body)
+		}
+	}
+	if !strings.Contains(strings.ToLower(issuer), "pebble") {
+		t.Errorf("issuer: %s", issuer)
+	}
+	for _, p := range status().Projects {
+		if p.Name == project && (p.PublicDomain != domain || p.EnvironmentSignedBy != "admin@acme.dev") {
+			t.Errorf("project on the server: %+v", p)
+		}
+	}
+}
+
+// publicGet fetches a public host from the proxy on the loopback and returns the
+// certificate it showed.
+func publicGet(ctx context.Context, port uint16, host string) (string, *x509.Certificate, error) {
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	c := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{ServerName: host, InsecureSkipVerify: true},
+		DialContext:     func(ctx context.Context, network, _ string) (net.Conn, error) { return (&net.Dialer{}).DialContext(ctx, network, addr) },
+	}}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+host+"/", nil)
+	res, err := c.Do(req)
+	if err != nil {
+		return "", nil, err
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	var cert *x509.Certificate
+	if res.TLS != nil && len(res.TLS.PeerCertificates) > 0 {
+		cert = res.TLS.PeerCertificates[0]
+	}
+	return string(b), cert, nil
+}
+
+func insecureClient() *http.Client {
+	return &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
+}
+
+// pebble starts Let's Encrypt's test CA, which validates nothing: the challenge's way
+// through the proxy is checked in the proxy's tests.
+func pebble(t *testing.T) string {
+	t.Helper()
+	out, err := exec.Command("docker", "run", "-d", "--rm", "-e", "PEBBLE_VA_ALWAYS_VALID=1", "-e", "PEBBLE_VA_NOSLEEP=1",
+		"-p", "127.0.0.1::14000", "ghcr.io/letsencrypt/pebble:latest").CombinedOutput()
+	if err != nil {
+		t.Skipf("pebble: %s", out)
+	}
+	id := strings.TrimSpace(string(out))
+	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", id).Run() })
+	port, err := exec.Command("docker", "port", id, "14000").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := "https://" + strings.TrimSpace(strings.Split(string(port), "\n")[0]) + "/dir"
+	for deadline := time.Now().Add(30 * time.Second); ; time.Sleep(200 * time.Millisecond) {
+		if r, err := insecureClient().Get(dir); err == nil {
+			r.Body.Close()
+			return dir
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("pebble did not start")
 		}
 	}
 }

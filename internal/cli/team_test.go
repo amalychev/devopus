@@ -214,6 +214,19 @@ func TestTeam(t *testing.T) {
 	if code, _, errOut := cli(t, "", "servers", "set", "stage", "--project", "shop,blog"); code != ExitInvalid && code != ExitAuth || errOut == "" {
 		t.Errorf("lead gives the server another's project: %d %s", code, errOut)
 	}
+	// R14: shop runs on the server as staging at a public domain, signed by the lead.
+	if code, _, errOut := cli(t, "", "env", "create", "staging", "--project", "shop", "--server", "stage", "--domain", "shop.localhost"); code == ExitOK || !strings.Contains(errOut, "not a public domain") {
+		t.Errorf("a local domain: %d %s", code, errOut)
+	}
+	if out := ok("env", "create", "staging", "--project", "shop", "--server", "stage", "--domain", "Staging.Shop.Example.com"); !strings.Contains(out, "stage runs shop on staging at https://staging.shop.example.com") {
+		t.Errorf("env create:\n%s", out)
+	}
+	if out := squash(ok("env", "list")); !strings.Contains(out, "shop staging stage https://staging.shop.example.com "+lead) {
+		t.Errorf("env list:\n%s", out)
+	}
+	if out := ok("env", "rm", "--project", "shop", "--server", "stage"); !strings.Contains(out, "stage no longer runs shop") {
+		t.Errorf("env rm:\n%s", out)
+	}
 	if out := ok("servers", "rm", "stage"); !strings.Contains(out, "Server stage removed") {
 		t.Errorf("servers rm:\n%s", out)
 	}

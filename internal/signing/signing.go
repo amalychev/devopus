@@ -72,6 +72,12 @@ func SettingsMessage(workspace, project string, version int32, config []byte) []
 	return []byte("devopus-settings-v1\n" + workspace + "\n" + project + "\n" + strconv.Itoa(int(version)) + "\n" + hex.EncodeToString(sum[:]))
 }
 
+// EnvironmentMessage is what the creator of a server's environment signs (R14): the
+// server runs the project as this kind at this domain.
+func EnvironmentMessage(workspace, serverID, project, kind, domain string) []byte {
+	return []byte("devopus-environment-v1\n" + workspace + "\n" + serverID + "\n" + project + "\n" + kind + "\n" + domain)
+}
+
 // SignerMessage is what the root signs to certify a device of a person.
 func SignerMessage(workspace, userID, email, deviceID string, pub ed25519.PublicKey) []byte {
 	return []byte("devopus-signer-v1\n" + workspace + "\n" + userID + "\n" + email + "\n" + deviceID + "\n" + base64.StdEncoding.EncodeToString(pub))
@@ -106,30 +112,39 @@ var (
 
 // Verify checks a version and returns who signed it.
 func (s Set) Verify(project string, version int32, config []byte, deviceID string, sig []byte) (email string, err error) {
+	return s.VerifyMessage(SettingsMessage(s.Workspace, project, version, config), deviceID, sig)
+}
+
+// VerifyMessage checks any message of this package signed by the root or a certified
+// device and returns who signed it.
+func (s Set) VerifyMessage(msg []byte, deviceID string, sig []byte) (string, error) {
 	if len(sig) == 0 || deviceID == "" {
 		return "", ErrUnsigned
 	}
 	if len(s.Root) != ed25519.PublicKeySize {
 		return "", ErrNoRoot
 	}
-	pub, email := ed25519.PublicKey(nil), ""
-	if deviceID == s.RootDevice {
-		pub, email = s.Root, s.RootEmail
-	} else {
-		for _, sg := range s.Signers {
-			if sg.DeviceID == deviceID && s.Certified(sg) {
-				pub, email = sg.Public, sg.Email
-				break
-			}
-		}
-	}
+	pub, email := s.key(deviceID)
 	if pub == nil {
 		return "", ErrUntrusted
 	}
-	if !ed25519.Verify(pub, SettingsMessage(s.Workspace, project, version, config), sig) {
+	if !ed25519.Verify(pub, msg, sig) {
 		return "", fmt.Errorf("%w (device %s of %s)", ErrSignature, deviceID, email)
 	}
 	return email, nil
+}
+
+// key is the public key a trusted device signs with.
+func (s Set) key(deviceID string) (ed25519.PublicKey, string) {
+	if deviceID == s.RootDevice {
+		return s.Root, s.RootEmail
+	}
+	for _, sg := range s.Signers {
+		if sg.DeviceID == deviceID && s.Certified(sg) {
+			return sg.Public, sg.Email
+		}
+	}
+	return nil, ""
 }
 
 // Certified: the root signed this signer's certificate.

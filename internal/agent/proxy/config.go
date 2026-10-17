@@ -49,6 +49,9 @@ const (
 	routesHTTPS   = "https"
 	clusterCoHTTP = "coexist-http"
 	clusterCoTLS  = "coexist-https"
+	clusterACME   = "acme"
+	// ACMEChallengePrefix is where certificate authorities read HTTP-01 answers.
+	ACMEChallengePrefix = "/.well-known/acme-challenge"
 )
 
 // HostGateway is how a container reaches the host; on Linux the agent maps it to
@@ -67,6 +70,10 @@ type Config struct {
 	Coexist *Coexist
 	// WakerPort is the agent's waker on the host; 0 turns sleeping off.
 	WakerPort uint32
+	// ACMEPort is the agent's answerer of Let's Encrypt's HTTP-01 challenges on the
+	// host (a server's public environments, R14); 0: none. Port 80 sends
+	// /.well-known/acme-challenge/ there on every host instead of to https.
+	ACMEPort uint32
 }
 
 // Coexist is a dev server on the host (Herd, Valet, nginx) that gave 80/443 to Devopus.
@@ -212,10 +219,10 @@ func (c Config) Resources() (map[resource.Type][]types.Resource, string, error) 
 		httpVHosts = append(httpVHosts, &routev3.VirtualHost{
 			Name:    s.Name,
 			Domains: s.Hosts,
-			Routes: []*routev3.Route{{
+			Routes: append(c.acmeRoutes(), &routev3.Route{
 				Match:  &routev3.RouteMatch{PathSpecifier: &routev3.RouteMatch_Prefix{Prefix: "/"}},
 				Action: &routev3.Route_Redirect{Redirect: redirect},
-			}},
+			}),
 		})
 		known = append(known, s.Hosts...)
 	}
@@ -235,6 +242,10 @@ func (c Config) Resources() (map[resource.Type][]types.Resource, string, error) 
 			Match:  &routev3.RouteMatch{PathSpecifier: &routev3.RouteMatch_Prefix{Prefix: "/"}},
 			Action: &routev3.Route_Route{Route: &routev3.RouteAction{ClusterSpecifier: &routev3.RouteAction_Cluster{Cluster: clusterCoHTTP}, Timeout: durationpb.New(0)}},
 		}}
+	}
+	httpDefault.Routes = append(c.acmeRoutes(), httpDefault.Routes...)
+	if c.ACMEPort != 0 {
+		clusters = append(clusters, hostCluster(clusterACME, c.ACMEPort))
 	}
 	httpVHosts = append(httpVHosts, httpDefault)
 	httpsVHosts = append(httpsVHosts, &routev3.VirtualHost{Name: "default", Domains: []string{"*"}, Routes: []*routev3.Route{pageRoute("/", unknown)}})
@@ -363,6 +374,17 @@ func httpManager(stat, routes string) (*listenerv3.Filter, error) {
 // HealthPath is answered by the proxy itself on every site: the agent checks with it
 // that a site is served, without waiting for the applications behind it.
 const HealthPath = "/.devopus/health"
+
+// acmeRoutes send Let's Encrypt's HTTP-01 challenges to the agent.
+func (c Config) acmeRoutes() []*routev3.Route {
+	if c.ACMEPort == 0 {
+		return nil
+	}
+	return []*routev3.Route{{
+		Match:  prefixMatch(ACMEChallengePrefix),
+		Action: &routev3.Route_Route{Route: &routev3.RouteAction{ClusterSpecifier: &routev3.RouteAction_Cluster{Cluster: clusterACME}}},
+	}}
+}
 
 func healthRoute() *routev3.Route {
 	return &routev3.Route{

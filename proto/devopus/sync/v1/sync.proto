@@ -70,6 +70,19 @@ message DesiredProject {
   // The author's signature of this version and the device that made it (ADR-0018).
   bytes signature = 8;
   string signer_device = 9;
+  // On a server (R14, ADR-0020): the environment it runs the project as.
+  ServerEnvironment environment = 10;
+}
+
+message ServerEnvironment {
+  // staging or production.
+  string kind = 1;
+  // The public host; the agent gets its certificate from Let's Encrypt.
+  string domain = 2;
+  reserved 3;
+  // signing.EnvironmentMessage signed by its creator's device.
+  bytes signature = 4;
+  string signer_device = 5;
 }
 
 // Trust is what an agent checks signatures with: the root, which it pins the first

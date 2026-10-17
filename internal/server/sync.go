@@ -103,6 +103,9 @@ func (s *Service) desired(ctx context.Context, c *caller, device string) (*syncv
 		}
 		dp := &syncv1.DesiredProject{Id: p.ID, Name: p.Name, Version: p.Version, ConfigYaml: v.Config,
 			OverridesPermitted: c.subject.Can(authz.OverridesUse, p.Name), Signature: v.Signature, SignerDevice: v.SignerDevice}
+		if dp.Environment, err = s.serverEnvironment(ctx, c, p.ID); err != nil {
+			return nil, err
+		}
 		// Admins and teamlead may override anything; developers what the policy allows.
 		if c.subject.Role == authz.Admin || c.subject.Projects[p.Name] == authz.Teamlead {
 			dp.OverridesAllowed = []string{spec.AllowAll}

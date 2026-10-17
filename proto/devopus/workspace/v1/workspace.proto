@@ -200,6 +200,28 @@ service WorkspaceService {
     };
   }
 
+  // Environments of projects on servers (R14, ADR-0020): staging or production at a
+  // public domain, signed by its creator. The server's agent gets the certificate
+  // from Let's Encrypt. Needs servers.manage in the project.
+  rpc CreateEnvironment(CreateEnvironmentRequest) returns (CreateEnvironmentResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "servers.manage"
+    };
+  }
+  rpc ListEnvironments(ListEnvironmentsRequest) returns (ListEnvironmentsResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  rpc RemoveEnvironment(RemoveEnvironmentRequest) returns (RemoveEnvironmentResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "servers.manage"
+    };
+  }
+
   // Signatures of settings (ADR-0018): devices' signing keys, the workspace's root of
   // trust (a key of the admin's device), the root's certificates for the devices of
   // people who change settings, and the authors' signatures of versions. The server
@@ -1007,3 +1029,48 @@ message RemoveServerRequest {
 }
 
 message RemoveServerResponse {}
+
+message Environment {
+  string project = 1;
+  string server = 2;
+  // staging or production.
+  string kind = 3;
+  string domain = 4;
+  google.protobuf.Timestamp created_at = 6;
+  reserved 5;
+  // Who created it; its signature counts once their device is certified.
+  string created_by = 7;
+}
+
+message CreateEnvironmentRequest {
+  string workspace_id = 1;
+  string project = 2;
+  string server = 3;
+  string kind = 4;
+  string domain = 5;
+  reserved 6;
+  // signing.EnvironmentMessage signed by the caller's device: servers take no domain
+  // on the workspace server's word.
+  string device_id = 7;
+  bytes signature = 8;
+}
+
+message CreateEnvironmentResponse {
+  Environment environment = 1;
+}
+
+message ListEnvironmentsRequest {
+  string workspace_id = 1;
+}
+
+message ListEnvironmentsResponse {
+  repeated Environment environments = 1;
+}
+
+message RemoveEnvironmentRequest {
+  string workspace_id = 1;
+  string project = 2;
+  string server = 3;
+}
+
+message RemoveEnvironmentResponse {}

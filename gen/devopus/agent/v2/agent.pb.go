@@ -706,9 +706,14 @@ type ProjectSpec struct {
 	Declined string `protobuf:"bytes,18,opt,name=declined,proto3" json:"declined,omitempty"`
 	// Who signed the version the project runs, checked against the pinned root; empty:
 	// unsigned or not trusted.
-	SignedBy      string `protobuf:"bytes,19,opt,name=signed_by,json=signedBy,proto3" json:"signed_by,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SignedBy string `protobuf:"bytes,19,opt,name=signed_by,json=signedBy,proto3" json:"signed_by,omitempty"`
+	// On an admin's server (R14, ADR-0020): the environment it runs the project as, its
+	// public domain and who signed it. Empty: the project's own (local) domain.
+	EnvKind             string `protobuf:"bytes,20,opt,name=env_kind,json=envKind,proto3" json:"env_kind,omitempty"`
+	PublicDomain        string `protobuf:"bytes,21,opt,name=public_domain,json=publicDomain,proto3" json:"public_domain,omitempty"`
+	EnvironmentSignedBy string `protobuf:"bytes,22,opt,name=environment_signed_by,json=environmentSignedBy,proto3" json:"environment_signed_by,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ProjectSpec) Reset() {
@@ -870,6 +875,27 @@ func (x *ProjectSpec) GetDeclined() string {
 func (x *ProjectSpec) GetSignedBy() string {
 	if x != nil {
 		return x.SignedBy
+	}
+	return ""
+}
+
+func (x *ProjectSpec) GetEnvKind() string {
+	if x != nil {
+		return x.EnvKind
+	}
+	return ""
+}
+
+func (x *ProjectSpec) GetPublicDomain() string {
+	if x != nil {
+		return x.PublicDomain
+	}
+	return ""
+}
+
+func (x *ProjectSpec) GetEnvironmentSignedBy() string {
+	if x != nil {
+		return x.EnvironmentSignedBy
 	}
 	return ""
 }
@@ -4404,7 +4430,7 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	"\x0eDeviceSettings\x12*\n" +
 	"\x11coexist_http_port\x18\x01 \x01(\rR\x0fcoexistHttpPort\x12,\n" +
 	"\x12coexist_https_port\x18\x02 \x01(\rR\x10coexistHttpsPort\x12)\n" +
-	"\x10proxy_generation\x18\x03 \x01(\x04R\x0fproxyGeneration\"\xb9\x06\n" +
+	"\x10proxy_generation\x18\x03 \x01(\x04R\x0fproxyGeneration\"\xad\a\n" +
 	"\vProjectSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04root\x18\x02 \x01(\tR\x04root\x12\x16\n" +
@@ -4427,7 +4453,10 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	"\apending\x18\x10 \x01(\v2\x1f.devopus.agent.v2.PendingChangeR\apending\x12G\n" +
 	"\bexpected\x18\x11 \x03(\v2+.devopus.agent.v2.ProjectSpec.ExpectedEntryR\bexpected\x12\x1a\n" +
 	"\bdeclined\x18\x12 \x01(\tR\bdeclined\x12\x1b\n" +
-	"\tsigned_by\x18\x13 \x01(\tR\bsignedBy\x1a:\n" +
+	"\tsigned_by\x18\x13 \x01(\tR\bsignedBy\x12\x19\n" +
+	"\benv_kind\x18\x14 \x01(\tR\aenvKind\x12#\n" +
+	"\rpublic_domain\x18\x15 \x01(\tR\fpublicDomain\x122\n" +
+	"\x15environment_signed_by\x18\x16 \x01(\tR\x13environmentSignedBy\x1a:\n" +
 	"\fSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\x1a;\n" +

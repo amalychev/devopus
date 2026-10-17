@@ -176,6 +176,14 @@ func EffectiveProject(p *agentv2.ProjectSpec) (*spec.Project, spec.OverrideResul
 	if err != nil {
 		return nil, spec.OverrideResult{}, err
 	}
+	if p.PublicDomain != "" {
+		// A server's environment answers on its public domain alone: the web UIs of
+		// services (a database's admin) stay off the internet.
+		base.Domain = p.PublicDomain
+		for _, svc := range base.Services {
+			svc.Expose = ""
+		}
+	}
 	file := OverrideFile(p)
 	data, err := os.ReadFile(file)
 	if errors.Is(err, os.ErrNotExist) || p.Root == "" {
@@ -215,6 +223,15 @@ type ServerProject struct {
 	// The author's signature of this version (ADR-0018).
 	Signature    []byte
 	SignerDevice string
+	// Environment is how a server runs the project (R14); nil elsewhere.
+	Environment *ServerEnvironment
+}
+
+// ServerEnvironment is a server's environment of a project, signed by its creator.
+type ServerEnvironment struct {
+	ServerID, Kind, Domain string
+	Signature              []byte
+	SignerDevice           string
 }
 
 // ServerKey is the workspace's key as this device has it: wrapped for it.
@@ -276,6 +293,7 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 			} else {
 				p.Pending = nil
 			}
+			applyEnvironment(p, workspaceID, sp, set)
 			p.WorkspaceId, p.AdminEmail = workspaceID, adminEmail
 			p.Config, p.Orphaned = nil, false
 			p.Secrets, p.KeyWrap, p.KeyGeneration = sp.Secrets, key.Wrapped, key.Generation
@@ -299,6 +317,25 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 		return nil
 	})
 	return rev, conflicts, err
+}
+
+// applyEnvironment takes a server's environment of a project when its creator's
+// signature holds: the workspace server alone cannot send the project to a domain of
+// its choosing. An environment that does not hold leaves the one taken before.
+func applyEnvironment(p *agentv2.ProjectSpec, workspace string, sp ServerProject, set *signing.Set) {
+	e := sp.Environment
+	if e == nil {
+		p.EnvKind, p.PublicDomain, p.EnvironmentSignedBy = "", "", ""
+		return
+	}
+	if set == nil {
+		return
+	}
+	who, err := set.VerifyMessage(signing.EnvironmentMessage(workspace, e.ServerID, sp.Name, e.Kind, e.Domain), e.SignerDevice, e.Signature)
+	if err != nil {
+		return
+	}
+	p.EnvKind, p.PublicDomain, p.EnvironmentSignedBy = e.Kind, e.Domain, who
 }
 
 // pin keeps the first root of trust the server gave for a workspace and checks with

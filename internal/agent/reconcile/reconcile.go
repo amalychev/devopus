@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -100,6 +101,10 @@ type Options struct {
 	Lifecycle Lifecycle
 	WakerPort int
 	Log       *slog.Logger
+	// ACMEPort is where the proxy sends Let's Encrypt's challenges; PublicCert gives
+	// the certificate of hosts outside the local CA's domains (acme.Manager.Cert).
+	ACMEPort   int
+	PublicCert func(hosts []string) (*pki.Leaf, error)
 }
 
 type Reconciler struct {
@@ -116,6 +121,9 @@ type Reconciler struct {
 	// merged and mergeAt: whether a feature's branch is merged, and when that was checked.
 	merged  map[string]bool
 	mergeAt map[string]time.Time
+	// placeholders: self-signed certificates of public environments waiting for
+	// Let's Encrypt.
+	placeholders map[string]*pki.Leaf
 	// needGolden: per project, the databases running features copy; set by each pass.
 	needGolden map[string]map[string]bool
 
@@ -587,6 +595,9 @@ func (r *Reconciler) setNetwork(envID, name string, subnets []netip.Prefix) {
 // ensureCertificate reuses the stored certificate while it covers the hosts and is far
 // from expiry; otherwise it issues a new one. The proxy picks it up over SDS.
 func (r *Reconciler) ensureCertificate(envID string, hosts []string) (*pki.Leaf, string, error) {
+	if public(hosts) {
+		return r.publicCertificate(envID, hosts)
+	}
 	if r.opt.CA == nil {
 		return nil, "", errors.New("no local CA")
 	}
@@ -601,6 +612,46 @@ func (r *Reconciler) ensureCertificate(envID string, hosts []string) (*pki.Leaf,
 		}
 	}
 	return leaf, fmt.Sprintf("%s (until %s)", joinHosts(leaf.Hosts), leaf.NotAfter.Format("2006-01-02")), nil
+}
+
+// public: some host is outside the local CA's domains — a server's environment at its
+// public domain (R14).
+func public(hosts []string) bool {
+	for _, h := range hosts {
+		if !pki.Permitted(h) {
+			return true
+		}
+	}
+	return false
+}
+
+// publicCertificate is a public environment's certificate from Let's Encrypt. Until
+// it comes, a self-signed one keeps the site up: port 80 must answer the CA's
+// challenge, and the proxy serves a site only with some certificate.
+func (r *Reconciler) publicCertificate(envID string, hosts []string) (*pki.Leaf, string, error) {
+	if r.opt.PublicCert == nil {
+		return nil, "", fmt.Errorf("%s is outside the local CA's domains (%s): only a server's environment has a public domain",
+			joinHosts(hosts), strings.Join(pki.PermittedDomains, ", "))
+	}
+	leaf, waiting := r.opt.PublicCert(hosts)
+	if waiting == nil {
+		return leaf, fmt.Sprintf("%s from Let's Encrypt (until %s)", joinHosts(leaf.Hosts), leaf.NotAfter.Format("2006-01-02")), nil
+	}
+	r.mu.Lock()
+	ph := r.placeholders[envID]
+	if !ph.Fresh(hosts, r.now()) {
+		var err error
+		if ph, err = pki.SelfSigned(hosts); err != nil {
+			r.mu.Unlock()
+			return nil, "", err
+		}
+		if r.placeholders == nil {
+			r.placeholders = map[string]*pki.Leaf{}
+		}
+		r.placeholders[envID] = ph
+	}
+	r.mu.Unlock()
+	return ph, "a temporary certificate: " + waiting.Error(), nil
 }
 
 func (r *Reconciler) ensureDNS(ctx context.Context, env *agentv2.EnvironmentSpec, nw runtime.Network, ctrs []runtime.Container, shared []string) (string, error) {

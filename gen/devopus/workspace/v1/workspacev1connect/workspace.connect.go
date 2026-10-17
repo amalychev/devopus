@@ -109,6 +109,15 @@ const (
 	// WorkspaceServiceRemoveServerProcedure is the fully-qualified name of the WorkspaceService's
 	// RemoveServer RPC.
 	WorkspaceServiceRemoveServerProcedure = "/devopus.workspace.v1.WorkspaceService/RemoveServer"
+	// WorkspaceServiceCreateEnvironmentProcedure is the fully-qualified name of the WorkspaceService's
+	// CreateEnvironment RPC.
+	WorkspaceServiceCreateEnvironmentProcedure = "/devopus.workspace.v1.WorkspaceService/CreateEnvironment"
+	// WorkspaceServiceListEnvironmentsProcedure is the fully-qualified name of the WorkspaceService's
+	// ListEnvironments RPC.
+	WorkspaceServiceListEnvironmentsProcedure = "/devopus.workspace.v1.WorkspaceService/ListEnvironments"
+	// WorkspaceServiceRemoveEnvironmentProcedure is the fully-qualified name of the WorkspaceService's
+	// RemoveEnvironment RPC.
+	WorkspaceServiceRemoveEnvironmentProcedure = "/devopus.workspace.v1.WorkspaceService/RemoveEnvironment"
 	// WorkspaceServiceRegisterSigningKeyProcedure is the fully-qualified name of the WorkspaceService's
 	// RegisterSigningKey RPC.
 	WorkspaceServiceRegisterSigningKeyProcedure = "/devopus.workspace.v1.WorkspaceService/RegisterSigningKey"
@@ -232,6 +241,12 @@ type WorkspaceServiceClient interface {
 	SetServerProjects(context.Context, *connect.Request[v1.SetServerProjectsRequest]) (*connect.Response[v1.SetServerProjectsResponse], error)
 	// RemoveServer revokes a server's token; its agent stops the projects.
 	RemoveServer(context.Context, *connect.Request[v1.RemoveServerRequest]) (*connect.Response[v1.RemoveServerResponse], error)
+	// Environments of projects on servers (R14, ADR-0020): staging or production at a
+	// public domain, signed by its creator. The server's agent gets the certificate
+	// from Let's Encrypt. Needs servers.manage in the project.
+	CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error)
+	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
+	RemoveEnvironment(context.Context, *connect.Request[v1.RemoveEnvironmentRequest]) (*connect.Response[v1.RemoveEnvironmentResponse], error)
 	// RegisterSigningKey records the signing key of one of the caller's devices. A new
 	// key for the device needs a new certificate.
 	RegisterSigningKey(context.Context, *connect.Request[v1.RegisterSigningKeyRequest]) (*connect.Response[v1.RegisterSigningKeyResponse], error)
@@ -440,6 +455,24 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workspaceServiceMethods.ByName("RemoveServer")),
 			connect.WithClientOptions(opts...),
 		),
+		createEnvironment: connect.NewClient[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse](
+			httpClient,
+			baseURL+WorkspaceServiceCreateEnvironmentProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("CreateEnvironment")),
+			connect.WithClientOptions(opts...),
+		),
+		listEnvironments: connect.NewClient[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse](
+			httpClient,
+			baseURL+WorkspaceServiceListEnvironmentsProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("ListEnvironments")),
+			connect.WithClientOptions(opts...),
+		),
+		removeEnvironment: connect.NewClient[v1.RemoveEnvironmentRequest, v1.RemoveEnvironmentResponse](
+			httpClient,
+			baseURL+WorkspaceServiceRemoveEnvironmentProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("RemoveEnvironment")),
+			connect.WithClientOptions(opts...),
+		),
 		registerSigningKey: connect.NewClient[v1.RegisterSigningKeyRequest, v1.RegisterSigningKeyResponse](
 			httpClient,
 			baseURL+WorkspaceServiceRegisterSigningKeyProcedure,
@@ -607,6 +640,9 @@ type workspaceServiceClient struct {
 	listServers           *connect.Client[v1.ListServersRequest, v1.ListServersResponse]
 	setServerProjects     *connect.Client[v1.SetServerProjectsRequest, v1.SetServerProjectsResponse]
 	removeServer          *connect.Client[v1.RemoveServerRequest, v1.RemoveServerResponse]
+	createEnvironment     *connect.Client[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse]
+	listEnvironments      *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
+	removeEnvironment     *connect.Client[v1.RemoveEnvironmentRequest, v1.RemoveEnvironmentResponse]
 	registerSigningKey    *connect.Client[v1.RegisterSigningKeyRequest, v1.RegisterSigningKeyResponse]
 	setTrustRoot          *connect.Client[v1.SetTrustRootRequest, v1.SetTrustRootResponse]
 	listSigningKeys       *connect.Client[v1.ListSigningKeysRequest, v1.ListSigningKeysResponse]
@@ -750,6 +786,21 @@ func (c *workspaceServiceClient) SetServerProjects(ctx context.Context, req *con
 // RemoveServer calls devopus.workspace.v1.WorkspaceService.RemoveServer.
 func (c *workspaceServiceClient) RemoveServer(ctx context.Context, req *connect.Request[v1.RemoveServerRequest]) (*connect.Response[v1.RemoveServerResponse], error) {
 	return c.removeServer.CallUnary(ctx, req)
+}
+
+// CreateEnvironment calls devopus.workspace.v1.WorkspaceService.CreateEnvironment.
+func (c *workspaceServiceClient) CreateEnvironment(ctx context.Context, req *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error) {
+	return c.createEnvironment.CallUnary(ctx, req)
+}
+
+// ListEnvironments calls devopus.workspace.v1.WorkspaceService.ListEnvironments.
+func (c *workspaceServiceClient) ListEnvironments(ctx context.Context, req *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error) {
+	return c.listEnvironments.CallUnary(ctx, req)
+}
+
+// RemoveEnvironment calls devopus.workspace.v1.WorkspaceService.RemoveEnvironment.
+func (c *workspaceServiceClient) RemoveEnvironment(ctx context.Context, req *connect.Request[v1.RemoveEnvironmentRequest]) (*connect.Response[v1.RemoveEnvironmentResponse], error) {
+	return c.removeEnvironment.CallUnary(ctx, req)
 }
 
 // RegisterSigningKey calls devopus.workspace.v1.WorkspaceService.RegisterSigningKey.
@@ -920,6 +971,12 @@ type WorkspaceServiceHandler interface {
 	SetServerProjects(context.Context, *connect.Request[v1.SetServerProjectsRequest]) (*connect.Response[v1.SetServerProjectsResponse], error)
 	// RemoveServer revokes a server's token; its agent stops the projects.
 	RemoveServer(context.Context, *connect.Request[v1.RemoveServerRequest]) (*connect.Response[v1.RemoveServerResponse], error)
+	// Environments of projects on servers (R14, ADR-0020): staging or production at a
+	// public domain, signed by its creator. The server's agent gets the certificate
+	// from Let's Encrypt. Needs servers.manage in the project.
+	CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error)
+	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
+	RemoveEnvironment(context.Context, *connect.Request[v1.RemoveEnvironmentRequest]) (*connect.Response[v1.RemoveEnvironmentResponse], error)
 	// RegisterSigningKey records the signing key of one of the caller's devices. A new
 	// key for the device needs a new certificate.
 	RegisterSigningKey(context.Context, *connect.Request[v1.RegisterSigningKeyRequest]) (*connect.Response[v1.RegisterSigningKeyResponse], error)
@@ -1124,6 +1181,24 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 		connect.WithSchema(workspaceServiceMethods.ByName("RemoveServer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workspaceServiceCreateEnvironmentHandler := connect.NewUnaryHandler(
+		WorkspaceServiceCreateEnvironmentProcedure,
+		svc.CreateEnvironment,
+		connect.WithSchema(workspaceServiceMethods.ByName("CreateEnvironment")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceListEnvironmentsHandler := connect.NewUnaryHandler(
+		WorkspaceServiceListEnvironmentsProcedure,
+		svc.ListEnvironments,
+		connect.WithSchema(workspaceServiceMethods.ByName("ListEnvironments")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceRemoveEnvironmentHandler := connect.NewUnaryHandler(
+		WorkspaceServiceRemoveEnvironmentProcedure,
+		svc.RemoveEnvironment,
+		connect.WithSchema(workspaceServiceMethods.ByName("RemoveEnvironment")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workspaceServiceRegisterSigningKeyHandler := connect.NewUnaryHandler(
 		WorkspaceServiceRegisterSigningKeyProcedure,
 		svc.RegisterSigningKey,
@@ -1312,6 +1387,12 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 			workspaceServiceSetServerProjectsHandler.ServeHTTP(w, r)
 		case WorkspaceServiceRemoveServerProcedure:
 			workspaceServiceRemoveServerHandler.ServeHTTP(w, r)
+		case WorkspaceServiceCreateEnvironmentProcedure:
+			workspaceServiceCreateEnvironmentHandler.ServeHTTP(w, r)
+		case WorkspaceServiceListEnvironmentsProcedure:
+			workspaceServiceListEnvironmentsHandler.ServeHTTP(w, r)
+		case WorkspaceServiceRemoveEnvironmentProcedure:
+			workspaceServiceRemoveEnvironmentHandler.ServeHTTP(w, r)
 		case WorkspaceServiceRegisterSigningKeyProcedure:
 			workspaceServiceRegisterSigningKeyHandler.ServeHTTP(w, r)
 		case WorkspaceServiceSetTrustRootProcedure:
@@ -1461,6 +1542,18 @@ func (UnimplementedWorkspaceServiceHandler) SetServerProjects(context.Context, *
 
 func (UnimplementedWorkspaceServiceHandler) RemoveServer(context.Context, *connect.Request[v1.RemoveServerRequest]) (*connect.Response[v1.RemoveServerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RemoveServer is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.CreateEnvironment is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.ListEnvironments is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) RemoveEnvironment(context.Context, *connect.Request[v1.RemoveEnvironmentRequest]) (*connect.Response[v1.RemoveEnvironmentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RemoveEnvironment is not implemented"))
 }
 
 func (UnimplementedWorkspaceServiceHandler) RegisterSigningKey(context.Context, *connect.Request[v1.RegisterSigningKeyRequest]) (*connect.Response[v1.RegisterSigningKeyResponse], error) {

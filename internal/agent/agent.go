@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sort"
@@ -27,6 +28,7 @@ import (
 
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
+	"github.com/amalychev/devopus/internal/agent/acme"
 	"github.com/amalychev/devopus/internal/agent/api"
 	"github.com/amalychev/devopus/internal/agent/lifecycle"
 	"github.com/amalychev/devopus/internal/agent/link"
@@ -59,6 +61,10 @@ type Options struct {
 	// ProxyPorts pins the proxy's host ports instead of probing 80/443; for tests that
 	// run next to a real agent.
 	ProxyPorts *proxy.Ports
+	// ACMEDirectory and ACMEClient reach another certificate authority than Let's
+	// Encrypt (its staging, a test CA); $DEVOPUS_ACME_DIRECTORY sets the first too.
+	ACMEDirectory string
+	ACMEClient    *http.Client
 }
 
 type Agent struct {
@@ -257,7 +263,20 @@ func Run(ctx context.Context, opt Options) error {
 	if err != nil {
 		return fmt.Errorf("proxy control certificates: %w", err)
 	}
-	xds, err := listenXDS(ctl)
+	// Containers reach the agent at host.docker.internal: the loopback on Docker
+	// Desktop, OrbStack and Colima, the bridge's gateway on a Linux engine.
+	host, err := rt.HostAddr(ctx)
+	if err != nil {
+		log.Warn("where containers reach the agent; using the loopback", "err", err)
+		host = netip.MustParseAddr("127.0.0.1")
+	}
+	// An admin's server (ADR-0019): one workspace with its device token, signed
+	// versions only, its environments public (R14).
+	server, err := link.LoadServerConfig()
+	if err != nil {
+		return fmt.Errorf("%s: %w", link.ServerConfigFile(), err)
+	}
+	xds, err := listenXDS(ctl, host)
 	if err != nil {
 		return fmt.Errorf("xDS server: %w", err)
 	}
@@ -268,6 +287,10 @@ func Run(ctx context.Context, opt Options) error {
 		}
 	}()
 	choose := proxy.ChoosePorts
+	if server != nil && opt.ProxyPorts == nil {
+		// A server serves the internet on 80 and 443, nothing else: no coexistence.
+		opt.ProxyPorts = &proxy.Ports{HTTP: 80, HTTPS: 443, Public: true}
+	}
 	if opt.ProxyPorts != nil {
 		fixed := *opt.ProxyPorts
 		choose = func(context.Context) (proxy.Ports, []proxy.Conflict, error) { return fixed, nil, nil }
@@ -279,7 +302,7 @@ func Run(ctx context.Context, opt Options) error {
 
 	a := &Agent{opt: opt, log: log, store: st, rt: rt, hub: api.NewHub(), ca: ca, kick: make(chan struct{}, 1), creds: &credentials.Keeper{Log: log}}
 	go a.creds.Run(ctx)
-	wakerLn, err := listenPinned(filepath.Join(paths.Proxy(), "waker-port"), lifecycle.ListenWaker)
+	wakerLn, err := listenPinned(filepath.Join(paths.Proxy(), "waker-port"), host, lifecycle.ListenWaker)
 	if err != nil {
 		return fmt.Errorf("waker: %w", err)
 	}
@@ -300,6 +323,25 @@ func Run(ctx context.Context, opt Options) error {
 		Log:     log,
 	})
 	xds.OnRequests(a.life.OnRequests)
+	// A server's public environments get their certificates from Let's Encrypt; the
+	// proxy sends the CA's challenges here.
+	var certs *acme.Manager
+	acmePort := 0
+	if server != nil {
+		dir := opt.ACMEDirectory
+		if dir == "" {
+			dir = os.Getenv("DEVOPUS_ACME_DIRECTORY")
+		}
+		certs = &acme.Manager{Dir: filepath.Join(paths.Home(), "acme"), Directory: dir, HTTPClient: opt.ACMEClient, Ready: a.kickLoop, Log: log}
+		ln, err := listenPinned(filepath.Join(paths.Proxy(), "acme-port"), host, func(addr string) (net.Listener, error) { return net.Listen("tcp", addr) })
+		if err != nil {
+			return fmt.Errorf("ACME answerer: %w", err)
+		}
+		acmePort = ln.Addr().(*net.TCPAddr).Port
+		srv := &http.Server{Handler: certs, ReadHeaderTimeout: 10 * time.Second}
+		go func() { _ = srv.Serve(ln) }()
+		defer srv.Close()
+	}
 	a.rec = reconcile.New(rt, reconcile.Options{
 		Instance:    paths.Instance(),
 		Decrypt:     decryptSecrets,
@@ -318,6 +360,8 @@ func Run(ctx context.Context, opt Options) error {
 		Log:         log,
 		Lifecycle:   a.life,
 		WakerPort:   wakerLn.Addr().(*net.TCPAddr).Port,
+		ACMEPort:    acmePort,
+		PublicCert:  publicCert(certs),
 	}, func(s *agentv2.EnvironmentStatus) {
 		log.Info("environment", "id", s.Id, "project", s.Project, "phase", s.Phase.String(), "error", s.Error, "removed", s.Removed)
 		a.hub.Publish(s)
@@ -325,12 +369,6 @@ func Run(ctx context.Context, opt Options) error {
 
 	changes, unsubscribe := a.hub.Subscribe()
 	defer unsubscribe()
-	// An admin's server (ADR-0019): one workspace with its device token, signed
-	// versions only.
-	server, err := link.LoadServerConfig()
-	if err != nil {
-		return fmt.Errorf("%s: %w", link.ServerConfigFile(), err)
-	}
 	if server != nil {
 		st.Strict = true
 		log.Info("the agent of a server", "server", server.Name, "workspace", server.WorkspaceName, "url", server.URL)
@@ -501,13 +539,13 @@ func (a *Agent) report(err error) {
 
 // listenPinned opens a loopback port and keeps it across agent restarts in file, so
 // a restarted agent gives the proxy the same configuration.
-func listenPinned(file string, listen func(addr string) (net.Listener, error)) (net.Listener, error) {
+func listenPinned(file string, host netip.Addr, listen func(addr string) (net.Listener, error)) (net.Listener, error) {
 	if b, err := os.ReadFile(file); err == nil {
-		if ln, err := listen("127.0.0.1:" + strings.TrimSpace(string(b))); err == nil {
+		if ln, err := listen(net.JoinHostPort(host.String(), strings.TrimSpace(string(b)))); err == nil {
 			return ln, nil
 		}
 	}
-	ln, err := listen("127.0.0.1:0")
+	ln, err := listen(net.JoinHostPort(host.String(), "0"))
 	if err != nil {
 		return nil, err
 	}
@@ -520,14 +558,14 @@ func listenPinned(file string, listen func(addr string) (net.Listener, error)) (
 
 // listenXDS keeps the xDS port across agent restarts: it is baked into the proxy's
 // bootstrap, and a new port would mean recreating the proxy.
-func listenXDS(ctl *pki.Control) (*proxy.XDS, error) {
+func listenXDS(ctl *pki.Control, host netip.Addr) (*proxy.XDS, error) {
 	file := filepath.Join(paths.Proxy(), "xds-port")
 	if b, err := os.ReadFile(file); err == nil {
-		if x, err := proxy.ListenXDS("127.0.0.1:"+strings.TrimSpace(string(b)), ctl); err == nil {
+		if x, err := proxy.ListenXDS(net.JoinHostPort(host.String(), strings.TrimSpace(string(b))), ctl); err == nil {
 			return x, nil
 		}
 	}
-	x, err := proxy.ListenXDS("127.0.0.1:0", ctl)
+	x, err := proxy.ListenXDS(net.JoinHostPort(host.String(), "0"), ctl)
 	if err != nil {
 		return nil, err
 	}
@@ -551,4 +589,12 @@ func listen(path string) (net.Listener, error) {
 		return nil, err
 	}
 	return ln, nil
+}
+
+// publicCert gives reconcile the certificates of public hosts, or nothing off a server.
+func publicCert(m *acme.Manager) func(hosts []string) (*pki.Leaf, error) {
+	if m == nil {
+		return nil
+	}
+	return m.Cert
 }
