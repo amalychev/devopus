@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
 # One-time setup of the Devopus test server (docs/test-server.md): Auth and the
-# workspace server behind Caddy with HTTPS, PostgreSQL in a container, and the
-# autodeploy timer that builds and rolls out every new commit of main.
-# Idempotent: running it again keeps the database and its password.
+# workspace server on 127.0.0.1 behind the server's nginx, PostgreSQL in a container,
+# and the autodeploy timer that builds every new commit of main in Docker (no Go on
+# the server). Idempotent: running it again keeps the database and its password.
 #
-#   sudo DOMAIN=devopus.webapace.ink SRC=/opt/devopus/src bash deploy/test-server/setup.sh
+#   sudo DOMAIN=devopus.webapace.ink SRC=/opt/devopus/src ACME_EMAIL=you@example.com \
+#     bash deploy/test-server/setup.sh
 set -euo pipefail
 
 DOMAIN=${DOMAIN:-devopus.webapace.ink}
 AUTH_DOMAIN=${AUTH_DOMAIN:-auth.$DOMAIN}
 SRC=${SRC:-$(cd "$(dirname "$0")/../.." && pwd)}
 BRANCH=${BRANCH:-main}
+# Local ports: nginx proxies to them; nothing else listens on them.
+AUTH_PORT=${AUTH_PORT:-7480}
+SERVER_PORT=${SERVER_PORT:-7481}
+PG_PORT=${PG_PORT:-5440}
+# HTTPS: "certbot" gets Let's Encrypt certificates for both names through nginx;
+# "none" leaves TLS to whoever set up nginx (the server block then only has :80).
+TLS=${TLS:-certbot}
 ACME_EMAIL=${ACME_EMAIL:-}
 # Login codes and invites: "log" (read them with journalctl) or smtp://user:pass@host:587.
 MAIL=${MAIL:-log}
@@ -20,33 +28,31 @@ CONF=/etc/devopus-test
 STATE=/var/lib/devopus-test
 LIB=/usr/local/lib/devopus-test
 PG=devopus-test-postgres
-PG_PORT=5440
 
 say() { printf '\n== %s\n' "$*"; }
-[ "$(id -u)" = 0 ] || { echo "run as root (sudo)"; exit 1; }
-[ -f "$SRC/go.mod" ] || { echo "SRC=$SRC is not a clone of devopus"; exit 1; }
+die() { echo "error: $*" >&2; exit 1; }
+[ "$(id -u)" = 0 ] || die "run as root (sudo)"
+[ -f "$SRC/go.mod" ] || die "SRC=$SRC is not a clone of devopus"
+command -v docker >/dev/null || die "Docker is needed: the build runs in a container"
+command -v nginx >/dev/null || die "nginx is needed: it serves 80/443 and proxies to the services"
+[ "$TLS" = none ] || [ -n "$ACME_EMAIL" ] || die "ACME_EMAIL is needed for Let's Encrypt (or TLS=none)"
 
-say "packages: git, curl, Docker, Caddy"
+say "ports 127.0.0.1:$AUTH_PORT (Auth), :$SERVER_PORT (workspace server), :$PG_PORT (PostgreSQL)"
+busy() { # port, the process that may hold it already
+  local who
+  who=$(ss -ltnpH "( sport = :$1 )" 2>/dev/null | head -1)
+  [ -n "$who" ] && ! grep -q "$2" <<<"$who"
+}
+busy "$AUTH_PORT" devopus-auth && die "port $AUTH_PORT is taken: set AUTH_PORT"
+busy "$SERVER_PORT" devopus && die "port $SERVER_PORT is taken: set SERVER_PORT"
+busy "$PG_PORT" docker-proxy && die "port $PG_PORT is taken: set PG_PORT"
+
+say "packages: git, curl"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq git curl ca-certificates gnupg debian-keyring debian-archive-keyring apt-transport-https >/dev/null
-if ! command -v docker >/dev/null; then
-  curl -fsSL https://get.docker.com | sh
+command -v git >/dev/null && command -v curl >/dev/null || { apt-get update -qq && apt-get install -y -qq git curl >/dev/null; }
+if [ "$TLS" = certbot ] && ! command -v certbot >/dev/null; then
+  apt-get update -qq && apt-get install -y -qq certbot python3-certbot-nginx >/dev/null
 fi
-if ! command -v caddy >/dev/null; then
-  curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt > /etc/apt/sources.list.d/caddy-stable.list
-  apt-get update -qq && apt-get install -y -qq caddy >/dev/null
-fi
-
-say "Go (the version of go.mod)"
-want=$(awk '/^go /{print $2}' "$SRC/go.mod")
-if [ "$(/usr/local/go/bin/go env GOVERSION 2>/dev/null)" != "go$want" ]; then
-  arch=$(dpkg --print-architecture)
-  curl -fsSL "https://go.dev/dl/go$want.linux-$arch.tar.gz" -o /tmp/go.tgz
-  rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go.tgz && rm /tmp/go.tgz
-fi
-/usr/local/go/bin/go version
 
 say "user and folders"
 id devopus >/dev/null 2>&1 || useradd --system --home-dir "$STATE" --shell /usr/sbin/nologin devopus
@@ -77,7 +83,7 @@ say "settings in $CONF"
 umask 077
 cat > "$CONF/auth.env" <<EOF
 DEVOPUS_AUTH_DATABASE_URL=$(url devopus_auth)
-DEVOPUS_AUTH_LISTEN=127.0.0.1:7480
+DEVOPUS_AUTH_LISTEN=127.0.0.1:$AUTH_PORT
 DEVOPUS_AUTH_ISSUER=https://$AUTH_DOMAIN
 DEVOPUS_AUTH_MAIL=$MAIL
 DEVOPUS_AUTH_MAIL_FROM=$MAIL_FROM
@@ -85,7 +91,7 @@ DEVOPUS_AUTH_TRUST_PROXY=1
 EOF
 cat > "$CONF/server.env" <<EOF
 DEVOPUS_SERVER_DATABASE_URL=$(url devopus_server)
-DEVOPUS_SERVER_LISTEN=127.0.0.1:7481
+DEVOPUS_SERVER_LISTEN=127.0.0.1:$SERVER_PORT
 DEVOPUS_SERVER_PUBLIC_URL=https://$DOMAIN
 DEVOPUS_AUTH_URL=https://$AUTH_DOMAIN
 DEVOPUS_SERVER_MAIL=$MAIL
@@ -96,6 +102,8 @@ cat > "$CONF/deploy.env" <<EOF
 SRC=$SRC
 BRANCH=$BRANCH
 DOMAIN=$DOMAIN
+AUTH_PORT=$AUTH_PORT
+SERVER_PORT=$SERVER_PORT
 EOF
 umask 022
 
@@ -129,13 +137,13 @@ unit devopus-server "Devopus workspace server (test server)" "/usr/local/bin/dev
 cat > /etc/systemd/system/devopus-deploy.service <<EOF
 [Unit]
 Description=Build and roll out the newest commit of $BRANCH (Devopus test server)
-After=network-online.target
+After=network-online.target docker.service
 
 [Service]
 Type=oneshot
 EnvironmentFile=$CONF/deploy.env
 ExecStart=/bin/bash $LIB/deploy.sh
-TimeoutStartSec=20min
+TimeoutStartSec=30min
 EOF
 cat > /etc/systemd/system/devopus-deploy.timer <<EOF
 [Unit]
@@ -149,44 +157,72 @@ AccuracySec=5s
 WantedBy=timers.target
 EOF
 install -m 0755 "$SRC/deploy/test-server/deploy.sh" "$LIB/deploy.sh"
-
-say "Caddy: https://$DOMAIN and https://$AUTH_DOMAIN"
-global=""
-[ -n "$ACME_EMAIL" ] && global="{
-	email $ACME_EMAIL
-}
-"
-cat > /etc/caddy/Caddyfile <<EOF
-${global}$DOMAIN {
-	encode zstd gzip
-	# Builds of the CLI of the deployed commit.
-	handle_path /dl/* {
-		root * $STATE/dl
-		file_server browse
-	}
-	handle {
-		reverse_proxy 127.0.0.1:7481 {
-			flush_interval -1
-		}
-	}
-}
-
-$AUTH_DOMAIN {
-	encode zstd gzip
-	reverse_proxy 127.0.0.1:7480
-}
-EOF
-caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
 systemctl daemon-reload
-systemctl enable --now caddy >/dev/null
-systemctl reload caddy
-
-say "the first deploy"
 systemctl enable devopus-auth devopus-server >/dev/null
-FORCE=1 SRC=$SRC BRANCH=$BRANCH DOMAIN=$DOMAIN bash "$LIB/deploy.sh"
+
+say "the first deploy (the first build in Docker takes a few minutes)"
+FORCE=1 SRC=$SRC BRANCH=$BRANCH DOMAIN=$DOMAIN AUTH_PORT=$AUTH_PORT SERVER_PORT=$SERVER_PORT bash "$LIB/deploy.sh"
 systemctl enable --now devopus-deploy.timer >/dev/null
 
+say "nginx: $DOMAIN and $AUTH_DOMAIN"
+if [ -d /etc/nginx/sites-enabled ]; then
+  site=/etc/nginx/sites-available/devopus-test
+  ln -sf "$site" /etc/nginx/sites-enabled/devopus-test
+else
+  site=/etc/nginx/conf.d/devopus-test.conf
+fi
+proxy() { # port
+  cat <<EOF
+        proxy_pass http://127.0.0.1:$1;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Connection "";
+        # Agents keep a stream of settings open (Watch): no buffering, long reads.
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+        client_max_body_size 10m;
+EOF
+}
+# certbot adds the 443 parts and the redirect to these blocks; rewriting the file
+# drops them, so an existing file is kept unless REWRITE_NGINX=1.
+if [ ! -f "$site" ] || [ "${REWRITE_NGINX:-}" = 1 ]; then
+  cat > "$site" <<EOF
+# Devopus test server (deploy/test-server/setup.sh, docs/test-server.md)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $DOMAIN;
+    # Builds of the CLI of the deployed commit.
+    location /dl/ {
+        alias $STATE/dl/;
+        autoindex on;
+    }
+    location / {
+$(proxy "$SERVER_PORT")
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $AUTH_DOMAIN;
+    location / {
+$(proxy "$AUTH_PORT")
+    }
+}
+EOF
+fi
+nginx -t
+systemctl reload nginx
+if [ "$TLS" = certbot ]; then
+  certbot --nginx --non-interactive --agree-tos -m "$ACME_EMAIL" --redirect -d "$DOMAIN" -d "$AUTH_DOMAIN"
+fi
+
 say "done"
-echo "workspace server: https://$DOMAIN/healthz -> $(curl -fsS https://$DOMAIN/healthz || echo FAIL)"
-echo "Auth:             https://$AUTH_DOMAIN/healthz -> $(curl -fsS https://$AUTH_DOMAIN/healthz || echo FAIL)"
+echo "workspace server: https://$DOMAIN/healthz -> $(curl -fsS "https://$DOMAIN/healthz" || echo FAIL)"
+echo "Auth:             https://$AUTH_DOMAIN/healthz -> $(curl -fsS "https://$AUTH_DOMAIN/healthz" || echo FAIL)"
 echo "deployed:         $(cat $STATE/deployed)"

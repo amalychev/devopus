@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # Autodeploy of the Devopus test server (docs/test-server.md). The timer runs it every
-# minute: when the branch has a new commit, it builds Auth and the workspace server,
-# installs them, restarts them and checks /healthz; if they do not come up, the
-# previous binaries come back and the commit is not tried again. It also publishes
-# the CLI of that commit at https://<domain>/dl/.
+# minute: when the branch has a new commit, it builds Auth and the workspace server in
+# a golang container (no Go on the server), installs them, restarts them and checks
+# /healthz; if they do not come up, the previous binaries come back and the commit is
+# not tried again. It also publishes the CLI of that commit at https://<domain>/dl/.
 #
 #   sudo systemctl start devopus-deploy        # now, instead of within a minute
-#   sudo FORCE=1 bash /usr/local/lib/devopus-test/deploy.sh   # the same commit again
+#   sudo FORCE=1 bash -c 'set -a; . /etc/devopus-test/deploy.env; bash /usr/local/lib/devopus-test/deploy.sh'
 #   journalctl -u devopus-deploy -n 100        # what it did
 set -euo pipefail
 
 SRC=${SRC:?the clone of devopus}
 BRANCH=${BRANCH:-main}
 DOMAIN=${DOMAIN:-devopus.webapace.ink}
+AUTH_PORT=${AUTH_PORT:-7480}
+SERVER_PORT=${SERVER_PORT:-7481}
 STATE=/var/lib/devopus-test
 LIB=/usr/local/lib/devopus-test
-export PATH=/usr/local/go/bin:$PATH HOME=${HOME:-/root}
-export GOPATH=$STATE/go GOCACHE=$STATE/go-cache GOFLAGS=-buildvcs=false
 
 exec 9>"$STATE/deploy.lock"
 flock -n 9 || { echo "a deploy is running"; exit 0; }
@@ -36,19 +36,27 @@ fi
 
 echo "deploying $next (was ${deployed:-nothing})"
 git_ checkout -q -f --detach "$next"
-cd "$SRC"
 version="test-$(git_ describe --tags --always)"
+go=$(awk '/^go /{print $2}' "$SRC/go.mod")
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
-build() { # output, package, version variable
-  CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X $3=$version" -o "$1" "$2"
-}
-build "$out/devopus" ./cmd/devopus github.com/amalychev/devopus/internal/cli.Version
-build "$out/devopus-auth" ./cmd/devopus-auth main.Version
+
+# One container builds everything: the server's binaries, then the CLI for testers.
+cli=github.com/amalychev/devopus/internal/cli.Version
+docker run --rm -v "$SRC":/src:ro -v "$out":/out -w /src \
+  -v devopus-test-gomod:/go/pkg/mod -v devopus-test-gocache:/root/.cache/go-build \
+  -e CGO_ENABLED=0 -e GOFLAGS=-buildvcs=false "golang:$go" sh -euc "
+    flags='-trimpath'
+    go build \$flags -ldflags '-s -w -X $cli=$version' -o /out/devopus ./cmd/devopus
+    go build \$flags -ldflags '-s -w -X main.Version=$version' -o /out/devopus-auth ./cmd/devopus-auth
+    for t in darwin/arm64 darwin/amd64 linux/amd64 linux/arm64; do
+      GOOS=\${t%/*} GOARCH=\${t#*/} go build \$flags -ldflags '-s -w -X $cli=$version' -o /out/devopus_\${t%/*}_\${t#*/} ./cmd/devopus
+    done"
 
 healthy() {
   for _ in $(seq 60); do
-    if curl -fsS -m 2 http://127.0.0.1:7480/healthz >/dev/null 2>&1 && curl -fsS -m 2 http://127.0.0.1:7481/healthz >/dev/null 2>&1; then
+    if curl -fsS -m 2 "http://127.0.0.1:$AUTH_PORT/healthz" >/dev/null 2>&1 &&
+      curl -fsS -m 2 "http://127.0.0.1:$SERVER_PORT/healthz" >/dev/null 2>&1; then
       return 0
     fi
     sleep 1
@@ -75,11 +83,7 @@ fi
 echo "$next" > "$STATE/deployed"
 rm -f "$STATE/failed"
 
-# The CLI of this commit for testers' machines.
-for target in darwin/arm64 darwin/amd64 linux/amd64 linux/arm64; do
-  GOOS=${target%/*} GOARCH=${target#*/} build "$out/devopus_${target%/*}_${target#*/}" ./cmd/devopus github.com/amalychev/devopus/internal/cli.Version
-  install -m 0644 "$out/devopus_${target%/*}_${target#*/}" "$STATE/dl/"
-done
+install -m 0644 "$out"/devopus_* "$STATE/dl/"
 printf '%s\n%s\n' "$version" "$next" > "$STATE/dl/version.txt"
 
 # The next run uses this commit's deploy script; a new file, so this run is unaffected.

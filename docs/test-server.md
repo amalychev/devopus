@@ -39,7 +39,7 @@ ssh root@devopus.webapace.ink 'journalctl -u devopus-server -n 50 --no-pager | g
 
 ## Развёртывание с нуля — инструкция для ИИ-агента на сервере
 
-Задача: на чистом сервере Ubuntu 24.04 (Hetzner) развернуть Auth и сервер воркспейса из клона этого репозитория, с HTTPS и автодеплоем `main`. Всё делает один идемпотентный скрипт [deploy/test-server/setup.sh](../deploy/test-server/setup.sh); повторный запуск безопасен: база и её пароль сохраняются.
+Задача: на сервере Hetzner развернуть Auth и сервер воркспейса из клона этого репозитория, с HTTPS и автодеплоем `main`. На сервере уже работают другие сайты: порты 80/443 держит nginx, через него идут все сайты. Наши службы слушают только `127.0.0.1:<порт>`, nginx проксирует на них. Go на сервер не ставится: сборка идёт в контейнере `golang` (Docker на сервере есть). Всё делает один идемпотентный скрипт [deploy/test-server/setup.sh](../deploy/test-server/setup.sh); повторный запуск безопасен: база и её пароль сохраняются.
 
 ### 1. Проверить, что готово
 
@@ -51,10 +51,12 @@ sudo -u $(stat -c %U $SRC) git -C $SRC fetch origin main   # владелец к
 curl -4 -s ifconfig.me               # IP сервера
 dig +short devopus.webapace.ink A
 dig +short auth.devopus.webapace.ink A
-ss -ltnp | grep -E ':(80|443) '      # 80 и 443 свободны (или их держит Caddy от прошлого запуска)
+docker version --format '{{.Server.Version}}'   # Docker есть
+nginx -v; ls /etc/nginx/sites-enabled /etc/nginx/conf.d   # nginx держит 80/443; как подключены сайты
+ss -ltnH '( sport = :7480 or sport = :7481 or sport = :5440 )'   # пусто: порты свободны (иначе — AUTH_PORT, SERVER_PORT, PG_PORT)
 ```
 
-**DNS — сделать это может только владелец домена.** Обе записи, `devopus.webapace.ink` и `auth.devopus.webapace.ink`, должны указывать на IP сервера. В Cloudflare у них должен быть режим **DNS only** (серое облако): сертификаты Let's Encrypt выдаются по HTTP-проверке на самом сервере, а через прокси Cloudflare она не проходит. Кроме того, прокси Cloudflare обрывает поток настроек агентов (`Watch`) после 100 секунд тишины.
+**DNS — сделать это может только владелец домена.** Обе записи, `devopus.webapace.ink` и `auth.devopus.webapace.ink`, должны указывать на IP сервера. В Cloudflare у них должен быть режим **DNS only** (серое облако): сертификаты Let's Encrypt выдаёт certbot через nginx по HTTP-проверке на самом сервере. Кроме того, прокси Cloudflare обрывает поток настроек агентов (`Watch`) после 100 секунд тишины.
 
 Если `dig` показывает адреса Cloudflare (`104.x`, `172.64–71.x`) или запись `auth.` не находится — **остановитесь и попросите владельца** поправить DNS. Не обходите это.
 
@@ -65,17 +67,24 @@ cd $SRC
 sudo DOMAIN=devopus.webapace.ink SRC=$SRC ACME_EMAIL=<email владельца> bash deploy/test-server/setup.sh
 # с почтой для кодов входа и инвайтов:
 #   MAIL=smtp://user:password@smtp.example.com:587 MAIL_FROM=devopus@webapace.ink
+# другие порты, если заняты:            AUTH_PORT=… SERVER_PORT=… PG_PORT=…
+# HTTPS уже настроен для этих имён иначе: TLS=none (certbot не запускается)
 ```
+
+Порты по умолчанию — `7480` (Auth), `7481` (сервер воркспейса), `5440` (PostgreSQL), все на `127.0.0.1`. На этом сервере заняты, например, 3187, 3719, 8082–8084, 15678 и 18789–18790; скрипт сам проверяет, что выбранные порты свободны, и останавливается, если нет.
 
 Скрипт:
 
-1. Ставит git, Docker, Caddy и Go той версии, что в `go.mod`.
+1. Проверяет Docker и nginx, ставит git, curl и certbot (если их нет).
 2. Создаёт системного пользователя `devopus`.
 3. Поднимает PostgreSQL в контейнере `devopus-test-postgres` (том `devopus-test-pgdata`, только `127.0.0.1:5440`) с базами `devopus_auth` и `devopus_server`. Пароль — случайный, в `/etc/devopus-test/postgres.env`.
 4. Пишет настройки в `/etc/devopus-test/{auth,server,deploy}.env` (`0600`).
 5. Ставит службы systemd: `devopus-auth` (`127.0.0.1:7480`), `devopus-server` (`127.0.0.1:7481`), `devopus-deploy.service` и `devopus-deploy.timer` (раз в минуту).
-6. Настраивает Caddy: HTTPS для обоих доменов, проксирование на службы, `/dl/` — сборки CLI.
-7. Делает первый деплой и печатает ответы `/healthz`.
+6. Делает первый деплой: собирает в контейнере `golang:<версия из go.mod>` (первая сборка — несколько минут, потом кеш в томах `devopus-test-gomod`, `devopus-test-gocache`), ставит бинарники в `/usr/local/bin`, запускает службы.
+7. Добавляет сайт nginx (`/etc/nginx/sites-available/devopus-test` или `conf.d/devopus-test.conf`): оба имени, проксирование без буферизации и с долгим таймаутом для потока настроек агентов, `/dl/` — сборки CLI. Затем `nginx -t`, перезагрузка nginx и `certbot --nginx` для обоих имён: сертификаты и перенаправление на https. Существующий файл сайта не переписывается (там правки certbot); переписать — `REWRITE_NGINX=1`.
+8. Печатает ответы `/healthz`.
+
+Чужие сайты nginx скрипт не трогает. Если `nginx -t` падает, проблема в чужой конфигурации — остановитесь и сообщите, ничего в ней не исправляя.
 
 ### 3. Проверить
 
@@ -84,7 +93,7 @@ curl -fsS https://devopus.webapace.ink/healthz        # ok
 curl -fsS https://auth.devopus.webapace.ink/healthz   # ok
 curl -fsS https://devopus.webapace.ink/dl/version.txt # версия и коммит = git -C $SRC rev-parse origin/main
 systemctl list-timers devopus-deploy.timer
-systemctl status devopus-auth devopus-server caddy --no-pager | grep -E 'Active|●'
+systemctl status devopus-auth devopus-server nginx --no-pager | grep -E 'Active|●'
 ```
 
 Затем пройдите сценарий со своей стороны: скачайте CLI с `/dl/` и выполните `register` (код — в `journalctl -u devopus-auth`) и `workspace create test`. Откройте https://devopus.webapace.ink, войдите тем же email и убедитесь, что воркспейс виден.
@@ -95,9 +104,10 @@ systemctl status devopus-auth devopus-server caddy --no-pager | grep -E 'Active|
 
 | Симптом | Что смотреть |
 |---|---|
-| Caddy не получает сертификат | `journalctl -u caddy -n 50`; DNS указывает не на сервер, включён прокси Cloudflare или порт 80 закрыт файрволом (`ufw status`, firewall в Hetzner Cloud) |
+| certbot не получает сертификат | `/var/log/letsencrypt/letsencrypt.log`; DNS указывает не на сервер, включён прокси Cloudflare или порт 80 закрыт файрволом (`ufw status`, firewall в Hetzner Cloud) |
 | `/healthz` — 502 | Служба не работает: `journalctl -u devopus-server -n 50` (или `-u devopus-auth`) |
-| Деплой не идёт | `journalctl -u devopus-deploy -n 100`; `cat /var/lib/devopus-test/failed` — коммит, который не поднялся и пропускается; после исправления в `main` деплой пойдёт сам. Принудительно: `sudo FORCE=1 SRC=$SRC bash /usr/local/lib/devopus-test/deploy.sh` |
+| Деплой не идёт | `journalctl -u devopus-deploy -n 100`; `cat /var/lib/devopus-test/failed` — коммит, который не поднялся и пропускается; после исправления в `main` деплой пойдёт сам. Принудительно: `sudo FORCE=1 bash -c 'set -a; . /etc/devopus-test/deploy.env; bash /usr/local/lib/devopus-test/deploy.sh'` |
+| Сборка падает | `docker run` с `golang:<версия>` — нужен доступ к Docker Hub и proxy.golang.org; ошибка компиляции — в журнале деплоя, коммит помечен как `failed` |
 | `git fetch` просит пароль | У владельца клона нет доступа к GitHub без пароля: deploy key или токен в `~/.git-credentials` этого пользователя |
 | CLI или агент: `token is not for this service` | `DEVOPUS_SERVER_URL` должен быть ровно `https://devopus.webapace.ink` — он же `DEVOPUS_SERVER_PUBLIC_URL` в `/etc/devopus-test/server.env` |
 
