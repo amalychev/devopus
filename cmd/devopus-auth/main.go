@@ -125,7 +125,7 @@ Flags:
 		defer cancel()
 		_ = srv.Shutdown(shutdown)
 	}()
-	log.Info("devopus-auth is serving", "version", Version, "listen", ln.Addr().String(), "issuer", *issuer, "mail", *mailSpec)
+	log.Info("devopus-auth is serving", "version", Version, "listen", ln.Addr().String(), "issuer", *issuer, "mail", mail.Redact(*mailSpec))
 	if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

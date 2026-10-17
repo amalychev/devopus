@@ -71,13 +71,25 @@ func (s SMTP) Send(ctx context.Context, m Message) error {
 }
 
 // Parse builds a mailer from its spec: "log", or smtp://user:password@host:587.
+// Redact is the mail setting as logs may show it: without the SMTP password.
+func Redact(spec string) string {
+	u, err := url.Parse(spec)
+	if err != nil {
+		if i := strings.LastIndex(spec, "@"); i >= 0 {
+			return "smtp://xxxxx" + spec[i:] // unparsable: keep only the host part
+		}
+		return spec
+	}
+	return u.Redacted()
+}
+
 func Parse(spec, from string, log *slog.Logger) (Mailer, error) {
 	if spec == "" || spec == "log" {
 		return Log{Logger: log}, nil
 	}
 	u, err := url.Parse(spec)
 	if err != nil || u.Scheme != "smtp" || u.Host == "" {
-		return nil, fmt.Errorf("mail %q: want \"log\" or smtp://user:password@host:port", spec)
+		return nil, fmt.Errorf("mail %q: want \"log\" or smtp://user:password@host:port", Redact(spec))
 	}
 	if from == "" {
 		return nil, fmt.Errorf("mail: the sender address is not set")

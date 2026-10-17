@@ -30,12 +30,24 @@ export DEVOPUS_SERVER_URL=https://devopus.webapace.ink
 
 Агент и CLI с тестового сервера используют домашнюю папку `~/.devopus` и порты 80/443 так же, как обычная установка. Если на машине уже работает другой агент Devopus, тестируйте с отдельной папкой (`DEVOPUS_HOME=~/.devopus-test`) или на другой машине.
 
-**Коды входа без почты.** Пока SMTP не настроен (`MAIL=log`), письма с кодами и инвайтами пишутся в журнал сервера:
+**Почта.** Коды входа и инвайты уходят настоящими письмами через SMTP (Zoho, отправитель `noreply@lumen.kg`), поэтому регистрируйтесь на ящик, который читаете. Если SMTP отключить (`MAIL=log`), письма пишутся в журнал сервера:
 
 ```bash
-ssh root@<IP сервера> 'journalctl -u devopus-auth -n 50 --no-pager | grep -i code'
-ssh root@<IP сервера> 'journalctl -u devopus-server -n 50 --no-pager | grep -i invite'
+ssh root@167.235.242.165 'journalctl -u devopus-auth -n 50 --no-pager | grep -i code'
+ssh root@167.235.242.165 'journalctl -u devopus-server -n 50 --no-pager | grep -i invite'
 ```
+
+## Как устроен сервер сейчас
+
+| Что | Где |
+|---|---|
+| Машина | Hetzner, Ubuntu 24.04, IP `167.235.242.165`; SSH — по IP (имена за прокси Cloudflare) |
+| DNS и HTTPS снаружи | Cloudflare, прокси включён для `devopus` и `devopus-auth` |
+| HTTPS на сервере | nginx (общий с другими сайтами), сайт `/etc/nginx/sites-enabled/devopus-test`; сертификат Let's Encrypt `devopus-test` на оба имени, продление через webroot `/var/www/certbot`, `renew_hook = systemctl reload nginx` |
+| Службы | `devopus-auth` (`127.0.0.1:7480`), `devopus-server` (`127.0.0.1:7481`), PostgreSQL `devopus-test-postgres` (`127.0.0.1:5440`) |
+| Настройки | `/etc/devopus-test/{auth,server,deploy,postgres}.env` — в них пароли базы и SMTP, только root |
+| Автодеплой | `devopus-deploy.timer` → `/usr/local/lib/devopus-test/deploy.sh`; развёрнутый коммит — `/var/lib/devopus-test/deployed`; журнал — `journalctl -u devopus-deploy` |
+| Клон | в папке, где его сделал агент; владелец — root |
 
 ## Развёртывание с нуля — инструкция для ИИ-агента на сервере
 

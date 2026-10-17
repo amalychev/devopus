@@ -115,7 +115,7 @@ func (a *app) serverCmd() *cobra.Command {
 					_ = redirect.Shutdown(shutdown)
 				}
 			}()
-			log.Info("the workspace server is serving", "version", Version, "listen", ln.Addr().String(), "url", publicURL, "auth", authURL, "mail", mailSpec)
+			log.Info("the workspace server is serving", "version", Version, "listen", ln.Addr().String(), "url", publicURL, "auth", authURL, "mail", mail.Redact(mailSpec))
 			if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 				return fail(ExitError, "%v", err)
 			}
