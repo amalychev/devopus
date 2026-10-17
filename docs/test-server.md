@@ -67,9 +67,25 @@ ss -ltnH '( sport = :7480 or sport = :7481 or sport = :5440 )'   # пусто: �
 |---|---|
 | Сертификат, покрывающий `*.webapace.ink` (обычно Cloudflare Origin Certificate) | `TLS=cert CERT=<путь к .pem> KEY=<путь к ключу>` — nginx слушает 443 с этим сертификатом |
 | Сертификатов нет, сайты слушают только 80 (в Cloudflare режим SSL «Flexible») | `TLS=none` — только 80 |
-| Свои сертификаты Let's Encrypt на каждое имя | при включённом прокси certbot не сработает: остановитесь и спросите владельца |
+| Свои сертификаты Let's Encrypt на каждое имя через webroot (`authenticator = webroot` в `/etc/letsencrypt/renewal/*.conf`) — **так на тестовом сервере** | в два прохода, см. ниже |
 
 Если неясно, какой режим подходит, — остановитесь и спросите владельца, не выдумывайте.
+
+**Let's Encrypt через webroot (как у других сайтов тестового сервера).** Сертификат нужен до того, как nginx будет слушать 443, а выпустить его можно, только когда оба имени уже отдают `/.well-known/acme-challenge/` на 80. Поэтому:
+
+```bash
+WR=/var/www/certbot     # webroot из /etc/letsencrypt/renewal/*.conf других сайтов
+sudo SRC=$SRC TLS=none WEBROOT=$WR bash deploy/test-server/setup.sh          # 1: только 80
+sudo certbot certonly --webroot -w $WR --cert-name devopus-test \
+  -d devopus.webapace.ink -d devopus-auth.webapace.ink                        # 2: сертификат на оба имени
+sudo SRC=$SRC TLS=cert WEBROOT=$WR \
+  CERT=/etc/letsencrypt/live/devopus-test/fullchain.pem \
+  KEY=/etc/letsencrypt/live/devopus-test/privkey.pem bash deploy/test-server/setup.sh   # 3: 80 и 443
+```
+
+`WEBROOT` нужен и в третьем проходе: через него certbot продлевает сертификат. Чтобы nginx подхватил продлённый сертификат, проверьте, как это сделано у других сайтов (`deploy_hook`/`renew_hook` в их `renewal/*.conf` или общий хук в `/etc/letsencrypt/renewal-hooks/deploy/`); если общего хука нет — добавьте `renew_hook = systemctl reload nginx` в `renewal/devopus-test.conf`.
+
+**Старые сайты с теми же именами.** Если в nginx уже есть `server_name devopus.webapace.ink` или `devopus-auth.webapace.ink` (например, заглушка), отключите её до установки: `mv <файл> <файл>.disabled` — иначе nginx выберет один из двух сайтов. Удалять не нужно.
 
 ### 2. Запустить установку
 

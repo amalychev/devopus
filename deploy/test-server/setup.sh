@@ -26,6 +26,9 @@ PG_PORT=${PG_PORT:-5440}
 TLS=${TLS:-certbot}
 CERT=${CERT:-}
 KEY=${KEY:-}
+# certbot's webroot (certonly --webroot -w ...), as the other sites renew theirs: both
+# names serve /.well-known/acme-challenge/ from it on :80. Empty: not served.
+WEBROOT=${WEBROOT:-}
 ACME_EMAIL=${ACME_EMAIL:-}
 # Login codes and invites: "log" (read them with journalctl) or smtp://user:pass@host:587.
 MAIL=${MAIL:-log}
@@ -204,6 +207,11 @@ EOF
 listen() {
   echo "    listen 80;"
   echo "    listen [::]:80;"
+  if [ -n "$WEBROOT" ]; then
+    echo "    location ^~ /.well-known/acme-challenge/ {"
+    echo "        root $WEBROOT;"
+    echo "    }"
+  fi
   if [ "$TLS" = cert ]; then
     echo "    listen 443 ssl;"
     echo "    listen [::]:443 ssl;"
