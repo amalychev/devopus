@@ -221,12 +221,35 @@ func TestTeam(t *testing.T) {
 	if out := ok("env", "create", "staging", "--project", "shop", "--server", "stage", "--domain", "Staging.Shop.Example.com"); !strings.Contains(out, "stage runs shop on staging at https://staging.shop.example.com") {
 		t.Errorf("env create:\n%s", out)
 	}
-	if out := squash(ok("env", "list")); !strings.Contains(out, "shop staging stage https://staging.shop.example.com "+lead) {
+	if out := squash(ok("env", "list")); !strings.Contains(out, "shop staging stage https://staging.shop.example.com newest signed version "+lead) {
 		t.Errorf("env list:\n%s", out)
 	}
 	if out := ok("env", "rm", "--project", "shop", "--server", "stage"); !strings.Contains(out, "stage no longer runs shop") {
 		t.Errorf("env rm:\n%s", out)
 	}
+	// R14b: production needs production.deploy, which the lead has not; the admin
+	// makes it and deploys the newest version.
+	if code, _, errOut := cli(t, "", "env", "create", "production", "--project", "shop", "--server", "stage", "--domain", "shop.example.com"); code == ExitOK || !strings.Contains(errOut, "production.deploy") {
+		t.Errorf("lead creates production: %d %s", code, errOut)
+	}
+	as(admin)
+	ok("env", "create", "production", "--project", "shop", "--server", "stage", "--domain", "shop.example.com")
+	if out := squash(ok("env", "list")); !strings.Contains(out, "nothing deployed yet") {
+		t.Errorf("before a deploy:\n%s", out)
+	}
+	out = ok("env", "deploy", "production", "--project", "shop", "--server", "stage", "-y")
+	dm := regexp.MustCompile(`runs v(\d+)\.`).FindStringSubmatch(out)
+	if dm == nil {
+		t.Fatalf("deploy:\n%s", out)
+	}
+	if out := squash(ok("env", "list")); !strings.Contains(out, "v"+dm[1]+", deployed by "+admin) {
+		t.Errorf("after the deploy:\n%s", out)
+	}
+	if out := ok("env", "deploy", "production", "--project", "shop", "--server", "stage", "-y"); !strings.Contains(out, "runs v"+dm[1]+" already") {
+		t.Errorf("the same version again:\n%s", out)
+	}
+	ok("env", "rm", "--project", "shop", "--server", "stage")
+	as(lead)
 	if out := ok("servers", "rm", "stage"); !strings.Contains(out, "Server stage removed") {
 		t.Errorf("servers rm:\n%s", out)
 	}

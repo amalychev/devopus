@@ -303,3 +303,12 @@ SELECT EXISTS (SELECT 1 FROM server_environments WHERE domain = $1 AND NOT (work
 
 -- name: DeleteProjectRole :exec
 DELETE FROM project_members WHERE project_id = $1 AND user_id = $2;
+
+-- name: AddDeploy :exec
+INSERT INTO production_deploys (workspace_id, server_id, project_id, version, signature, signer_device, deployed_by, deployed_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+
+-- name: LastDeploy :one
+SELECT d.*, u.email AS deployer FROM production_deploys d JOIN users u ON u.id = d.deployed_by
+WHERE d.workspace_id = $1 AND d.server_id = $2 AND d.project_id = $3
+ORDER BY d.seq DESC LIMIT 1;

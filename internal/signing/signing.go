@@ -78,6 +78,14 @@ func EnvironmentMessage(workspace, serverID, project, kind, domain string) []byt
 	return []byte("devopus-environment-v1\n" + workspace + "\n" + serverID + "\n" + project + "\n" + kind + "\n" + domain)
 }
 
+// DeployMessage is what someone with production.deploy signs to make a server's
+// production run a version (R14b): this server, this project, this version with
+// exactly these settings.
+func DeployMessage(workspace, serverID, project string, version int32, config []byte) []byte {
+	sum := sha256.Sum256(config)
+	return []byte("devopus-deploy-v1\n" + workspace + "\n" + serverID + "\n" + project + "\n" + strconv.Itoa(int(version)) + "\n" + hex.EncodeToString(sum[:]))
+}
+
 // SignerMessage is what the root signs to certify a device of a person.
 func SignerMessage(workspace, userID, email, deviceID string, pub ed25519.PublicKey) []byte {
 	return []byte("devopus-signer-v1\n" + workspace + "\n" + userID + "\n" + email + "\n" + deviceID + "\n" + base64.StdEncoding.EncodeToString(pub))

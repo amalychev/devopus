@@ -232,6 +232,9 @@ type ServerEnvironment struct {
 	ServerID, Kind, Domain string
 	Signature              []byte
 	SignerDevice           string
+	// Production: the deploy of the version sent (R14b).
+	DeploySignature    []byte
+	DeploySignerDevice string
 }
 
 // ServerKey is the workspace's key as this device has it: wrapped for it.
@@ -274,6 +277,16 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 			} else {
 				signedBy = who
 			}
+			// Production runs only what someone deployed: the deploy is signed too.
+			deployedBy := ""
+			if signedBy != "" && production(workspaceID, sp, set) {
+				e := sp.Environment
+				if who, derr := set.VerifyMessage(signing.DeployMessage(workspaceID, e.ServerID, sp.Name, sp.Version, sp.Spec), e.DeploySignerDevice, e.DeploySignature); derr != nil {
+					signedBy, why = "", "production runs deployed versions, and this deploy's signature does not hold: "+derr.Error()
+				} else {
+					deployedBy = who
+				}
+			}
 			given[sp.Name] = true
 			start := false
 			if p == nil {
@@ -294,6 +307,9 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 				p.Pending = nil
 			}
 			applyEnvironment(p, workspaceID, sp, set)
+			if p.ConfigVersion == sp.Version && bytes.Equal(p.Spec, sp.Spec) {
+				p.DeployedBy = deployedBy
+			}
 			p.WorkspaceId, p.AdminEmail = workspaceID, adminEmail
 			p.Config, p.Orphaned = nil, false
 			p.Secrets, p.KeyWrap, p.KeyGeneration = sp.Secrets, key.Wrapped, key.Generation
@@ -317,6 +333,17 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 		return nil
 	})
 	return rev, conflicts, err
+}
+
+// production: the server's environment of the project is a production one, by its
+// creator's signature.
+func production(workspace string, sp ServerProject, set *signing.Set) bool {
+	e := sp.Environment
+	if e == nil || set == nil || e.Kind != "production" {
+		return false
+	}
+	_, err := set.VerifyMessage(signing.EnvironmentMessage(workspace, e.ServerID, sp.Name, e.Kind, e.Domain), e.SignerDevice, e.Signature)
+	return err == nil
 }
 
 // applyEnvironment takes a server's environment of a project when its creator's

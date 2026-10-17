@@ -97,15 +97,28 @@ func (s *Service) desired(ctx context.Context, c *caller, device string) (*syncv
 		if !c.subject.Can(authz.EnvUse, p.Name) {
 			continue
 		}
-		v, err := s.q.ProjectVersion(ctx, store.ProjectVersionParams{ProjectID: p.ID, Version: p.Version})
+		env, err := s.serverEnvironment(ctx, c, p.ID)
 		if err != nil {
 			return nil, err
 		}
-		dp := &syncv1.DesiredProject{Id: p.ID, Name: p.Name, Version: p.Version, ConfigYaml: v.Config,
-			OverridesPermitted: c.subject.Can(authz.OverridesUse, p.Name), Signature: v.Signature, SignerDevice: v.SignerDevice}
-		if dp.Environment, err = s.serverEnvironment(ctx, c, p.ID); err != nil {
+		// Production runs the deployed version, not the newest; nothing until a deploy.
+		version := p.Version
+		if env != nil && env.Kind == "production" {
+			d, err := s.q.LastDeploy(ctx, store.LastDeployParams{WorkspaceID: c.workspace, ServerID: c.userID, ProjectID: p.ID})
+			if noRows(err) {
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+			version, env.DeploySignature, env.DeploySignerDevice = d.Version, d.Signature, d.SignerDevice
+		}
+		v, err := s.q.ProjectVersion(ctx, store.ProjectVersionParams{ProjectID: p.ID, Version: version})
+		if err != nil {
 			return nil, err
 		}
+		dp := &syncv1.DesiredProject{Id: p.ID, Name: p.Name, Version: version, ConfigYaml: v.Config, Environment: env,
+			OverridesPermitted: c.subject.Can(authz.OverridesUse, p.Name), Signature: v.Signature, SignerDevice: v.SignerDevice}
 		// Admins and teamlead may override anything; developers what the policy allows.
 		if c.subject.Role == authz.Admin || c.subject.Projects[p.Name] == authz.Teamlead {
 			dp.OverridesAllowed = []string{spec.AllowAll}

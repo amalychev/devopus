@@ -314,7 +314,9 @@ func grantOrRevoke[R any](s *Service, ctx context.Context, project, email, permi
 		if err != nil {
 			return err
 		}
-		if role != authz.Developer {
+		// Developers get permissions on top of their role; a teamlead has the rest by
+		// theirs, all but production.deploy, which nobody has by a role.
+		if role != authz.Developer && !(role == authz.Teamlead && p == authz.ProductionDeploy) {
 			return connect.NewError(connect.CodeFailedPrecondition, errorf("%s is not a developer of %q: permissions are given to developers", normalizeEmail(email), project))
 		}
 		action := "permission.granted"

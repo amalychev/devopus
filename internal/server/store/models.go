@@ -95,6 +95,18 @@ type Member struct {
 	JoinedAt    time.Time
 }
 
+type ProductionDeploy struct {
+	WorkspaceID  string
+	ServerID     string
+	ProjectID    string
+	Seq          int64
+	Version      int32
+	Signature    []byte
+	SignerDevice string
+	DeployedBy   string
+	DeployedAt   time.Time
+}
+
 type Project struct {
 	ID          string
 	WorkspaceID string

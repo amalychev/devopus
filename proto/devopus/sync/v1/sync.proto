@@ -83,6 +83,10 @@ message ServerEnvironment {
   // signing.EnvironmentMessage signed by its creator's device.
   bytes signature = 4;
   string signer_device = 5;
+  // Production (R14b): the deploy of the version sent — signing.DeployMessage signed
+  // by someone with production.deploy.
+  bytes deploy_signature = 6;
+  string deploy_signer_device = 7;
 }
 
 // Trust is what an agent checks signatures with: the root, which it pins the first

@@ -150,6 +150,8 @@ message ProjectSpec {
   string env_kind = 20;
   string public_domain = 21;
   string environment_signed_by = 22;
+  // Production: who deployed the version it runs.
+  string deployed_by = 23;
 }
 
 message PendingChange {

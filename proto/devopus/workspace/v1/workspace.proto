@@ -215,6 +215,14 @@ service WorkspaceService {
       permission: "workspace.view"
     };
   }
+  // DeployProduction makes a production environment run a version, signed by the
+  // caller's device; a rollback is a deploy of an older version.
+  rpc DeployProduction(DeployProductionRequest) returns (DeployProductionResponse) {
+    option (access) = {
+      scope: SCOPE_PROJECT
+      permission: "production.deploy"
+    };
+  }
   rpc RemoveEnvironment(RemoveEnvironmentRequest) returns (RemoveEnvironmentResponse) {
     option (access) = {
       scope: SCOPE_PROJECT
@@ -1040,6 +1048,24 @@ message Environment {
   reserved 5;
   // Who created it; its signature counts once their device is certified.
   string created_by = 7;
+  // Production: the version it runs (0: none deployed yet), who deployed it, when.
+  int32 deployed_version = 8;
+  string deployed_by = 9;
+  google.protobuf.Timestamp deployed_at = 10;
+}
+
+message DeployProductionRequest {
+  string workspace_id = 1;
+  string project = 2;
+  string server = 3;
+  int32 version = 4;
+  // signing.DeployMessage signed by the caller's device.
+  string device_id = 5;
+  bytes signature = 6;
+}
+
+message DeployProductionResponse {
+  Environment environment = 1;
 }
 
 message CreateEnvironmentRequest {

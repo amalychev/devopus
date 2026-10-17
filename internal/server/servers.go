@@ -184,8 +184,8 @@ func (s *Service) ListServers(ctx context.Context, req *connect.Request[workspac
 	}
 	resp := &workspacev1.ListServersResponse{}
 	for _, r := range rows {
-		// The admin sees all; others the servers of projects they are in.
-		if c.subject.Role != authz.Admin && !slices.ContainsFunc(r.Projects, func(p string) bool { return c.subject.Can(authz.WorkspaceView, p) }) {
+		// The admin sees all; others the servers they added and those of projects they are in.
+		if c.subject.Role != authz.Admin && r.CreatedBy != c.userID && !slices.ContainsFunc(r.Projects, func(p string) bool { return c.subject.Can(authz.WorkspaceView, p) }) {
 			continue
 		}
 		resp.Servers = append(resp.Servers, serverInfo(r))

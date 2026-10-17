@@ -27,17 +27,20 @@ const (
 	MembersManage    Permission = "members.manage"
 	OverridesUse     Permission = "overrides.use"
 	EnvUse           Permission = "env.use"
+	// ProductionDeploy chooses the version production runs (R14b): nobody has it by a
+	// project role; the admin, and whom it is granted to.
+	ProductionDeploy Permission = "production.deploy"
 )
 
 // All is every permission.
 var All = []Permission{
 	WorkspaceView, WorkspaceManage, ProjectCreate, ProjectConfigure, AppsManage, ServicesManage, ServersManage,
-	SecretsManage, SecretsRead, MembersInvite, MembersManage, OverridesUse, EnvUse,
+	SecretsManage, SecretsRead, MembersInvite, MembersManage, OverridesUse, EnvUse, ProductionDeploy,
 }
 
 // Grantable are the permissions an admin or a teamlead gives a developer in a project,
 // on top of the developer's role.
-var Grantable = []Permission{ProjectConfigure, AppsManage, ServicesManage, ServersManage, SecretsManage}
+var Grantable = []Permission{ProjectConfigure, AppsManage, ServicesManage, ServersManage, SecretsManage, ProductionDeploy}
 
 // Valid reports whether p is a known permission.
 func Valid(p Permission) bool { return slices.Contains(All, p) }

@@ -135,9 +135,6 @@ func TestEnvironments(t *testing.T) {
 	if err := create(f.admin, "blog", "staging.shop.example.com"); connect.CodeOf(err) != connect.CodeAlreadyExists {
 		t.Errorf("a taken domain: %v", err)
 	}
-	if _, err := e.client.CreateEnvironment(ctx, as(e, f.admin, &workspacev1.CreateEnvironmentRequest{WorkspaceId: f.ws, Project: "shop", Server: "stage", Kind: "production", Domain: "shop.example.com"})); connect.CodeOf(err) != connect.CodeUnimplemented {
-		t.Errorf("production: %v", err)
-	}
 	envs := must[workspacev1.ListEnvironmentsResponse](t)(e.client.ListEnvironments(ctx, as(e, f.dev, &workspacev1.ListEnvironmentsRequest{WorkspaceId: f.ws}))).Environments
 	if len(envs) != 1 || envs[0].Domain != "staging.shop.example.com" || envs[0].CreatedBy != f.admin {
 		t.Errorf("the developer of shop sees: %v", envs)
@@ -165,5 +162,87 @@ func TestEnvironments(t *testing.T) {
 	must[workspacev1.RemoveEnvironmentResponse](t)(e.client.RemoveEnvironment(ctx, as(e, f.admin, &workspacev1.RemoveEnvironmentRequest{WorkspaceId: f.ws, Project: "shop", Server: "stage"})))
 	if envs := must[workspacev1.ListEnvironmentsResponse](t)(e.client.ListEnvironments(ctx, as(e, f.admin, &workspacev1.ListEnvironmentsRequest{WorkspaceId: f.ws}))).Environments; len(envs) != 0 {
 		t.Errorf("after removal: %v", envs)
+	}
+}
+
+func TestProductionDeploys(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	f := e.fixture(t)
+	created := must[workspacev1.CreateServerResponse](t)(e.client.CreateServer(ctx, as(e, f.admin, &workspacev1.CreateServerRequest{WorkspaceId: f.ws, Name: "prod"})))
+	srvID := created.Server.Id
+	adminKey, _ := signing.NewKey()
+	leadKey, _ := signing.NewKey()
+	must[workspacev1.RegisterSigningKeyResponse](t)(e.client.RegisterSigningKey(ctx, as(e, f.admin, &workspacev1.RegisterSigningKeyRequest{WorkspaceId: f.ws, DeviceId: "admin-mac", PublicKey: adminKey.Public()})))
+	must[workspacev1.RegisterSigningKeyResponse](t)(e.client.RegisterSigningKey(ctx, as(e, f.lead, &workspacev1.RegisterSigningKeyRequest{WorkspaceId: f.ws, DeviceId: "lead-mac", PublicKey: leadKey.Public()})))
+	envReq := &workspacev1.CreateEnvironmentRequest{WorkspaceId: f.ws, Project: "shop", Server: "prod", Kind: "production", Domain: "shop.example.com",
+		DeviceId: "lead-mac", Signature: leadKey.Sign(signing.EnvironmentMessage(f.ws, srvID, "shop", "production", "shop.example.com"))}
+	// The teamlead has no production.deploy by their role.
+	if _, err := e.client.CreateEnvironment(ctx, as(e, f.lead, envReq)); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("lead creates production: %v", err)
+	}
+	envReq.DeviceId, envReq.Signature = "admin-mac", adminKey.Sign(signing.EnvironmentMessage(f.ws, srvID, "shop", "production", "shop.example.com"))
+	must[workspacev1.CreateEnvironmentResponse](t)(e.client.CreateEnvironment(ctx, as(e, f.admin, envReq)))
+
+	joined := must[workspacev1.JoinServerResponse](t)(e.client.JoinServer(ctx, connect.NewRequest(&workspacev1.JoinServerRequest{Code: created.JoinCode})))
+	watch := func() []*syncv1.DesiredProject {
+		t.Helper()
+		r := connect.NewRequest(&syncv1.WatchRequest{WorkspaceId: f.ws, Device: &syncv1.Device{Id: "prod-1"}})
+		r.Header().Set("Authorization", "Bearer "+joined.Token)
+		wctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		st, err := syncv1connect.NewSyncServiceClient(http.DefaultClient, e.url).Watch(wctx, r)
+		if err != nil || !st.Receive() {
+			t.Fatalf("watch: %v %v", err, st.Err())
+		}
+		return st.Msg().Projects
+	}
+	// Nothing deployed: production gets nothing.
+	if ps := watch(); len(ps) != 0 {
+		t.Fatalf("before a deploy: %v", ps)
+	}
+	config := func(v int32) string {
+		return must[workspacev1.GetProjectConfigResponse](t)(e.client.GetProjectConfig(ctx, as(e, f.admin, &workspacev1.GetProjectConfigRequest{WorkspaceId: f.ws, Project: "shop", Version: v}))).Config.Yaml
+	}
+	deploy := func(email string, key signing.Key, device string, v int32) error {
+		_, err := e.client.DeployProduction(ctx, as(e, email, &workspacev1.DeployProductionRequest{WorkspaceId: f.ws, Project: "shop", Server: "prod", Version: v,
+			DeviceId: device, Signature: key.Sign(signing.DeployMessage(f.ws, srvID, "shop", v, []byte(config(v))))}))
+		return err
+	}
+	if err := deploy(f.lead, leadKey, "lead-mac", 1); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("lead deploys: %v", err)
+	}
+	if err := deploy(f.admin, leadKey, "admin-mac", 1); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Errorf("a signature of another key: %v", err)
+	}
+	if err := deploy(f.admin, adminKey, "admin-mac", 1); err != nil {
+		t.Fatal(err)
+	}
+	ps := watch()
+	if len(ps) != 1 || ps[0].Version != 1 || len(ps[0].Environment.DeploySignature) == 0 || ps[0].Environment.DeploySignerDevice != "admin-mac" {
+		t.Fatalf("deployed v1: %v", ps)
+	}
+	// A new version of the settings does not reach production by itself.
+	must[workspacev1.PutServiceResponse](t)(e.client.PutService(ctx, as(e, f.lead, &workspacev1.PutServiceRequest{WorkspaceId: f.ws, Project: "shop", Name: "db", ServiceYaml: "type: mysql\nversion: \"8.4\"\n", Create: true})))
+	if ps := watch(); ps[0].Version != 1 {
+		t.Errorf("production follows the newest: v%d", ps[0].Version)
+	}
+	// The admin grants the lead production.deploy; they deploy v2, then roll back.
+	must[workspacev1.GrantPermissionResponse](t)(e.client.GrantPermission(ctx, as(e, f.admin, &workspacev1.GrantPermissionRequest{WorkspaceId: f.ws, Email: f.lead, Permission: "production.deploy", Project: "shop"})))
+	if err := deploy(f.lead, leadKey, "lead-mac", 2); err != nil {
+		t.Fatal(err)
+	}
+	if ps := watch(); ps[0].Version != 2 || ps[0].Environment.DeploySignerDevice != "lead-mac" {
+		t.Errorf("deployed v2: %v", ps)
+	}
+	if err := deploy(f.lead, leadKey, "lead-mac", 1); err != nil {
+		t.Fatal(err)
+	}
+	if ps := watch(); ps[0].Version != 1 {
+		t.Errorf("rolled back: v%d", ps[0].Version)
+	}
+	envs := must[workspacev1.ListEnvironmentsResponse](t)(e.client.ListEnvironments(ctx, as(e, f.dev, &workspacev1.ListEnvironmentsRequest{WorkspaceId: f.ws}))).Environments
+	if len(envs) != 1 || envs[0].DeployedVersion != 1 || envs[0].DeployedBy != f.lead {
+		t.Errorf("environments: %v", envs)
 	}
 }

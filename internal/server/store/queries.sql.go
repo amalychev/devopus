@@ -51,6 +51,36 @@ func (q *Queries) AddAudit(ctx context.Context, arg AddAuditParams) error {
 	return err
 }
 
+const addDeploy = `-- name: AddDeploy :exec
+INSERT INTO production_deploys (workspace_id, server_id, project_id, version, signature, signer_device, deployed_by, deployed_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`
+
+type AddDeployParams struct {
+	WorkspaceID  string
+	ServerID     string
+	ProjectID    string
+	Version      int32
+	Signature    []byte
+	SignerDevice string
+	DeployedBy   string
+	DeployedAt   time.Time
+}
+
+func (q *Queries) AddDeploy(ctx context.Context, arg AddDeployParams) error {
+	_, err := q.db.Exec(ctx, addDeploy,
+		arg.WorkspaceID,
+		arg.ServerID,
+		arg.ProjectID,
+		arg.Version,
+		arg.Signature,
+		arg.SignerDevice,
+		arg.DeployedBy,
+		arg.DeployedAt,
+	)
+	return err
+}
+
 const addDeviceEnvironment = `-- name: AddDeviceEnvironment :exec
 INSERT INTO device_environments (workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version,
     overrides, rejected_overrides, pending_version)
@@ -828,6 +858,49 @@ func (q *Queries) KeyWrap(ctx context.Context, arg KeyWrapParams) (KeyWrap, erro
 		&i.Wrapped,
 		&i.WrappedBy,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const lastDeploy = `-- name: LastDeploy :one
+SELECT d.workspace_id, d.server_id, d.project_id, d.seq, d.version, d.signature, d.signer_device, d.deployed_by, d.deployed_at, u.email AS deployer FROM production_deploys d JOIN users u ON u.id = d.deployed_by
+WHERE d.workspace_id = $1 AND d.server_id = $2 AND d.project_id = $3
+ORDER BY d.seq DESC LIMIT 1
+`
+
+type LastDeployParams struct {
+	WorkspaceID string
+	ServerID    string
+	ProjectID   string
+}
+
+type LastDeployRow struct {
+	WorkspaceID  string
+	ServerID     string
+	ProjectID    string
+	Seq          int64
+	Version      int32
+	Signature    []byte
+	SignerDevice string
+	DeployedBy   string
+	DeployedAt   time.Time
+	Deployer     string
+}
+
+func (q *Queries) LastDeploy(ctx context.Context, arg LastDeployParams) (LastDeployRow, error) {
+	row := q.db.QueryRow(ctx, lastDeploy, arg.WorkspaceID, arg.ServerID, arg.ProjectID)
+	var i LastDeployRow
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.ServerID,
+		&i.ProjectID,
+		&i.Seq,
+		&i.Version,
+		&i.Signature,
+		&i.SignerDevice,
+		&i.DeployedBy,
+		&i.DeployedAt,
+		&i.Deployer,
 	)
 	return i, err
 }

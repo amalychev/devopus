@@ -28,6 +28,7 @@ func TestRolesMatchTheTable(t *testing.T) {
 		MembersManage:    {"A", "AT"},
 		OverridesUse:     {"A", "ATD"},
 		EnvUse:           {"A", "ATD"},
+		ProductionDeploy: {"A", "A"},
 	}
 	if len(table) != len(All) {
 		t.Fatalf("the table has %d permissions, All has %d", len(table), len(All))

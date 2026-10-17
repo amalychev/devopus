@@ -115,6 +115,9 @@ const (
 	// WorkspaceServiceListEnvironmentsProcedure is the fully-qualified name of the WorkspaceService's
 	// ListEnvironments RPC.
 	WorkspaceServiceListEnvironmentsProcedure = "/devopus.workspace.v1.WorkspaceService/ListEnvironments"
+	// WorkspaceServiceDeployProductionProcedure is the fully-qualified name of the WorkspaceService's
+	// DeployProduction RPC.
+	WorkspaceServiceDeployProductionProcedure = "/devopus.workspace.v1.WorkspaceService/DeployProduction"
 	// WorkspaceServiceRemoveEnvironmentProcedure is the fully-qualified name of the WorkspaceService's
 	// RemoveEnvironment RPC.
 	WorkspaceServiceRemoveEnvironmentProcedure = "/devopus.workspace.v1.WorkspaceService/RemoveEnvironment"
@@ -246,6 +249,9 @@ type WorkspaceServiceClient interface {
 	// from Let's Encrypt. Needs servers.manage in the project.
 	CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error)
 	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
+	// DeployProduction makes a production environment run a version, signed by the
+	// caller's device; a rollback is a deploy of an older version.
+	DeployProduction(context.Context, *connect.Request[v1.DeployProductionRequest]) (*connect.Response[v1.DeployProductionResponse], error)
 	RemoveEnvironment(context.Context, *connect.Request[v1.RemoveEnvironmentRequest]) (*connect.Response[v1.RemoveEnvironmentResponse], error)
 	// RegisterSigningKey records the signing key of one of the caller's devices. A new
 	// key for the device needs a new certificate.
@@ -467,6 +473,12 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workspaceServiceMethods.ByName("ListEnvironments")),
 			connect.WithClientOptions(opts...),
 		),
+		deployProduction: connect.NewClient[v1.DeployProductionRequest, v1.DeployProductionResponse](
+			httpClient,
+			baseURL+WorkspaceServiceDeployProductionProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("DeployProduction")),
+			connect.WithClientOptions(opts...),
+		),
 		removeEnvironment: connect.NewClient[v1.RemoveEnvironmentRequest, v1.RemoveEnvironmentResponse](
 			httpClient,
 			baseURL+WorkspaceServiceRemoveEnvironmentProcedure,
@@ -642,6 +654,7 @@ type workspaceServiceClient struct {
 	removeServer          *connect.Client[v1.RemoveServerRequest, v1.RemoveServerResponse]
 	createEnvironment     *connect.Client[v1.CreateEnvironmentRequest, v1.CreateEnvironmentResponse]
 	listEnvironments      *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
+	deployProduction      *connect.Client[v1.DeployProductionRequest, v1.DeployProductionResponse]
 	removeEnvironment     *connect.Client[v1.RemoveEnvironmentRequest, v1.RemoveEnvironmentResponse]
 	registerSigningKey    *connect.Client[v1.RegisterSigningKeyRequest, v1.RegisterSigningKeyResponse]
 	setTrustRoot          *connect.Client[v1.SetTrustRootRequest, v1.SetTrustRootResponse]
@@ -796,6 +809,11 @@ func (c *workspaceServiceClient) CreateEnvironment(ctx context.Context, req *con
 // ListEnvironments calls devopus.workspace.v1.WorkspaceService.ListEnvironments.
 func (c *workspaceServiceClient) ListEnvironments(ctx context.Context, req *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error) {
 	return c.listEnvironments.CallUnary(ctx, req)
+}
+
+// DeployProduction calls devopus.workspace.v1.WorkspaceService.DeployProduction.
+func (c *workspaceServiceClient) DeployProduction(ctx context.Context, req *connect.Request[v1.DeployProductionRequest]) (*connect.Response[v1.DeployProductionResponse], error) {
+	return c.deployProduction.CallUnary(ctx, req)
 }
 
 // RemoveEnvironment calls devopus.workspace.v1.WorkspaceService.RemoveEnvironment.
@@ -976,6 +994,9 @@ type WorkspaceServiceHandler interface {
 	// from Let's Encrypt. Needs servers.manage in the project.
 	CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error)
 	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
+	// DeployProduction makes a production environment run a version, signed by the
+	// caller's device; a rollback is a deploy of an older version.
+	DeployProduction(context.Context, *connect.Request[v1.DeployProductionRequest]) (*connect.Response[v1.DeployProductionResponse], error)
 	RemoveEnvironment(context.Context, *connect.Request[v1.RemoveEnvironmentRequest]) (*connect.Response[v1.RemoveEnvironmentResponse], error)
 	// RegisterSigningKey records the signing key of one of the caller's devices. A new
 	// key for the device needs a new certificate.
@@ -1193,6 +1214,12 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 		connect.WithSchema(workspaceServiceMethods.ByName("ListEnvironments")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workspaceServiceDeployProductionHandler := connect.NewUnaryHandler(
+		WorkspaceServiceDeployProductionProcedure,
+		svc.DeployProduction,
+		connect.WithSchema(workspaceServiceMethods.ByName("DeployProduction")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workspaceServiceRemoveEnvironmentHandler := connect.NewUnaryHandler(
 		WorkspaceServiceRemoveEnvironmentProcedure,
 		svc.RemoveEnvironment,
@@ -1391,6 +1418,8 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 			workspaceServiceCreateEnvironmentHandler.ServeHTTP(w, r)
 		case WorkspaceServiceListEnvironmentsProcedure:
 			workspaceServiceListEnvironmentsHandler.ServeHTTP(w, r)
+		case WorkspaceServiceDeployProductionProcedure:
+			workspaceServiceDeployProductionHandler.ServeHTTP(w, r)
 		case WorkspaceServiceRemoveEnvironmentProcedure:
 			workspaceServiceRemoveEnvironmentHandler.ServeHTTP(w, r)
 		case WorkspaceServiceRegisterSigningKeyProcedure:
@@ -1550,6 +1579,10 @@ func (UnimplementedWorkspaceServiceHandler) CreateEnvironment(context.Context, *
 
 func (UnimplementedWorkspaceServiceHandler) ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.ListEnvironments is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) DeployProduction(context.Context, *connect.Request[v1.DeployProductionRequest]) (*connect.Response[v1.DeployProductionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.DeployProduction is not implemented"))
 }
 
 func (UnimplementedWorkspaceServiceHandler) RemoveEnvironment(context.Context, *connect.Request[v1.RemoveEnvironmentRequest]) (*connect.Response[v1.RemoveEnvironmentResponse], error) {

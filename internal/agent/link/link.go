@@ -329,7 +329,8 @@ func (l *Link) environment(e *syncv1.ServerEnvironment) *store.ServerEnvironment
 	if e == nil || l.opt.Server == nil {
 		return nil
 	}
-	return &store.ServerEnvironment{ServerID: l.opt.Server.ServerID, Kind: e.Kind, Domain: e.Domain, Signature: e.Signature, SignerDevice: e.SignerDevice}
+	return &store.ServerEnvironment{ServerID: l.opt.Server.ServerID, Kind: e.Kind, Domain: e.Domain, Signature: e.Signature, SignerDevice: e.SignerDevice,
+		DeploySignature: e.DeploySignature, DeploySignerDevice: e.DeploySignerDevice}
 }
 
 // TrustSet is the server's word on signatures, as the store checks it: the root

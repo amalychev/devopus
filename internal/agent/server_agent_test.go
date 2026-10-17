@@ -273,6 +273,55 @@ func TestServerAgent(t *testing.T) {
 			t.Errorf("project on the server: %+v", p)
 		}
 	}
+
+	// R14b: the server becomes the project's production. It runs nothing until a
+	// deploy, then exactly the deployed version — v1 here, an older one than staging's.
+	if _, err := ws.RemoveEnvironment(ctx, bearer(&workspacev1.RemoveEnvironmentRequest{WorkspaceId: wsID, Project: project, Server: "stage"}, admin)); err != nil {
+		t.Fatal(err)
+	}
+	prod := "prod-" + domain
+	if _, err := ws.CreateEnvironment(ctx, bearer(&workspacev1.CreateEnvironmentRequest{WorkspaceId: wsID, Project: project, Server: "stage", Kind: "production",
+		Domain: prod, DeviceId: "admin-mac", Signature: key.Sign(signing.EnvironmentMessage(wsID, j.ServerId, project, "production", prod))}, admin)); err != nil {
+		t.Fatal(err)
+	}
+	for deadline := time.Now().Add(time.Minute); ; time.Sleep(300 * time.Millisecond) {
+		if p := status().Projects; len(p) == 1 && p[0].Orphaned {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("production ran before a deploy: %v", status().Projects)
+		}
+	}
+	deploy := func(conf *workspacev1.ProjectConfig) {
+		t.Helper()
+		if _, err := ws.DeployProduction(ctx, bearer(&workspacev1.DeployProductionRequest{WorkspaceId: wsID, Project: project, Server: "stage", Version: conf.Version,
+			DeviceId: "admin-mac", Signature: key.Sign(signing.DeployMessage(wsID, j.ServerId, project, conf.Version, []byte(conf.Yaml)))}, admin)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	servesAt := func(host, want string) {
+		t.Helper()
+		var body string
+		for deadline := time.Now().Add(3 * time.Minute); ; time.Sleep(500 * time.Millisecond) {
+			b, cert, err := publicGet(ctx, ports.HTTPS, host)
+			if err == nil && strings.Contains(b, want) && cert != nil && !strings.Contains(cert.Issuer.String(), "Devopus") {
+				return
+			}
+			body = b
+			if time.Now().After(deadline) {
+				t.Fatalf("%s does not serve %q: %q %v", host, want, body, err)
+			}
+		}
+	}
+	deploy(created.Msg.Config)
+	servesAt(prod, "server settings v1")
+	deploy(put.Msg.Config)
+	servesAt(prod, "server settings v2")
+	for _, p := range status().Projects {
+		if p.Name == project && (p.DeployedBy != "admin@acme.dev" || p.ConfigVersion != put.Msg.Config.Version) {
+			t.Errorf("production on the server: %+v", p)
+		}
+	}
 }
 
 // publicGet fetches a public host from the proxy on the loopback and returns the

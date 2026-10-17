@@ -470,3 +470,54 @@ func TestStrictServer(t *testing.T) {
 		t.Fatalf("signed: %+v", ps[0])
 	}
 }
+
+// Production runs a version only with its deploy signed too.
+func TestProductionNeedsDeploy(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "desired.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Strict = true
+	root := func(name string) string { return "/srv/" + name }
+	admin, _ := signing.NewKey()
+	trust := &signing.Set{Root: admin.Public(), RootDevice: "admin-mac", RootEmail: "admin@acme.dev"}
+	env := func() *ServerEnvironment {
+		return &ServerEnvironment{ServerID: "srv_1", Kind: "production", Domain: "shop.example.com", SignerDevice: "admin-mac",
+			Signature: admin.Sign(signing.EnvironmentMessage("wsp_1", "srv_1", "shop", "production", "shop.example.com"))}
+	}
+	sync := func(version int32, text string, deployOf int32, deployText string) *agentv2.ProjectSpec {
+		t.Helper()
+		e := env()
+		if deployOf != 0 {
+			e.DeploySignerDevice, e.DeploySignature = "admin-mac", admin.Sign(signing.DeployMessage("wsp_1", "srv_1", "shop", deployOf, []byte(deployText)))
+		}
+		sp := ServerProject{Name: "shop", Spec: []byte(text), Version: version, Environment: e, SignerDevice: "admin-mac",
+			Signature: admin.Sign(signing.SettingsMessage("wsp_1", "shop", version, []byte(text)))}
+		if _, _, err := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{sp}, trust, root); err != nil {
+			t.Fatal(err)
+		}
+		if ps := s.Snapshot().Projects; len(ps) == 1 {
+			return ps[0]
+		}
+		return nil
+	}
+	v1 := "name: shop\nservices:\n  php:\n    type: php\n    version: \"8.3\"\n"
+	v2 := strings.Replace(v1, `"8.3"`, `"8.4"`, 1)
+	if p := sync(1, v1, 0, ""); p != nil {
+		t.Fatalf("signed settings without a deploy: %+v", p)
+	}
+	if p := sync(1, v1, 1, v1); p == nil || p.ConfigVersion != 1 || p.DeployedBy != "admin@acme.dev" || p.PublicDomain != "shop.example.com" {
+		t.Fatalf("deployed v1: %+v", p)
+	}
+	// A deploy of v1 does not carry v2.
+	if p := sync(2, v2, 1, v1); p.ConfigVersion != 1 || p.Pending == nil || !strings.Contains(p.Pending.Unverified, "deploy") {
+		t.Fatalf("v2 under v1's deploy: %+v", p)
+	}
+	if p := sync(2, v2, 2, v2); p.ConfigVersion != 2 || p.Pending != nil {
+		t.Fatalf("deployed v2: %+v", p)
+	}
+	// A rollback is a deploy of the older version.
+	if p := sync(1, v1, 1, v1); p.ConfigVersion != 1 || p.Pending != nil {
+		t.Fatalf("rolled back: %+v", p)
+	}
+}

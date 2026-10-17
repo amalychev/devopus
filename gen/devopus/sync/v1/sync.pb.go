@@ -283,10 +283,14 @@ type ServerEnvironment struct {
 	// The public host; the agent gets its certificate from Let's Encrypt.
 	Domain string `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
 	// signing.EnvironmentMessage signed by its creator's device.
-	Signature     []byte `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
-	SignerDevice  string `protobuf:"bytes,5,opt,name=signer_device,json=signerDevice,proto3" json:"signer_device,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Signature    []byte `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
+	SignerDevice string `protobuf:"bytes,5,opt,name=signer_device,json=signerDevice,proto3" json:"signer_device,omitempty"`
+	// Production (R14b): the deploy of the version sent — signing.DeployMessage signed
+	// by someone with production.deploy.
+	DeploySignature    []byte `protobuf:"bytes,6,opt,name=deploy_signature,json=deploySignature,proto3" json:"deploy_signature,omitempty"`
+	DeploySignerDevice string `protobuf:"bytes,7,opt,name=deploy_signer_device,json=deploySignerDevice,proto3" json:"deploy_signer_device,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ServerEnvironment) Reset() {
@@ -343,6 +347,20 @@ func (x *ServerEnvironment) GetSignature() []byte {
 func (x *ServerEnvironment) GetSignerDevice() string {
 	if x != nil {
 		return x.SignerDevice
+	}
+	return ""
+}
+
+func (x *ServerEnvironment) GetDeploySignature() []byte {
+	if x != nil {
+		return x.DeploySignature
+	}
+	return nil
+}
+
+func (x *ServerEnvironment) GetDeploySignerDevice() string {
+	if x != nil {
+		return x.DeploySignerDevice
 	}
 	return ""
 }
@@ -1174,12 +1192,14 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	" \x01(\v2\".devopus.sync.v1.ServerEnvironmentR\venvironment\x1a:\n" +
 	"\fSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"\x88\x01\n" +
+	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"\xe5\x01\n" +
 	"\x11ServerEnvironment\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x16\n" +
 	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1c\n" +
 	"\tsignature\x18\x04 \x01(\fR\tsignature\x12#\n" +
-	"\rsigner_device\x18\x05 \x01(\tR\fsignerDeviceJ\x04\b\x03\x10\x04\"\x8e\x01\n" +
+	"\rsigner_device\x18\x05 \x01(\tR\fsignerDevice\x12)\n" +
+	"\x10deploy_signature\x18\x06 \x01(\fR\x0fdeploySignature\x120\n" +
+	"\x14deploy_signer_device\x18\a \x01(\tR\x12deploySignerDeviceJ\x04\b\x03\x10\x04\"\x8e\x01\n" +
 	"\x05Trust\x12\x12\n" +
 	"\x04root\x18\x01 \x01(\fR\x04root\x12\x1f\n" +
 	"\vroot_device\x18\x02 \x01(\tR\n" +

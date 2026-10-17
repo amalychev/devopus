@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"crypto/ed25519"
 	"net"
 	"regexp"
@@ -44,7 +45,10 @@ func (s *Service) CreateEnvironment(ctx context.Context, req *connect.Request[wo
 	switch m.Kind {
 	case "staging":
 	case "production":
-		return nil, connect.NewError(connect.CodeUnimplemented, errorf("production environments come with deploys of chosen, signed versions (R14b); use staging for now"))
+		// Production runs what someone with production.deploy chooses: they make it too.
+		if !c.subject.Can(authz.ProductionDeploy, m.Project) {
+			return nil, denied("a production environment needs the permission %s in project %q; the admin grants it", authz.ProductionDeploy, m.Project)
+		}
 	default:
 		return nil, invalid("the kind is staging or production, not %q", m.Kind)
 	}
@@ -115,8 +119,18 @@ func (s *Service) ListEnvironments(ctx context.Context, req *connect.Request[wor
 		if !c.subject.Can(authz.WorkspaceView, r.Project) {
 			continue
 		}
-		resp.Environments = append(resp.Environments, &workspacev1.Environment{Project: r.Project, Server: r.Server, Kind: r.Kind,
-			Domain: r.Domain, CreatedBy: r.Creator, CreatedAt: timestamppb.New(r.CreatedAt)})
+		e := &workspacev1.Environment{Project: r.Project, Server: r.Server, Kind: r.Kind,
+			Domain: r.Domain, CreatedBy: r.Creator, CreatedAt: timestamppb.New(r.CreatedAt)}
+		if r.Kind == "production" {
+			d, err := s.q.LastDeploy(ctx, store.LastDeployParams{WorkspaceID: c.workspace, ServerID: r.ServerID, ProjectID: r.ProjectID})
+			if err != nil && !noRows(err) {
+				return nil, internal(err)
+			}
+			if err == nil {
+				e.DeployedVersion, e.DeployedBy, e.DeployedAt = d.Version, d.Deployer, timestamppb.New(d.DeployedAt)
+			}
+		}
+		resp.Environments = append(resp.Environments, e)
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -153,6 +167,60 @@ func (s *Service) RemoveEnvironment(ctx context.Context, req *connect.Request[wo
 		return nil, err
 	}
 	return connect.NewResponse(&workspacev1.RemoveEnvironmentResponse{}), nil
+}
+
+func (s *Service) DeployProduction(ctx context.Context, req *connect.Request[workspacev1.DeployProductionRequest]) (*connect.Response[workspacev1.DeployProductionResponse], error) {
+	c, m := callerOf(ctx), req.Msg
+	var env *workspacev1.Environment
+	err := s.tx(ctx, func(q *store.Queries) error {
+		sv, err := s.serverNamed(ctx, q, c, m.Server)
+		if err != nil {
+			return err
+		}
+		p, err := q.ProjectByName(ctx, store.ProjectByNameParams{WorkspaceID: c.workspace, Name: m.Project})
+		if noRows(err) {
+			return notFound("no project %q in this workspace", m.Project)
+		}
+		if err != nil {
+			return internal(err)
+		}
+		e, err := q.ServerEnvironment(ctx, store.ServerEnvironmentParams{WorkspaceID: c.workspace, ServerID: sv.ID, ProjectID: p.ID})
+		if noRows(err) || (err == nil && e.Kind != "production") {
+			return connect.NewError(connect.CodeFailedPrecondition, errorf("%s has no production environment on %s: 'devopus env create production'", m.Project, m.Server))
+		}
+		if err != nil {
+			return internal(err)
+		}
+		v, err := q.ProjectVersion(ctx, store.ProjectVersionParams{ProjectID: p.ID, Version: m.Version})
+		if noRows(err) {
+			return notFound("%s has no version %d", m.Project, m.Version)
+		}
+		if err != nil {
+			return internal(err)
+		}
+		k, err := q.SigningKey(ctx, store.SigningKeyParams{WorkspaceID: c.workspace, DeviceID: m.DeviceId, UserID: c.userID})
+		if noRows(err) {
+			return invalid("a deploy must be signed by a device of yours with a registered signing key: deploy with devopus")
+		}
+		if err != nil {
+			return internal(err)
+		}
+		if !ed25519.Verify(k.PublicKey, signing.DeployMessage(c.workspace, sv.ID, m.Project, m.Version, []byte(v.Config)), m.Signature) {
+			return invalid("the signature does not match version %d of %s", m.Version, m.Project)
+		}
+		now := s.now()
+		if err := q.AddDeploy(ctx, store.AddDeployParams{WorkspaceID: c.workspace, ServerID: sv.ID, ProjectID: p.ID, Version: m.Version,
+			Signature: m.Signature, SignerDevice: m.DeviceId, DeployedBy: c.userID, DeployedAt: now}); err != nil {
+			return internal(err)
+		}
+		env = &workspacev1.Environment{Project: m.Project, Server: m.Server, Kind: e.Kind, Domain: e.Domain,
+			DeployedVersion: m.Version, DeployedBy: c.email, DeployedAt: timestamppb.New(now)}
+		return s.audit(ctx, q, c.workspace, "production.deployed", m.Project, fmt.Sprintf("v%d on %s", m.Version, m.Server))
+	})
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&workspacev1.DeployProductionResponse{Environment: env}), nil
 }
 
 // serverEnvironment is how a server runs a project, for its desired state.
