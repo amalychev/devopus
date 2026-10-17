@@ -1980,7 +1980,12 @@ type LinkInfo struct {
 	Server    string                 `protobuf:"bytes,2,opt,name=server,proto3" json:"server,omitempty"`
 	Connected bool                   `protobuf:"varint,3,opt,name=connected,proto3" json:"connected,omitempty"`
 	// Why it is not connected.
-	Error         string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Error string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	// The root of trust the agent pinned for the workspace (ADR-0018), its fingerprint;
+	// offered is another one the server gives now — signatures count against the pinned
+	// one, and someone must find out why.
+	TrustRoot     string `protobuf:"bytes,5,opt,name=trust_root,json=trustRoot,proto3" json:"trust_root,omitempty"`
+	TrustOffered  string `protobuf:"bytes,6,opt,name=trust_offered,json=trustOffered,proto3" json:"trust_offered,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2039,6 +2044,20 @@ func (x *LinkInfo) GetConnected() bool {
 func (x *LinkInfo) GetError() string {
 	if x != nil {
 		return x.Error
+	}
+	return ""
+}
+
+func (x *LinkInfo) GetTrustRoot() string {
+	if x != nil {
+		return x.TrustRoot
+	}
+	return ""
+}
+
+func (x *LinkInfo) GetTrustOffered() string {
+	if x != nil {
+		return x.TrustOffered
 	}
 	return ""
 }
@@ -4579,12 +4598,15 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	"\x02ca\x18\a \x01(\v2\x18.devopus.agent.v2.CAInfoR\x02ca\x127\n" +
 	"\aaccount\x18\t \x01(\v2\x1d.devopus.agent.v2.AccountInfoR\aaccount\x12.\n" +
 	"\x04link\x18\n" +
-	" \x01(\v2\x1a.devopus.agent.v2.LinkInfoR\x04linkJ\x04\b\b\x10\tR\tpanel_url\"t\n" +
+	" \x01(\v2\x1a.devopus.agent.v2.LinkInfoR\x04linkJ\x04\b\b\x10\tR\tpanel_url\"\xb8\x01\n" +
 	"\bLinkInfo\x12\x1c\n" +
 	"\tworkspace\x18\x01 \x01(\tR\tworkspace\x12\x16\n" +
 	"\x06server\x18\x02 \x01(\tR\x06server\x12\x1c\n" +
 	"\tconnected\x18\x03 \x01(\bR\tconnected\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error\"v\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12\x1d\n" +
+	"\n" +
+	"trust_root\x18\x05 \x01(\tR\ttrustRoot\x12#\n" +
+	"\rtrust_offered\x18\x06 \x01(\tR\ftrustOffered\"v\n" +
 	"\vAccountInfo\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x1d\n" +

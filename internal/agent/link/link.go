@@ -51,7 +51,9 @@ type Options struct {
 
 // State is what the link is doing, for 'devopus status'.
 type State struct {
-	Workspace string
+	// WorkspaceID and Workspace (its name) are what the link follows.
+	WorkspaceID string
+	Workspace   string
 	Server    string
 	Connected bool
 	// Error is why it is not connected.
@@ -283,7 +285,7 @@ func (l *Link) watch(ctx context.Context, ws *credentials.Workspace, tok string)
 				"projects", strings.Join(conflicts, ", "))
 		}
 		l.set(func(s *State) {
-			*s = State{Workspace: m.WorkspaceName, Server: ws.ServerURL, Connected: true, Received: time.Now()}
+			*s = State{WorkspaceID: m.WorkspaceId, Workspace: m.WorkspaceName, Server: ws.ServerURL, Connected: true, Received: time.Now()}
 		})
 		l.opt.Log.Info("desired state from the workspace server", "workspace", m.WorkspaceName, "projects", len(m.Projects))
 		if len(m.PendingDevices) > 0 && len(key.Wrapped) > 0 {

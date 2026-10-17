@@ -11,6 +11,7 @@ import (
 
 	syncv1 "github.com/amalychev/devopus/gen/devopus/sync/v1"
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
+	"github.com/amalychev/devopus/internal/authz"
 	"github.com/amalychev/devopus/internal/server/store"
 	"github.com/amalychev/devopus/internal/signing"
 )
@@ -158,8 +159,10 @@ func (s *Service) SignVersion(ctx context.Context, req *connect.Request[workspac
 		if err != nil {
 			return internal(err)
 		}
-		if v.AuthorID != c.userID {
-			return denied("only the author of a version signs it")
+		// The author signs their version; someone who may configure the project signs
+		// one they reviewed — a change made in the web, say.
+		if v.AuthorID != c.userID && !c.subject.Can(authz.ProjectConfigure, m.Project) {
+			return denied("a version is signed by its author, or by someone with %s in %q who reviewed it", authz.ProjectConfigure, m.Project)
 		}
 		k, err := q.SigningKey(ctx, store.SigningKeyParams{WorkspaceID: c.workspace, DeviceID: m.DeviceId, UserID: c.userID})
 		if noRows(err) {

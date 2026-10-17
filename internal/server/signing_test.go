@@ -61,8 +61,11 @@ func TestSigning(t *testing.T) {
 	// The lead changes the project and signs the version; only the author signs it.
 	conf := must[workspacev1.PutServiceResponse](t)(e.client.PutService(ctx, as(e, f.lead, &workspacev1.PutServiceRequest{WorkspaceId: f.ws, Project: "shop", Name: "db", ServiceYaml: "type: mysql\nversion: \"8.4\"\n", Create: true}))).Config
 	sig := leadKey.Sign(signing.SettingsMessage(f.ws, "shop", conf.Version, []byte(conf.Yaml)))
-	if _, err := e.client.SignVersion(ctx, as(e, f.admin, &workspacev1.SignVersionRequest{WorkspaceId: f.ws, Project: "shop", Version: conf.Version, DeviceId: "admin-mac", Signature: adminKey.Sign(signing.SettingsMessage(f.ws, "shop", conf.Version, []byte(conf.Yaml)))})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("another than the author signs: %v", err)
+	// The developer neither wrote it nor may configure the project.
+	devKey, _ := signing.NewKey()
+	register(f.dev, "dev-mac", devKey)
+	if _, err := e.client.SignVersion(ctx, as(e, f.dev, &workspacev1.SignVersionRequest{WorkspaceId: f.ws, Project: "shop", Version: conf.Version, DeviceId: "dev-mac", Signature: devKey.Sign(signing.SettingsMessage(f.ws, "shop", conf.Version, []byte(conf.Yaml)))})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("a developer signs another's version: %v", err)
 	}
 	if _, err := e.client.SignVersion(ctx, as(e, f.lead, &workspacev1.SignVersionRequest{WorkspaceId: f.ws, Project: "shop", Version: conf.Version, DeviceId: "lead-mac", Signature: sig[:10]})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("a broken signature: %v", err)

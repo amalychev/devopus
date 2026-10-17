@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
 	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
 	"net/http"
@@ -360,6 +361,24 @@ func TestProjects(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("drift lacks %q:\n%s", want, out)
 		}
+	}
+
+	// A change made in the web is not signed; 'project sign' reviews and signs it.
+	web := connect.NewRequest(&workspacev1.PutServiceRequest{WorkspaceId: cur.ID, Project: "demo", Name: "cache", ServiceYaml: "type: redis\nversion: \"7.4\"\n", Create: true})
+	web.Header().Set("Authorization", "Bearer "+acc.Token)
+	put, err := workspacev1connect.NewWorkspaceServiceClient(http.DefaultClient, cur.ServerURL).PutService(t.Context(), web)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unsigned := fmt.Sprint(put.Msg.Config.Version)
+	if out := squash(ok(t, "project", "config", "history", "demo")); !strings.Contains(out, unsigned+" ") || !strings.Contains(out, "no service add cache") {
+		t.Errorf("the web's version:\n%s", out)
+	}
+	if out := ok(t, "project", "sign", "demo", "-y"); !strings.Contains(out, "Version "+unsigned+" of demo is signed.") {
+		t.Errorf("sign:\n%s", out)
+	}
+	if out := ok(t, "project", "sign", "demo", "-y"); !strings.Contains(out, "signed already") {
+		t.Errorf("sign again:\n%s", out)
 	}
 
 	ok(t, "app", "rm", "demo", "admin")

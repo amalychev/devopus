@@ -41,6 +41,7 @@ import (
 	"github.com/amalychev/devopus/internal/credentials"
 	"github.com/amalychev/devopus/internal/daemon"
 	"github.com/amalychev/devopus/internal/secrets"
+	"github.com/amalychev/devopus/internal/signing"
 	"github.com/amalychev/devopus/internal/spec"
 )
 
@@ -213,7 +214,14 @@ func (a *Agent) Account() *agentv2.AccountInfo {
 
 func (a *Agent) Link() *agentv2.LinkInfo {
 	s := a.link.State()
-	return &agentv2.LinkInfo{Workspace: s.Workspace, Server: s.Server, Connected: s.Connected, Error: s.Error}
+	info := &agentv2.LinkInfo{Workspace: s.Workspace, Server: s.Server, Connected: s.Connected, Error: s.Error}
+	if r := a.store.Snapshot().TrustRoots[s.WorkspaceID]; r != nil {
+		info.TrustRoot = signing.Fingerprint(r.PublicKey)
+		if len(r.Offered) > 0 {
+			info.TrustOffered = signing.Fingerprint(r.Offered)
+		}
+	}
+	return info
 }
 
 func (a *Agent) Runtime() *agentv2.RuntimeInfo {

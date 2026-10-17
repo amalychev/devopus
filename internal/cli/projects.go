@@ -296,7 +296,7 @@ func (a *app) projectCmd() *cobra.Command {
 	}
 	rm.Flags().BoolVarP(&yes, "yes", "y", false, "do not ask")
 
-	cmd.AddCommand(create, list, show, set, a.projectConfigCmd(), rm)
+	cmd.AddCommand(create, list, show, set, a.projectConfigCmd(), a.projectSignCmd(), rm)
 	return cmd
 }
 

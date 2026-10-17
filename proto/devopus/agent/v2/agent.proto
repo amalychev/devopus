@@ -343,6 +343,11 @@ message LinkInfo {
   bool connected = 3;
   // Why it is not connected.
   string error = 4;
+  // The root of trust the agent pinned for the workspace (ADR-0018), its fingerprint;
+  // offered is another one the server gives now — signatures count against the pinned
+  // one, and someone must find out why.
+  string trust_root = 5;
+  string trust_offered = 6;
 }
 
 message AccountInfo {

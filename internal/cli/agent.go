@@ -265,6 +265,12 @@ func (a *app) printStatus(s *agentv2.StatusResponse) {
 	} else {
 		fmt.Fprintln(a.stdout, "Account  the agent has no session yet ('devopus agent logs' tells why)")
 	}
+	if l := s.Link; l != nil && l.TrustOffered != "" {
+		fmt.Fprintf(a.stdout, "Trust    ! the workspace server offers another root of trust (%s) than the one this agent keeps (%s).\n"+
+			"         Signatures count against the kept one. Ask the workspace's admin: 'devopus trust show' on their machine shows theirs.\n", l.TrustOffered, l.TrustRoot)
+	} else if l != nil && l.TrustRoot != "" {
+		fmt.Fprintf(a.stdout, "Trust    root %s\n", l.TrustRoot)
+	}
 	switch l := s.Link; {
 	case l.GetConnected():
 		fmt.Fprintf(a.stdout, "Link     workspace %s at %s · connected\n", l.Workspace, l.Server)

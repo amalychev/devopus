@@ -443,6 +443,9 @@ func TestAgentFromWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 	serves("signed settings v2 pw " + password + " Python 3.13")
+	if l := status().Link; l.TrustRoot != signing.Fingerprint(leadSig.Public()) || l.TrustOffered != "" {
+		t.Errorf("trust in status: %+v", l)
+	}
 	for _, p := range status().Projects {
 		if p.Name == project && (p.SignedBy != "lead@acme.dev" || p.Pending != nil) {
 			t.Errorf("signed version on the device: signed by %q, pending %v", p.SignedBy, p.Pending)

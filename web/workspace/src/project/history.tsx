@@ -38,7 +38,7 @@ export function History({ current, project }: { current: Current; project: Proje
                 <TableCell className="text-muted-foreground">
                   {v.author}{" "}
                   {!v.signed && (
-                    <Badge variant="outline" title="Made in the browser or by an older CLI: the team's agents ask before applying new code from it">
+                    <Badge variant="outline" title="Made in the browser or by an older CLI: servers do not run it and agents ask before its new code. Review and sign it: devopus project sign">
                       unsigned
                     </Badge>
                   )}
