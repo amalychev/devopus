@@ -357,10 +357,11 @@ type prepared struct {
 	ws    *spec.Project
 	admin string
 	// project is the project as registered; its secrets for one of the server.
-	project *agentv2.ProjectSpec
-	url     string
-	plan    *stack.Plan
-	err     error
+	project   *agentv2.ProjectSpec
+	overrides spec.OverrideResult
+	url       string
+	plan      *stack.Plan
+	err       error
 	// failed is the step that stopped the environment.
 	failed string
 	// waiting: applications are starting; the environment is not running yet.
@@ -450,7 +451,7 @@ func (r *Reconciler) prepareEnv(ctx context.Context, rev uint64, env *agentv2.En
 		}})
 		root := ""
 		if ws != nil {
-			root, p.admin, p.project = ws.root, ws.admin, ws.project
+			root, p.admin, p.project, p.overrides = ws.root, ws.admin, ws.project, ws.overrides
 		}
 		steps = append(steps, r.unitSteps(env, root, p, &nw, o)...)
 		defer func() { r.setUnits(ctx, env.Id, p.plan, p.hosts) }()

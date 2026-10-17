@@ -62,6 +62,11 @@ message DesiredProject {
   // Its secrets encrypted to the workspace's key, by name: only to users who may read
   // them (secrets.read).
   map<string, bytes> secrets = 5;
+  // What the user may change in devopus.yaml (spec.Allow*): * for admins and
+  // teamleads, the project's overrides.allowed for developers.
+  repeated string overrides_allowed = 6;
+  // The user has overrides.use in the project; without it nothing is allowed.
+  bool overrides_permitted = 7;
 }
 
 // SecretsKey is the workspace's key for this device.
@@ -111,6 +116,10 @@ message EnvironmentReport {
   string error = 8;
   // The version of the project's settings the device runs.
   int32 config_version = 9;
+  // Personal overrides of devopus.yaml applied on the device, and the ones refused
+  // with their reasons: the drift a teamlead sees.
+  repeated string overrides = 10;
+  repeated string rejected_overrides = 11;
 }
 
 message ReportStatusRequest {

@@ -4,6 +4,7 @@ package store
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -15,11 +16,13 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	"github.com/amalychev/devopus/internal/agent/git"
 	"github.com/amalychev/devopus/internal/importer"
 	"github.com/amalychev/devopus/internal/spec"
 )
@@ -145,14 +148,53 @@ func ensureBase(st *agentv2.DesiredState, name string) *agentv2.EnvironmentSpec 
 	return env
 }
 
-// ParseProject reads a registered project: the spec the workspace server sent, or
+// ParseProject reads a registered project as the agent runs it: the spec the
+// workspace server sent with the personal overrides of devopus.yaml applied, or
 // workspace.yaml v1 of a folder.
 func ParseProject(p *agentv2.ProjectSpec) (*spec.Project, error) {
-	if len(p.Spec) > 0 {
-		return spec.ParseYAML(p.Spec)
-	}
-	proj, _, err := importer.Parse(p.Config)
+	proj, _, err := EffectiveProject(p)
 	return proj, err
+}
+
+// OverrideFile is where a project's devopus.yaml is on this device.
+func OverrideFile(p *agentv2.ProjectSpec) string { return filepath.Join(p.Root, spec.OverrideFile) }
+
+// EffectiveProject is ParseProject with what devopus.yaml did: the overrides applied,
+// and the ones refused with their reasons (ADR-0013). The file must be ignored by git:
+// it is personal, and must not reach the team through the repository.
+func EffectiveProject(p *agentv2.ProjectSpec) (*spec.Project, spec.OverrideResult, error) {
+	if len(p.Spec) == 0 {
+		proj, _, err := importer.Parse(p.Config)
+		return proj, spec.OverrideResult{}, err
+	}
+	base, err := spec.ParseYAML(p.Spec)
+	if err != nil {
+		return nil, spec.OverrideResult{}, err
+	}
+	file := OverrideFile(p)
+	data, err := os.ReadFile(file)
+	if errors.Is(err, os.ErrNotExist) || p.Root == "" {
+		return base, spec.OverrideResult{}, nil
+	}
+	if err != nil {
+		return base, spec.OverrideResult{Rejected: []string{file + ": " + err.Error()}}, nil
+	}
+	o, err := spec.ParseOverride(data)
+	if err != nil {
+		return base, spec.OverrideResult{Rejected: []string{err.Error()}}, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if repo, ignored := git.Ignored(ctx, p.Root, spec.OverrideFile); repo && !ignored {
+		return base, spec.OverrideResult{Rejected: []string{fmt.Sprintf("%s is not in .gitignore: it is personal and must not reach the repository; add it, and the agent applies it", file)}}, nil
+	}
+	why := spec.PolicyReason(p.OverridesAllowed)
+	allowed := p.OverridesAllowed
+	if !p.OverridesPermitted {
+		why, allowed = "you do not have overrides.use in this project; its teamlead or the workspace admin can tell why", nil
+	}
+	out, r := base.ApplyOverride(o, allowed, why)
+	return out, r, nil
 }
 
 // ServerProject is a project the workspace server gives this device.
@@ -162,6 +204,9 @@ type ServerProject struct {
 	Version int32
 	// Secrets are encrypted to the workspace's key.
 	Secrets map[string][]byte
+	// OverridesAllowed and OverridesPermitted say what devopus.yaml may change.
+	OverridesAllowed   []string
+	OverridesPermitted bool
 }
 
 // ServerKey is the workspace's key as this device has it: wrapped for it.
@@ -198,6 +243,7 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 			p.WorkspaceId, p.Spec, p.ConfigVersion, p.AdminEmail = workspaceID, sp.Spec, sp.Version, adminEmail
 			p.Config, p.ConfigHash, p.Orphaned = nil, hex.EncodeToString(sum[:]), false
 			p.Secrets, p.KeyWrap, p.KeyGeneration = sp.Secrets, key.Wrapped, key.Generation
+			p.OverridesAllowed, p.OverridesPermitted = sp.OverridesAllowed, sp.OverridesPermitted
 			base := ensureBase(st, sp.Name)
 			if start && !p.Held {
 				base.Phase = agentv2.DesiredPhase_DESIRED_PHASE_RUNNING

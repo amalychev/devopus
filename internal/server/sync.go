@@ -15,6 +15,7 @@ import (
 	"github.com/amalychev/devopus/gen/devopus/sync/v1/syncv1connect"
 	"github.com/amalychev/devopus/internal/authz"
 	"github.com/amalychev/devopus/internal/server/store"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // The agents' link (specs/agent-protocol.md): an agent watches the desired state of its
@@ -97,7 +98,14 @@ func (s *Service) desired(ctx context.Context, c *caller, device string) (*syncv
 		if err != nil {
 			return nil, err
 		}
-		dp := &syncv1.DesiredProject{Id: p.ID, Name: p.Name, Version: p.Version, ConfigYaml: v.Config}
+		dp := &syncv1.DesiredProject{Id: p.ID, Name: p.Name, Version: p.Version, ConfigYaml: v.Config,
+			OverridesPermitted: c.subject.Can(authz.OverridesUse, p.Name)}
+		// Admins and teamlead may override anything; developers what the policy allows.
+		if c.subject.Role == authz.Admin || c.subject.Projects[p.Name] == authz.Teamlead {
+			dp.OverridesAllowed = []string{spec.AllowAll}
+		} else if cfg, err := spec.ParseYAML([]byte(v.Config)); err == nil && cfg.Overrides != nil {
+			dp.OverridesAllowed = cfg.Overrides.Allowed
+		}
 		if c.subject.Can(authz.SecretsRead, p.Name) {
 			secrets, err := s.q.ProjectSecrets(ctx, p.ID)
 			if err != nil {
@@ -204,6 +212,7 @@ func (x *syncService) ReportStatus(ctx context.Context, req *connect.Request[syn
 			if err := q.AddDeviceEnvironment(ctx, store.AddDeviceEnvironmentParams{
 				WorkspaceID: c.workspace, DeviceID: d.Id, UserID: c.userID, EnvID: e.Id, Project: e.Project, Kind: e.Kind,
 				Name: e.Name, Branch: e.Branch, Phase: e.Phase, Url: e.Url, Error: e.Error, ConfigVersion: e.ConfigVersion,
+				Overrides: nonNilStrings(e.Overrides), RejectedOverrides: nonNilStrings(e.RejectedOverrides),
 			}); err != nil {
 				return err
 			}
@@ -230,7 +239,8 @@ func (x *syncService) ListDevices(ctx context.Context, req *connect.Request[sync
 	for _, e := range envs {
 		k := [2]string{e.DeviceID, e.UserID}
 		byDevice[k] = append(byDevice[k], &syncv1.EnvironmentReport{Project: e.Project, Id: e.EnvID, Kind: e.Kind, Name: e.Name,
-			Branch: e.Branch, Phase: e.Phase, Url: e.Url, Error: e.Error, ConfigVersion: e.ConfigVersion})
+			Branch: e.Branch, Phase: e.Phase, Url: e.Url, Error: e.Error, ConfigVersion: e.ConfigVersion,
+			Overrides: e.Overrides, RejectedOverrides: e.RejectedOverrides})
 	}
 	resp := &syncv1.ListDevicesResponse{}
 	now := s.now()
@@ -259,4 +269,11 @@ func (x *syncService) ListDevices(ctx context.Context, req *connect.Request[sync
 		})
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func nonNilStrings(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }

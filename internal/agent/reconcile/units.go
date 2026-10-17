@@ -76,6 +76,12 @@ func (r *Reconciler) unitSteps(env *agentv2.EnvironmentSpec, root string, p *pre
 			}
 			p.plan = plan
 			notes := append(append([]string{}, p.notes...), plan.Notes...)
+			for _, o := range p.overrides.Applied {
+				notes = append(notes, "devopus.yaml: "+o)
+			}
+			for _, o := range p.overrides.Rejected {
+				notes = append(notes, "devopus.yaml, not applied: "+o)
+			}
 			r.update(env.Id, func(s *agentv2.EnvironmentStatus) { s.Notes = notes })
 			return msg, nil
 		}},

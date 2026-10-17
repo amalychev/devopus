@@ -28,6 +28,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/store"
 	"github.com/amalychev/devopus/internal/credentials"
 	"github.com/amalychev/devopus/internal/secrets"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // Options of a link.
@@ -239,7 +240,8 @@ func (l *Link) watch(ctx context.Context, ws *credentials.Workspace, tok string)
 		m := stream.Msg()
 		projects := make([]store.ServerProject, 0, len(m.Projects))
 		for _, p := range m.Projects {
-			projects = append(projects, store.ServerProject{Name: p.Name, Spec: []byte(p.ConfigYaml), Version: p.Version, Secrets: p.Secrets})
+			projects = append(projects, store.ServerProject{Name: p.Name, Spec: []byte(p.ConfigYaml), Version: p.Version, Secrets: p.Secrets,
+				OverridesAllowed: p.OverridesAllowed, OverridesPermitted: p.OverridesPermitted})
 		}
 		key := store.ServerKey{Generation: m.GetKey().GetGeneration(), Wrapped: m.GetKey().GetWrapped()}
 		_, conflicts, err := l.opt.Store.SyncServer(m.WorkspaceId, m.AdminEmail, key, projects, root)
@@ -305,9 +307,11 @@ func (l *Link) Report(ctx context.Context) error {
 		return err
 	}
 	versions := map[string]int32{}
+	overrides := map[string]spec.OverrideResult{}
 	for _, p := range l.opt.Store.Snapshot().Projects {
 		if p.WorkspaceId == ws.ID && !p.Orphaned {
 			versions[p.Name] = p.ConfigVersion
+			_, overrides[p.Name], _ = store.EffectiveProject(p)
 		}
 	}
 	msg := &syncv1.ReportStatusRequest{WorkspaceId: ws.ID, Device: device(l.opt.Version)}
@@ -323,6 +327,7 @@ func (l *Link) Report(ctx context.Context) error {
 		msg.Environments = append(msg.Environments, &syncv1.EnvironmentReport{
 			Project: e.Project, Id: e.Id, Kind: kind, Name: e.Name, Branch: e.Branch,
 			Phase: strings.ToLower(strings.TrimPrefix(e.Phase.String(), "PHASE_")), Url: e.Url, Error: e.Error, ConfigVersion: v,
+			Overrides: overrides[e.Project].Applied, RejectedOverrides: overrides[e.Project].Rejected,
 		})
 	}
 	req := connect.NewRequest(msg)

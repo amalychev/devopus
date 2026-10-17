@@ -86,3 +86,45 @@ func TestYAMLRoundTripAndCheck(t *testing.T) {
 		t.Error("Clone shares maps")
 	}
 }
+
+func TestApplyOverride(t *testing.T) {
+	p := &Project{Name: "shop", Domain: "shop.localhost",
+		Apps: map[string]*App{"api": {Repo: "x", Env: map[string]string{"DEBUG": "0"}}},
+		Services: map[string]*Service{
+			"php": {Type: "php", Version: "8.3", Apps: []string{"api"}},
+			"db":  {Type: "postgres", Version: "17", Port: 5432, Apps: []string{"api"}},
+		}}
+	o, err := ParseOverride([]byte("services:\n  php:\n    version: \"8.4\"\n  db:\n    port: 6543\n  nope:\n    version: \"1\"\napps:\n  api:\n    env:\n      DEBUG: \"1\"\n      TRACE: \"1\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The policy allows versions and one variable.
+	out, r := p.ApplyOverride(o, []string{AllowVersions, "env:DEBUG"}, PolicyReason([]string{AllowVersions, "env:DEBUG"}))
+	if out.Services["php"].Version != "8.4" || out.Apps["api"].Env["DEBUG"] != "1" || out.Apps["api"].Env["TRACE"] != "" || out.Services["db"].Port != 5432 {
+		t.Fatalf("effective: %+v %+v", out.Services, out.Apps["api"].Env)
+	}
+	if p.Services["php"].Version != "8.3" {
+		t.Error("the base project changed")
+	}
+	if strings.Join(r.Applied, "; ") != "apps.api.env.DEBUG=1; services.php.version: 8.3 → 8.4" {
+		t.Errorf("applied: %v", r.Applied)
+	}
+	if len(r.Rejected) != 3 || !strings.Contains(strings.Join(r.Rejected, "; "), "services.nope: the project has no such service") ||
+		!strings.Contains(strings.Join(r.Rejected, "; "), "services.db.port: 5432 → 6543: not allowed by the project's policy") {
+		t.Errorf("rejected: %v", r.Rejected)
+	}
+
+	// Nothing allowed: nothing applied, every change explained.
+	none, r := p.ApplyOverride(o, nil, "you lack overrides.use")
+	if none.Services["php"].Version != "8.3" || len(r.Applied) != 0 || !strings.Contains(r.Rejected[0], "you lack overrides.use") {
+		t.Errorf("nothing allowed: %v", r)
+	}
+	// Everything allowed.
+	if _, r := p.ApplyOverride(o, []string{AllowAll}, ""); len(r.Applied) != 4 {
+		t.Errorf("all: %v", r)
+	}
+	if _, err := ParseOverride([]byte("services:\n  php:\n    image: x\n")); err == nil {
+		t.Error("an override of the image accepted")
+	}
+}

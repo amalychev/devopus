@@ -161,9 +161,14 @@ type DesiredProject struct {
 	ConfigYaml string `protobuf:"bytes,4,opt,name=config_yaml,json=configYaml,proto3" json:"config_yaml,omitempty"`
 	// Its secrets encrypted to the workspace's key, by name: only to users who may read
 	// them (secrets.read).
-	Secrets       map[string][]byte `protobuf:"bytes,5,rep,name=secrets,proto3" json:"secrets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Secrets map[string][]byte `protobuf:"bytes,5,rep,name=secrets,proto3" json:"secrets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// What the user may change in devopus.yaml (spec.Allow*): * for admins and
+	// teamleads, the project's overrides.allowed for developers.
+	OverridesAllowed []string `protobuf:"bytes,6,rep,name=overrides_allowed,json=overridesAllowed,proto3" json:"overrides_allowed,omitempty"`
+	// The user has overrides.use in the project; without it nothing is allowed.
+	OverridesPermitted bool `protobuf:"varint,7,opt,name=overrides_permitted,json=overridesPermitted,proto3" json:"overrides_permitted,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *DesiredProject) Reset() {
@@ -229,6 +234,20 @@ func (x *DesiredProject) GetSecrets() map[string][]byte {
 		return x.Secrets
 	}
 	return nil
+}
+
+func (x *DesiredProject) GetOverridesAllowed() []string {
+	if x != nil {
+		return x.OverridesAllowed
+	}
+	return nil
+}
+
+func (x *DesiredProject) GetOverridesPermitted() bool {
+	if x != nil {
+		return x.OverridesPermitted
+	}
+	return false
 }
 
 // SecretsKey is the workspace's key for this device.
@@ -469,8 +488,12 @@ type EnvironmentReport struct {
 	Error string `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
 	// The version of the project's settings the device runs.
 	ConfigVersion int32 `protobuf:"varint,9,opt,name=config_version,json=configVersion,proto3" json:"config_version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Personal overrides of devopus.yaml applied on the device, and the ones refused
+	// with their reasons: the drift a teamlead sees.
+	Overrides         []string `protobuf:"bytes,10,rep,name=overrides,proto3" json:"overrides,omitempty"`
+	RejectedOverrides []string `protobuf:"bytes,11,rep,name=rejected_overrides,json=rejectedOverrides,proto3" json:"rejected_overrides,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *EnvironmentReport) Reset() {
@@ -564,6 +587,20 @@ func (x *EnvironmentReport) GetConfigVersion() int32 {
 		return x.ConfigVersion
 	}
 	return 0
+}
+
+func (x *EnvironmentReport) GetOverrides() []string {
+	if x != nil {
+		return x.Overrides
+	}
+	return nil
+}
+
+func (x *EnvironmentReport) GetRejectedOverrides() []string {
+	if x != nil {
+		return x.RejectedOverrides
+	}
+	return nil
 }
 
 type ReportStatusRequest struct {
@@ -849,14 +886,16 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"public_key\x18\x04 \x01(\tR\tpublicKey\"b\n" +
 	"\fWatchRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12/\n" +
-	"\x06device\x18\x02 \x01(\v2\x17.devopus.sync.v1.DeviceR\x06device\"\xf3\x01\n" +
+	"\x06device\x18\x02 \x01(\v2\x17.devopus.sync.v1.DeviceR\x06device\"\xd1\x02\n" +
 	"\x0eDesiredProject\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x03 \x01(\x05R\aversion\x12\x1f\n" +
 	"\vconfig_yaml\x18\x04 \x01(\tR\n" +
 	"configYaml\x12F\n" +
-	"\asecrets\x18\x05 \x03(\v2,.devopus.sync.v1.DesiredProject.SecretsEntryR\asecrets\x1a:\n" +
+	"\asecrets\x18\x05 \x03(\v2,.devopus.sync.v1.DesiredProject.SecretsEntryR\asecrets\x12+\n" +
+	"\x11overrides_allowed\x18\x06 \x03(\tR\x10overridesAllowed\x12/\n" +
+	"\x13overrides_permitted\x18\a \x01(\bR\x12overridesPermitted\x1a:\n" +
 	"\fSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"F\n" +
@@ -882,7 +921,7 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"adminEmail\x12;\n" +
 	"\bprojects\x18\x04 \x03(\v2\x1f.devopus.sync.v1.DesiredProjectR\bprojects\x12-\n" +
 	"\x03key\x18\x05 \x01(\v2\x1b.devopus.sync.v1.SecretsKeyR\x03key\x12G\n" +
-	"\x0fpending_devices\x18\x06 \x03(\v2\x1e.devopus.sync.v1.PendingDeviceR\x0ependingDevices\"\xe2\x01\n" +
+	"\x0fpending_devices\x18\x06 \x03(\v2\x1e.devopus.sync.v1.PendingDeviceR\x0ependingDevices\"\xaf\x02\n" +
 	"\x11EnvironmentReport\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -892,7 +931,10 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"\x05phase\x18\x06 \x01(\tR\x05phase\x12\x10\n" +
 	"\x03url\x18\a \x01(\tR\x03url\x12\x14\n" +
 	"\x05error\x18\b \x01(\tR\x05error\x12%\n" +
-	"\x0econfig_version\x18\t \x01(\x05R\rconfigVersion\"\xb1\x01\n" +
+	"\x0econfig_version\x18\t \x01(\x05R\rconfigVersion\x12\x1c\n" +
+	"\toverrides\x18\n" +
+	" \x03(\tR\toverrides\x12-\n" +
+	"\x12rejected_overrides\x18\v \x03(\tR\x11rejectedOverrides\"\xb1\x01\n" +
 	"\x13ReportStatusRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12/\n" +
 	"\x06device\x18\x02 \x01(\v2\x17.devopus.sync.v1.DeviceR\x06device\x12F\n" +

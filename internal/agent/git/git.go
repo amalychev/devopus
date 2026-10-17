@@ -52,6 +52,16 @@ func NoAccess(err error) bool {
 	return false
 }
 
+// Ignored reports whether git ignores a file of dir; repo is false when dir is in no
+// git checkout at all.
+func Ignored(ctx context.Context, dir, file string) (repo, ignored bool) {
+	if _, err := run(ctx, dir, nil, "rev-parse", "--git-dir"); err != nil {
+		return false, false
+	}
+	_, err := run(ctx, dir, nil, "check-ignore", "-q", "--", file)
+	return true, err == nil
+}
+
 // IsRepo reports whether dir is the top of a git checkout.
 func IsRepo(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, ".git"))

@@ -218,9 +218,9 @@ overrides:
 
 | Поле | Описание |
 |---|---|
-| `allowed` | Список разрешённых личных переопределений: `xdebug`, `ports`, `env:<NAME>`, `resources` |
+| `allowed` | Что разработчик может менять у себя в `devopus.yaml`: `versions` (версии сервисов), `env` (любые переменные), `env:<NAME>` (одну), `ports`, `*` (всё). Админ и тимлид проекта могут всё |
 
-Overrides хранятся в панели (`Override` = Member × Project) или в локальном `workspace.override.yaml` (в `.gitignore`); всегда видны в панели.
+С R9 переопределения — личный `devopus.yaml` в папке проекта на машине разработчика (в `.gitignore`): `apps.<имя>.env/port`, `services.<имя>.version/env/port`. Агент применяет разрешённое, отклоняет остальное с причиной и сообщает серверу; видно в `devopus drift`.
 
 ## DataPolicy (предложение)
 

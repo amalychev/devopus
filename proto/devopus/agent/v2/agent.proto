@@ -88,6 +88,10 @@ message ProjectSpec {
   // The workspace's key wrapped for this device; empty until it is delivered.
   bytes key_wrap = 12;
   int32 key_generation = 13;
+  // What devopus.yaml may change for this user (spec.Allow*), and whether they have
+  // overrides.use at all.
+  repeated string overrides_allowed = 14;
+  bool overrides_permitted = 15;
 }
 
 enum EnvironmentKind {
@@ -495,8 +499,13 @@ message DescribeProjectResponse {
   repeated string services = 5;
   string branch_prefix = 6;
   FeaturePlan plan = 7;
-  // The project as the agent runs it, in the YAML form of internal/spec.
+  // The project as the agent runs it, in the YAML form of internal/spec: with the
+  // personal overrides of devopus.yaml applied.
   bytes spec = 8;
+  // devopus.yaml: where it is, what it changed, what it could not.
+  string override_file = 9;
+  repeated string overrides_applied = 10;
+  repeated string overrides_rejected = 11;
 }
 
 message LogSource {

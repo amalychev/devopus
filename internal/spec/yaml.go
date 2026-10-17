@@ -111,8 +111,17 @@ func (p *Project) Check() error {
 			errs = append(errs, fmt.Sprintf("services.%s: a cronjob needs a schedule", n))
 		}
 	}
+	if p.Overrides != nil {
+		for _, k := range p.Overrides.Allowed {
+			if k != AllowAll && k != AllowVersions && k != AllowEnv && k != AllowPorts && !envKindRe.MatchString(k) {
+				errs = append(errs, fmt.Sprintf("overrides.allowed: %q is none of *, versions, env, env:NAME, ports", k))
+			}
+		}
+	}
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "; "))
 	}
 	return nil
 }
+
+var envKindRe = regexp.MustCompile(`^env:[A-Za-z_][A-Za-z0-9_]*$`)

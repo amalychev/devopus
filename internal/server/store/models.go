@@ -28,18 +28,20 @@ type Device struct {
 }
 
 type DeviceEnvironment struct {
-	WorkspaceID   string
-	DeviceID      string
-	UserID        string
-	EnvID         string
-	Project       string
-	Kind          string
-	Name          string
-	Branch        string
-	Phase         string
-	Url           string
-	Error         string
-	ConfigVersion int32
+	WorkspaceID       string
+	DeviceID          string
+	UserID            string
+	EnvID             string
+	Project           string
+	Kind              string
+	Name              string
+	Branch            string
+	Phase             string
+	Url               string
+	Error             string
+	ConfigVersion     int32
+	Overrides         []string
+	RejectedOverrides []string
 }
 
 type DeviceKey struct {

@@ -90,6 +90,12 @@ func (s *Server) DescribeProject(_ context.Context, req *connect.Request[agentv2
 	if res.Spec, err = ws.YAML(); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	for _, p := range s.b.Store().Snapshot().Projects {
+		if p.Name == ws.Name && p.WorkspaceId != "" {
+			_, r, _ := store.EffectiveProject(p)
+			res.OverrideFile, res.OverridesApplied, res.OverridesRejected = store.OverrideFile(p), r.Applied, r.Rejected
+		}
+	}
 	for _, n := range ws.AppNames() {
 		a := ws.Apps[n]
 		res.Apps = append(res.Apps, &agentv2.AppInfo{Name: n, Routes: a.Routes, Optional: a.Optional, Uses: ws.Needs(n)})

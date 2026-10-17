@@ -406,8 +406,12 @@ type ProjectSpec struct {
 	// The workspace's key wrapped for this device; empty until it is delivered.
 	KeyWrap       []byte `protobuf:"bytes,12,opt,name=key_wrap,json=keyWrap,proto3" json:"key_wrap,omitempty"`
 	KeyGeneration int32  `protobuf:"varint,13,opt,name=key_generation,json=keyGeneration,proto3" json:"key_generation,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// What devopus.yaml may change for this user (spec.Allow*), and whether they have
+	// overrides.use at all.
+	OverridesAllowed   []string `protobuf:"bytes,14,rep,name=overrides_allowed,json=overridesAllowed,proto3" json:"overrides_allowed,omitempty"`
+	OverridesPermitted bool     `protobuf:"varint,15,opt,name=overrides_permitted,json=overridesPermitted,proto3" json:"overrides_permitted,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ProjectSpec) Reset() {
@@ -529,6 +533,20 @@ func (x *ProjectSpec) GetKeyGeneration() int32 {
 		return x.KeyGeneration
 	}
 	return 0
+}
+
+func (x *ProjectSpec) GetOverridesAllowed() []string {
+	if x != nil {
+		return x.OverridesAllowed
+	}
+	return nil
+}
+
+func (x *ProjectSpec) GetOverridesPermitted() bool {
+	if x != nil {
+		return x.OverridesPermitted
+	}
+	return false
 }
 
 type EnvironmentSpec struct {
@@ -3394,10 +3412,15 @@ type DescribeProjectResponse struct {
 	Services      []string               `protobuf:"bytes,5,rep,name=services,proto3" json:"services,omitempty"`
 	BranchPrefix  string                 `protobuf:"bytes,6,opt,name=branch_prefix,json=branchPrefix,proto3" json:"branch_prefix,omitempty"`
 	Plan          *FeaturePlan           `protobuf:"bytes,7,opt,name=plan,proto3" json:"plan,omitempty"`
-	// The project as the agent runs it, in the YAML form of internal/spec.
-	Spec          []byte `protobuf:"bytes,8,opt,name=spec,proto3" json:"spec,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// The project as the agent runs it, in the YAML form of internal/spec: with the
+	// personal overrides of devopus.yaml applied.
+	Spec []byte `protobuf:"bytes,8,opt,name=spec,proto3" json:"spec,omitempty"`
+	// devopus.yaml: where it is, what it changed, what it could not.
+	OverrideFile      string   `protobuf:"bytes,9,opt,name=override_file,json=overrideFile,proto3" json:"override_file,omitempty"`
+	OverridesApplied  []string `protobuf:"bytes,10,rep,name=overrides_applied,json=overridesApplied,proto3" json:"overrides_applied,omitempty"`
+	OverridesRejected []string `protobuf:"bytes,11,rep,name=overrides_rejected,json=overridesRejected,proto3" json:"overrides_rejected,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *DescribeProjectResponse) Reset() {
@@ -3482,6 +3505,27 @@ func (x *DescribeProjectResponse) GetPlan() *FeaturePlan {
 func (x *DescribeProjectResponse) GetSpec() []byte {
 	if x != nil {
 		return x.Spec
+	}
+	return nil
+}
+
+func (x *DescribeProjectResponse) GetOverrideFile() string {
+	if x != nil {
+		return x.OverrideFile
+	}
+	return ""
+}
+
+func (x *DescribeProjectResponse) GetOverridesApplied() []string {
+	if x != nil {
+		return x.OverridesApplied
+	}
+	return nil
+}
+
+func (x *DescribeProjectResponse) GetOverridesRejected() []string {
+	if x != nil {
+		return x.OverridesRejected
 	}
 	return nil
 }
@@ -3977,7 +4021,7 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	"\x0eDeviceSettings\x12*\n" +
 	"\x11coexist_http_port\x18\x01 \x01(\rR\x0fcoexistHttpPort\x12,\n" +
 	"\x12coexist_https_port\x18\x02 \x01(\rR\x10coexistHttpsPort\x12)\n" +
-	"\x10proxy_generation\x18\x03 \x01(\x04R\x0fproxyGeneration\"\xe1\x03\n" +
+	"\x10proxy_generation\x18\x03 \x01(\x04R\x0fproxyGeneration\"\xbf\x04\n" +
 	"\vProjectSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04root\x18\x02 \x01(\tR\x04root\x12\x16\n" +
@@ -3994,7 +4038,9 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	" \x01(\bR\x04held\x12D\n" +
 	"\asecrets\x18\v \x03(\v2*.devopus.agent.v2.ProjectSpec.SecretsEntryR\asecrets\x12\x19\n" +
 	"\bkey_wrap\x18\f \x01(\fR\akeyWrap\x12%\n" +
-	"\x0ekey_generation\x18\r \x01(\x05R\rkeyGeneration\x1a:\n" +
+	"\x0ekey_generation\x18\r \x01(\x05R\rkeyGeneration\x12+\n" +
+	"\x11overrides_allowed\x18\x0e \x03(\tR\x10overridesAllowed\x12/\n" +
+	"\x13overrides_permitted\x18\x0f \x01(\bR\x12overridesPermitted\x1a:\n" +
 	"\fSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"\x9c\x03\n" +
@@ -4228,7 +4274,7 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	"\x06copies\x18\x03 \x03(\tR\x06copies\x12\x10\n" +
 	"\x03own\x18\x04 \x03(\tR\x03own\x12\x16\n" +
 	"\x06shared\x18\x05 \x03(\tR\x06shared\x12\x1a\n" +
-	"\bwarnings\x18\x06 \x03(\tR\bwarnings\"\xa9\x02\n" +
+	"\bwarnings\x18\x06 \x03(\tR\bwarnings\"\xaa\x03\n" +
 	"\x17DescribeProjectResponse\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12%\n" +
 	"\x0eworkspace_path\x18\x02 \x01(\tR\rworkspacePath\x12\x16\n" +
@@ -4237,7 +4283,11 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	"\bservices\x18\x05 \x03(\tR\bservices\x12#\n" +
 	"\rbranch_prefix\x18\x06 \x01(\tR\fbranchPrefix\x121\n" +
 	"\x04plan\x18\a \x01(\v2\x1d.devopus.agent.v2.FeaturePlanR\x04plan\x12\x12\n" +
-	"\x04spec\x18\b \x01(\fR\x04spec\"n\n" +
+	"\x04spec\x18\b \x01(\fR\x04spec\x12#\n" +
+	"\roverride_file\x18\t \x01(\tR\foverrideFile\x12+\n" +
+	"\x11overrides_applied\x18\n" +
+	" \x03(\tR\x10overridesApplied\x12-\n" +
+	"\x12overrides_rejected\x18\v \x03(\tR\x11overridesRejected\"n\n" +
 	"\tLogSource\x12\x12\n" +
 	"\x04unit\x18\x01 \x01(\tR\x04unit\x12\x12\n" +
 	"\x04file\x18\x02 \x01(\tR\x04file\x129\n" +

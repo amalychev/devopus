@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
 	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
 	"github.com/amalychev/devopus/internal/catalog"
@@ -191,20 +192,33 @@ func (a *app) projectCmd() *cobra.Command {
 		},
 	}
 
+	var allowOverrides []string
 	set := &cobra.Command{
 		Use:   "set <project>",
-		Short: "Change a project's settings: --domain",
-		Args:  cobra.ExactArgs(1),
+		Short: "Change a project's settings: --domain, --allow-overrides",
+		Long: "--allow-overrides is what developers may change for themselves in devopus.yaml:\n" +
+			"versions (of services), env (any variable), env:NAME (one), ports, * (all), or none.\n" +
+			"Admins and teamleads may override anything.",
+		Example: "  devopus project set shop --domain shop.test\n  devopus project set shop --allow-overrides versions,env:DEBUG",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if domain == "" {
-				return fail(ExitInvalid, "nothing to change: --domain <host>")
+			policy := ""
+			if cmd.Flags().Changed("allow-overrides") {
+				allowed := allowOverrides
+				if len(allowed) == 1 && allowed[0] == "none" {
+					allowed = []string{}
+				}
+				policy = toYAML(map[string]any{"overrides": map[string]any{"allowed": allowed}})
+			}
+			if domain == "" && policy == "" {
+				return fail(ExitInvalid, "nothing to change: --domain <host> or --allow-overrides <kinds>")
 			}
 			p, err := a.remoteProject(cmd.Context(), args[0])
 			if err != nil {
 				return err
 			}
 			conf, err := p.edit(cmd.Context(), func(base int32) (*workspacev1.ProjectConfig, error) {
-				r, err := p.c.UpdateProjectSettings(cmd.Context(), req(p.s, &workspacev1.UpdateProjectSettingsRequest{WorkspaceId: p.ws.ID, Project: p.name, BaseVersion: base, Domain: domain}))
+				r, err := p.c.UpdateProjectSettings(cmd.Context(), req(p.s, &workspacev1.UpdateProjectSettingsRequest{WorkspaceId: p.ws.ID, Project: p.name, BaseVersion: base, Domain: domain, PolicyYaml: policy}))
 				if err != nil {
 					return nil, err
 				}
@@ -213,10 +227,11 @@ func (a *app) projectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return a.changed(conf, "%s is on %s now", p.name, domain)
+			return a.changed(conf, "%s: %s", p.name, conf.Message)
 		},
 	}
 	set.Flags().StringVar(&domain, "domain", "", "domain of its environments")
+	set.Flags().StringSliceVar(&allowOverrides, "allow-overrides", nil, "what developers may override in devopus.yaml: versions, env, env:NAME, ports, *, none")
 
 	var yes bool
 	rm := &cobra.Command{
@@ -251,11 +266,17 @@ func (a *app) projectConfigCmd() *cobra.Command {
 	}
 	var output string
 	var version int32
+	var effective bool
 	show := &cobra.Command{
 		Use:   "show <project>",
 		Short: "The settings of a project; -o yaml for all of them, --version for an older one",
-		Args:  cobra.ExactArgs(1),
+		Long: "Shows a project's settings on the workspace server. --effective shows what runs on\n" +
+			"this machine instead: the settings with the personal overrides of devopus.yaml.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if effective {
+				return a.showEffective(cmd.Context(), args[0], output)
+			}
 			s, cur, c, err := a.inWorkspace(cmd.Context())
 			if err != nil {
 				return err
@@ -292,6 +313,7 @@ func (a *app) projectConfigCmd() *cobra.Command {
 	}
 	show.Flags().StringVarP(&output, "output", "o", "", "yaml or json")
 	show.Flags().Int32Var(&version, "version", 0, "an older version")
+	show.Flags().BoolVar(&effective, "effective", false, "what runs on this machine: with devopus.yaml")
 
 	var limit int32
 	history := &cobra.Command{
@@ -342,6 +364,52 @@ func (a *app) projectConfigCmd() *cobra.Command {
 	}
 	cmd.AddCommand(show, history, rollback)
 	return cmd
+}
+
+// showEffective prints a project as the agent on this machine runs it.
+func (a *app) showEffective(ctx context.Context, project, output string) error {
+	c, err := a.connect(ctx)
+	if err != nil {
+		return err
+	}
+	res, err := c.DescribeProject(ctx, connect.NewRequest(&agentv2.DescribeProjectRequest{Project: project}))
+	if err != nil {
+		return rpcError(err)
+	}
+	m := res.Msg
+	cfg, err := spec.ParseYAML(m.Spec)
+	if err != nil {
+		return err
+	}
+	switch {
+	case a.json || output == "json":
+		return a.writeJSON(map[string]any{"project": cfg, "overrideFile": m.OverrideFile, "applied": m.OverridesApplied, "rejected": m.OverridesRejected})
+	case output == "yaml":
+		fmt.Fprintf(a.stdout, "# %s as it runs on this machine (with %s)\n", project, dash(m.OverrideFile))
+		_, err := a.stdout.Write(m.Spec)
+		return err
+	case output != "":
+		return fail(ExitInvalid, "-o: yaml or json")
+	}
+	var version int32
+	if st, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{})); err == nil {
+		for _, p := range st.Msg.Projects {
+			if p.Name == project {
+				version = p.ConfigVersion
+			}
+		}
+	}
+	printProject(a.stdout, cfg, version)
+	if m.OverrideFile != "" {
+		fmt.Fprintf(a.stdout, "\nPersonal overrides: %s\n", m.OverrideFile)
+	}
+	for _, o := range m.OverridesApplied {
+		fmt.Fprintf(a.stdout, "  applied   %s\n", o)
+	}
+	for _, o := range m.OverridesRejected {
+		fmt.Fprintf(a.stdout, "  refused   %s\n", o)
+	}
+	return nil
 }
 
 // printProject shows a project as tables.

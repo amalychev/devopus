@@ -524,20 +524,22 @@ type parsed struct {
 	// admin is whom to ask for access to the repositories: the workspace's admin.
 	admin   string
 	project *agentv2.ProjectSpec
-	err     error
+	// overrides is what devopus.yaml changed and what it could not.
+	overrides spec.OverrideResult
+	err       error
 }
 
 func parseProjects(projects []*agentv2.ProjectSpec) map[string]*parsed {
 	out := map[string]*parsed{}
 	for _, p := range projects {
-		proj, err := store.ParseProject(p)
+		proj, overrides, err := store.EffectiveProject(p)
 		switch {
 		case err != nil:
 			out[p.Name] = &parsed{err: err}
 		case proj.Domain == "":
 			out[p.Name] = &parsed{err: errors.New("no domain")}
 		default:
-			out[p.Name] = &parsed{ws: proj, root: p.Root, admin: p.AdminEmail, project: p}
+			out[p.Name] = &parsed{ws: proj, root: p.Root, admin: p.AdminEmail, project: p, overrides: overrides}
 		}
 	}
 	return out

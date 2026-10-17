@@ -52,23 +52,26 @@ func (q *Queries) AddAudit(ctx context.Context, arg AddAuditParams) error {
 }
 
 const addDeviceEnvironment = `-- name: AddDeviceEnvironment :exec
-INSERT INTO device_environments (workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+INSERT INTO device_environments (workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version,
+    overrides, rejected_overrides)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 `
 
 type AddDeviceEnvironmentParams struct {
-	WorkspaceID   string
-	DeviceID      string
-	UserID        string
-	EnvID         string
-	Project       string
-	Kind          string
-	Name          string
-	Branch        string
-	Phase         string
-	Url           string
-	Error         string
-	ConfigVersion int32
+	WorkspaceID       string
+	DeviceID          string
+	UserID            string
+	EnvID             string
+	Project           string
+	Kind              string
+	Name              string
+	Branch            string
+	Phase             string
+	Url               string
+	Error             string
+	ConfigVersion     int32
+	Overrides         []string
+	RejectedOverrides []string
 }
 
 func (q *Queries) AddDeviceEnvironment(ctx context.Context, arg AddDeviceEnvironmentParams) error {
@@ -85,6 +88,8 @@ func (q *Queries) AddDeviceEnvironment(ctx context.Context, arg AddDeviceEnviron
 		arg.Url,
 		arg.Error,
 		arg.ConfigVersion,
+		arg.Overrides,
+		arg.RejectedOverrides,
 	)
 	return err
 }
@@ -424,7 +429,7 @@ func (q *Queries) DeleteWorkspace(ctx context.Context, id string) error {
 }
 
 const deviceEnvironments = `-- name: DeviceEnvironments :many
-SELECT workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version FROM device_environments WHERE workspace_id = $1 ORDER BY project, kind, name
+SELECT workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version, overrides, rejected_overrides FROM device_environments WHERE workspace_id = $1 ORDER BY project, kind, name
 `
 
 func (q *Queries) DeviceEnvironments(ctx context.Context, workspaceID string) ([]DeviceEnvironment, error) {
@@ -449,6 +454,8 @@ func (q *Queries) DeviceEnvironments(ctx context.Context, workspaceID string) ([
 			&i.Url,
 			&i.Error,
 			&i.ConfigVersion,
+			&i.Overrides,
+			&i.RejectedOverrides,
 		); err != nil {
 			return nil, err
 		}

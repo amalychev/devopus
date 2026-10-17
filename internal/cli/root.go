@@ -110,7 +110,7 @@ Get started:
 		}
 	}
 	add("account", a.registerCmd(), a.loginCmd(), a.logoutCmd(), a.whoamiCmd(), a.authCmd())
-	add("team", a.workspaceCmd(), a.projectCmd(), a.appCmd(), a.serviceCmd(), a.secretsCmd(), a.inviteCmd(), a.memberCmd())
+	add("team", a.workspaceCmd(), a.projectCmd(), a.appCmd(), a.serviceCmd(), a.secretsCmd(), a.driftCmd(), a.inviteCmd(), a.memberCmd())
 	add("machine", a.agentCmd(), a.panelCmd(), a.serverCmd(), a.statusCmd(), a.doctorCmd(), a.proxyCmd())
 	add("project", a.upCmd(), a.downCmd(), a.openCmd(), a.logsCmd(), a.execCmd(), a.routesCmd())
 	add("features", a.featureCmd(), a.dbCmd())

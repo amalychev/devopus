@@ -4,7 +4,9 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -125,6 +127,35 @@ func (a *Agent) Routes() []*agentv2.Route    { return a.rec.Routes() }
 
 func (a *Agent) CA() *agentv2.CAInfo {
 	return &agentv2.CAInfo{RootPath: a.ca.RootPath(), Fingerprint: a.ca.Fingerprint(), NotAfter: timestamppb.New(a.ca.Root.NotAfter)}
+}
+
+// watchOverrides starts a pass when a devopus.yaml (or the .gitignore next to it) of a
+// workspace project changes: a personal override applies in seconds.
+func (a *Agent) watchOverrides(ctx context.Context) {
+	last := ""
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(2 * time.Second):
+		}
+		h := sha256.New()
+		for _, p := range a.store.Snapshot().Projects {
+			if p.WorkspaceId == "" || p.Root == "" {
+				continue
+			}
+			for _, f := range []string{store.OverrideFile(p), filepath.Join(p.Root, ".gitignore")} {
+				b, _ := os.ReadFile(f)
+				h.Write([]byte(f))
+				h.Write(b)
+			}
+		}
+		sum := hex.EncodeToString(h.Sum(nil))
+		if last != "" && sum != last {
+			a.kickLoop()
+		}
+		last = sum
+	}
 }
 
 // decryptSecrets opens a workspace project's secrets with the workspace's key, which
@@ -296,6 +327,7 @@ func Run(ctx context.Context, opt Options) error {
 	defer unsubscribe()
 	a.link = link.New(link.Options{Store: st, Token: a.creds.Token, Statuses: a.rec.Statuses, Changed: changes, Version: opt.Version, Log: log})
 	go a.link.Run(ctx)
+	go a.watchOverrides(ctx)
 
 	waker := lifecycle.NewWaker(a.life, roots, proxyPorts)
 	go func() {

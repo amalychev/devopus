@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -8,8 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
+
+	syncv1 "github.com/amalychev/devopus/gen/devopus/sync/v1"
+	"github.com/amalychev/devopus/gen/devopus/sync/v1/syncv1connect"
 	"github.com/amalychev/devopus/internal/auth/authtest"
 	"github.com/amalychev/devopus/internal/auth/token"
+	"github.com/amalychev/devopus/internal/credentials"
 	"github.com/amalychev/devopus/internal/pgtest"
 	"github.com/amalychev/devopus/internal/server"
 	"github.com/amalychev/devopus/internal/server/store"
@@ -220,6 +226,35 @@ func TestProjects(t *testing.T) {
 	if out := ok(t, "project", "config", "show", "demo", "--version", "5"); !strings.Contains(out, "cache") || !strings.Contains(out, "the current one is 6") {
 		t.Errorf("version 5:\n%s", out)
 	}
+	// The policy of personal overrides, and the drift a teamlead sees.
+	if out := ok(t, "project", "set", "demo", "--allow-overrides", "versions,env:DEBUG"); !strings.Contains(out, "project set overrides") {
+		t.Errorf("allow overrides:\n%s", out)
+	}
+	if code, _, errOut := cli(t, "", "project", "set", "demo", "--allow-overrides", "xdebug"); code != ExitInvalid || !strings.Contains(errOut, "none of *, versions") {
+		t.Errorf("unknown kind: %d %s", code, errOut)
+	}
+	if out := ok(t, "drift"); !strings.Contains(out, "No drift") {
+		t.Errorf("drift before any device:\n%s", out)
+	}
+	acc, err := credentials.Refresh(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cur, _ := credentials.CurrentWorkspace()
+	rep := connect.NewRequest(&syncv1.ReportStatusRequest{WorkspaceId: cur.ID, Device: &syncv1.Device{Id: "dev-1", Name: "laptop"},
+		Environments: []*syncv1.EnvironmentReport{{Project: "demo", Id: "e1", Kind: "base", Phase: "running", ConfigVersion: 1,
+			Overrides: []string{"services.php.version: 8.3 → 8.4"}, RejectedOverrides: []string{"services.db.port: 5432 → 6543: not allowed"}}}})
+	rep.Header().Set("Authorization", "Bearer "+acc.Token)
+	if _, err := syncv1connect.NewSyncServiceClient(http.DefaultClient, cur.ServerURL).ReportStatus(t.Context(), rep); err != nil {
+		t.Fatal(err)
+	}
+	out = squash(ok(t, "drift"))
+	for _, want := range []string{"admin@acme.dev laptop demo base v1 (current v7) running", "services.php.version: 8.3 → 8.4", "refused: services.db.port"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("drift lacks %q:\n%s", want, out)
+		}
+	}
+
 	ok(t, "app", "rm", "demo", "admin")
 	if out := ok(t, "service", "list", "demo"); strings.Contains(out, "admin") {
 		t.Errorf("services still attached to a removed app:\n%s", out)

@@ -150,8 +150,9 @@ DO UPDATE SET name = excluded.name, agent_version = excluded.agent_version, last
 DELETE FROM device_environments WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3;
 
 -- name: AddDeviceEnvironment :exec
-INSERT INTO device_environments (workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
+INSERT INTO device_environments (workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version,
+    overrides, rejected_overrides)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
 
 -- name: Devices :many
 SELECT d.*, u.email FROM devices d JOIN users u ON u.id = d.user_id
