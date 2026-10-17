@@ -118,7 +118,10 @@ func TestTeam(t *testing.T) {
 		t.Errorf("empty list:\n%s", out)
 	}
 	ok("workspace", "create", "Acme")
-	ok("project", "create", "shop")
+	// The admin's first signed change makes their device the workspace's root of trust.
+	if code, _, errOut := cli(t, "", "project", "create", "shop"); code != ExitOK || !strings.Contains(errOut, "now the root of trust of Acme") {
+		t.Fatalf("admin's first signed change: %d %s", code, errOut)
+	}
 	leadCode := codeIn(ok("invite", "create", lead, "--role", "teamlead", "--project", "shop"))
 
 	register(lead)
@@ -151,6 +154,35 @@ func TestTeam(t *testing.T) {
 	ok("member", "grant", dev, "services.manage", "--project", "shop")
 	if code, _, errOut := cli(t, "", "member", "grant", dev, "members.manage", "--project", "shop"); code != ExitAuth {
 		t.Errorf("grant members.manage: %d %s", code, errOut)
+	}
+
+	// R21, layer 2: every change is signed. The teamlead's signature counts once the
+	// admin certifies their device; the admin's own count at once.
+	as(admin)
+	if code, _, errOut := cli(t, "", "project", "set", "shop", "--domain", "shop.test"); code != ExitOK || errOut != "" {
+		t.Fatalf("admin's signed change: %d %s", code, errOut)
+	}
+	as(lead)
+	if code, _, errOut := cli(t, "", "service", "add", "shop", "redis", "7.4"); code != ExitOK || !strings.Contains(errOut, "has not certified this device yet") {
+		t.Fatalf("lead's uncertified change: %d %s", code, errOut)
+	}
+	if out := squash(ok("trust", "show")); !strings.Contains(out, "Root of trust") || !strings.Contains(out, admin+" admin") ||
+		!strings.Contains(out, "(this one)") || !strings.Contains(out, "not certified") {
+		t.Errorf("trust show:\n%s", out)
+	}
+	if code, _, errOut := cli(t, "", "trust", "approve", "-y"); code == ExitOK || !strings.Contains(errOut, "this is not it") {
+		t.Errorf("approve off the root's device: %d %s", code, errOut)
+	}
+	as(admin)
+	if out := ok("trust", "approve", "-y"); !strings.Contains(out, "Certified: "+lead) {
+		t.Errorf("approve:\n%s", out)
+	}
+	as(lead)
+	if code, _, errOut := cli(t, "", "service", "set", "shop", "redis", "7.2"); code != ExitOK || strings.Contains(errOut, "not signed") || strings.Contains(errOut, "not certified") {
+		t.Errorf("lead's certified change: %d %s", code, errOut)
+	}
+	if out := squash(ok("project", "config", "history", "shop")); !strings.Contains(out, "lead@acme.dev yes service set redis") {
+		t.Errorf("history:\n%s", out)
 	}
 
 	as(dev)

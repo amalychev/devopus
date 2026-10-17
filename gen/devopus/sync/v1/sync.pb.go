@@ -167,8 +167,11 @@ type DesiredProject struct {
 	OverridesAllowed []string `protobuf:"bytes,6,rep,name=overrides_allowed,json=overridesAllowed,proto3" json:"overrides_allowed,omitempty"`
 	// The user has overrides.use in the project; without it nothing is allowed.
 	OverridesPermitted bool `protobuf:"varint,7,opt,name=overrides_permitted,json=overridesPermitted,proto3" json:"overrides_permitted,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// The author's signature of this version and the device that made it (ADR-0018).
+	Signature     []byte `protobuf:"bytes,8,opt,name=signature,proto3" json:"signature,omitempty"`
+	SignerDevice  string `protobuf:"bytes,9,opt,name=signer_device,json=signerDevice,proto3" json:"signer_device,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DesiredProject) Reset() {
@@ -250,6 +253,166 @@ func (x *DesiredProject) GetOverridesPermitted() bool {
 	return false
 }
 
+func (x *DesiredProject) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+func (x *DesiredProject) GetSignerDevice() string {
+	if x != nil {
+		return x.SignerDevice
+	}
+	return ""
+}
+
+// Trust is what an agent checks signatures with: the root, which it pins the first
+// time, and the devices the root certified — every certificate is checked.
+type Trust struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Root          []byte                 `protobuf:"bytes,1,opt,name=root,proto3" json:"root,omitempty"`
+	RootDevice    string                 `protobuf:"bytes,2,opt,name=root_device,json=rootDevice,proto3" json:"root_device,omitempty"`
+	RootEmail     string                 `protobuf:"bytes,3,opt,name=root_email,json=rootEmail,proto3" json:"root_email,omitempty"`
+	Signers       []*Signer              `protobuf:"bytes,4,rep,name=signers,proto3" json:"signers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Trust) Reset() {
+	*x = Trust{}
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Trust) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Trust) ProtoMessage() {}
+
+func (x *Trust) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Trust.ProtoReflect.Descriptor instead.
+func (*Trust) Descriptor() ([]byte, []int) {
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Trust) GetRoot() []byte {
+	if x != nil {
+		return x.Root
+	}
+	return nil
+}
+
+func (x *Trust) GetRootDevice() string {
+	if x != nil {
+		return x.RootDevice
+	}
+	return ""
+}
+
+func (x *Trust) GetRootEmail() string {
+	if x != nil {
+		return x.RootEmail
+	}
+	return ""
+}
+
+func (x *Trust) GetSigners() []*Signer {
+	if x != nil {
+		return x.Signers
+	}
+	return nil
+}
+
+type Signer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
+	PublicKey     []byte                 `protobuf:"bytes,4,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
+	Certificate   []byte                 `protobuf:"bytes,5,opt,name=certificate,proto3" json:"certificate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Signer) Reset() {
+	*x = Signer{}
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Signer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Signer) ProtoMessage() {}
+
+func (x *Signer) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Signer.ProtoReflect.Descriptor instead.
+func (*Signer) Descriptor() ([]byte, []int) {
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Signer) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *Signer) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *Signer) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *Signer) GetPublicKey() []byte {
+	if x != nil {
+		return x.PublicKey
+	}
+	return nil
+}
+
+func (x *Signer) GetCertificate() []byte {
+	if x != nil {
+		return x.Certificate
+	}
+	return nil
+}
+
 // SecretsKey is the workspace's key for this device.
 type SecretsKey struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
@@ -263,7 +426,7 @@ type SecretsKey struct {
 
 func (x *SecretsKey) Reset() {
 	*x = SecretsKey{}
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[3]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -275,7 +438,7 @@ func (x *SecretsKey) String() string {
 func (*SecretsKey) ProtoMessage() {}
 
 func (x *SecretsKey) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[3]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -288,7 +451,7 @@ func (x *SecretsKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecretsKey.ProtoReflect.Descriptor instead.
 func (*SecretsKey) Descriptor() ([]byte, []int) {
-	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{3}
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SecretsKey) GetGeneration() int32 {
@@ -319,7 +482,7 @@ type PendingDevice struct {
 
 func (x *PendingDevice) Reset() {
 	*x = PendingDevice{}
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[4]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -331,7 +494,7 @@ func (x *PendingDevice) String() string {
 func (*PendingDevice) ProtoMessage() {}
 
 func (x *PendingDevice) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[4]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -344,7 +507,7 @@ func (x *PendingDevice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PendingDevice.ProtoReflect.Descriptor instead.
 func (*PendingDevice) Descriptor() ([]byte, []int) {
-	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{4}
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PendingDevice) GetDeviceId() string {
@@ -399,14 +562,16 @@ type WatchResponse struct {
 	// Nothing but a sign of life, at least every 30 s while nothing changes: proxies
 	// (Cloudflare, corporate ones) cut connections silent for 100 s. The other fields
 	// are empty; the agent skips it.
-	Keepalive     bool `protobuf:"varint,7,opt,name=keepalive,proto3" json:"keepalive,omitempty"`
+	Keepalive bool `protobuf:"varint,7,opt,name=keepalive,proto3" json:"keepalive,omitempty"`
+	// Absent until the workspace's admin sets a root of trust.
+	Trust         *Trust `protobuf:"bytes,8,opt,name=trust,proto3" json:"trust,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WatchResponse) Reset() {
 	*x = WatchResponse{}
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[5]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -418,7 +583,7 @@ func (x *WatchResponse) String() string {
 func (*WatchResponse) ProtoMessage() {}
 
 func (x *WatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[5]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -431,7 +596,7 @@ func (x *WatchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchResponse.ProtoReflect.Descriptor instead.
 func (*WatchResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{5}
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *WatchResponse) GetWorkspaceId() string {
@@ -483,6 +648,13 @@ func (x *WatchResponse) GetKeepalive() bool {
 	return false
 }
 
+func (x *WatchResponse) GetTrust() *Trust {
+	if x != nil {
+		return x.Trust
+	}
+	return nil
+}
+
 type EnvironmentReport struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Project string                 `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
@@ -511,7 +683,7 @@ type EnvironmentReport struct {
 
 func (x *EnvironmentReport) Reset() {
 	*x = EnvironmentReport{}
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[6]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -523,7 +695,7 @@ func (x *EnvironmentReport) String() string {
 func (*EnvironmentReport) ProtoMessage() {}
 
 func (x *EnvironmentReport) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[6]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -536,7 +708,7 @@ func (x *EnvironmentReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnvironmentReport.ProtoReflect.Descriptor instead.
 func (*EnvironmentReport) Descriptor() ([]byte, []int) {
-	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{6}
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *EnvironmentReport) GetProject() string {
@@ -634,7 +806,7 @@ type ReportStatusRequest struct {
 
 func (x *ReportStatusRequest) Reset() {
 	*x = ReportStatusRequest{}
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[7]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -646,7 +818,7 @@ func (x *ReportStatusRequest) String() string {
 func (*ReportStatusRequest) ProtoMessage() {}
 
 func (x *ReportStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[7]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -659,7 +831,7 @@ func (x *ReportStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportStatusRequest.ProtoReflect.Descriptor instead.
 func (*ReportStatusRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{7}
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ReportStatusRequest) GetWorkspaceId() string {
@@ -691,7 +863,7 @@ type ReportStatusResponse struct {
 
 func (x *ReportStatusResponse) Reset() {
 	*x = ReportStatusResponse{}
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[8]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -703,7 +875,7 @@ func (x *ReportStatusResponse) String() string {
 func (*ReportStatusResponse) ProtoMessage() {}
 
 func (x *ReportStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[8]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -716,7 +888,7 @@ func (x *ReportStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportStatusResponse.ProtoReflect.Descriptor instead.
 func (*ReportStatusResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{8}
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{10}
 }
 
 type ListDevicesRequest struct {
@@ -730,7 +902,7 @@ type ListDevicesRequest struct {
 
 func (x *ListDevicesRequest) Reset() {
 	*x = ListDevicesRequest{}
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[9]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -742,7 +914,7 @@ func (x *ListDevicesRequest) String() string {
 func (*ListDevicesRequest) ProtoMessage() {}
 
 func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[9]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -755,7 +927,7 @@ func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDevicesRequest.ProtoReflect.Descriptor instead.
 func (*ListDevicesRequest) Descriptor() ([]byte, []int) {
-	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{9}
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListDevicesRequest) GetWorkspaceId() string {
@@ -786,7 +958,7 @@ type DeviceStatus struct {
 
 func (x *DeviceStatus) Reset() {
 	*x = DeviceStatus{}
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[10]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -798,7 +970,7 @@ func (x *DeviceStatus) String() string {
 func (*DeviceStatus) ProtoMessage() {}
 
 func (x *DeviceStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[10]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -811,7 +983,7 @@ func (x *DeviceStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeviceStatus.ProtoReflect.Descriptor instead.
 func (*DeviceStatus) Descriptor() ([]byte, []int) {
-	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{10}
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeviceStatus) GetDevice() *Device {
@@ -858,7 +1030,7 @@ type ListDevicesResponse struct {
 
 func (x *ListDevicesResponse) Reset() {
 	*x = ListDevicesResponse{}
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[11]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -870,7 +1042,7 @@ func (x *ListDevicesResponse) String() string {
 func (*ListDevicesResponse) ProtoMessage() {}
 
 func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_devopus_sync_v1_sync_proto_msgTypes[11]
+	mi := &file_devopus_sync_v1_sync_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -883,7 +1055,7 @@ func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDevicesResponse.ProtoReflect.Descriptor instead.
 func (*ListDevicesResponse) Descriptor() ([]byte, []int) {
-	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{11}
+	return file_devopus_sync_v1_sync_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListDevicesResponse) GetDevices() []*DeviceStatus {
@@ -906,7 +1078,7 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"public_key\x18\x04 \x01(\tR\tpublicKey\"b\n" +
 	"\fWatchRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12/\n" +
-	"\x06device\x18\x02 \x01(\v2\x17.devopus.sync.v1.DeviceR\x06device\"\xd1\x02\n" +
+	"\x06device\x18\x02 \x01(\v2\x17.devopus.sync.v1.DeviceR\x06device\"\x94\x03\n" +
 	"\x0eDesiredProject\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -915,10 +1087,26 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"configYaml\x12F\n" +
 	"\asecrets\x18\x05 \x03(\v2,.devopus.sync.v1.DesiredProject.SecretsEntryR\asecrets\x12+\n" +
 	"\x11overrides_allowed\x18\x06 \x03(\tR\x10overridesAllowed\x12/\n" +
-	"\x13overrides_permitted\x18\a \x01(\bR\x12overridesPermitted\x1a:\n" +
+	"\x13overrides_permitted\x18\a \x01(\bR\x12overridesPermitted\x12\x1c\n" +
+	"\tsignature\x18\b \x01(\fR\tsignature\x12#\n" +
+	"\rsigner_device\x18\t \x01(\tR\fsignerDevice\x1a:\n" +
 	"\fSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"F\n" +
+	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"\x8e\x01\n" +
+	"\x05Trust\x12\x12\n" +
+	"\x04root\x18\x01 \x01(\fR\x04root\x12\x1f\n" +
+	"\vroot_device\x18\x02 \x01(\tR\n" +
+	"rootDevice\x12\x1d\n" +
+	"\n" +
+	"root_email\x18\x03 \x01(\tR\trootEmail\x121\n" +
+	"\asigners\x18\x04 \x03(\v2\x17.devopus.sync.v1.SignerR\asigners\"\x95\x01\n" +
+	"\x06Signer\x12\x1b\n" +
+	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x14\n" +
+	"\x05email\x18\x03 \x01(\tR\x05email\x12\x1d\n" +
+	"\n" +
+	"public_key\x18\x04 \x01(\fR\tpublicKey\x12 \n" +
+	"\vcertificate\x18\x05 \x01(\fR\vcertificate\"F\n" +
 	"\n" +
 	"SecretsKey\x12\x1e\n" +
 	"\n" +
@@ -933,7 +1121,7 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"\vdevice_name\x18\x04 \x01(\tR\n" +
 	"deviceName\x12\x1d\n" +
 	"\n" +
-	"public_key\x18\x05 \x01(\tR\tpublicKey\"\xcd\x02\n" +
+	"public_key\x18\x05 \x01(\tR\tpublicKey\"\xfb\x02\n" +
 	"\rWatchResponse\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12%\n" +
 	"\x0eworkspace_name\x18\x02 \x01(\tR\rworkspaceName\x12\x1f\n" +
@@ -942,7 +1130,8 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"\bprojects\x18\x04 \x03(\v2\x1f.devopus.sync.v1.DesiredProjectR\bprojects\x12-\n" +
 	"\x03key\x18\x05 \x01(\v2\x1b.devopus.sync.v1.SecretsKeyR\x03key\x12G\n" +
 	"\x0fpending_devices\x18\x06 \x03(\v2\x1e.devopus.sync.v1.PendingDeviceR\x0ependingDevices\x12\x1c\n" +
-	"\tkeepalive\x18\a \x01(\bR\tkeepalive\"\xd8\x02\n" +
+	"\tkeepalive\x18\a \x01(\bR\tkeepalive\x12,\n" +
+	"\x05trust\x18\b \x01(\v2\x16.devopus.sync.v1.TrustR\x05trust\"\xd8\x02\n" +
 	"\x11EnvironmentReport\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -992,46 +1181,50 @@ func file_devopus_sync_v1_sync_proto_rawDescGZIP() []byte {
 	return file_devopus_sync_v1_sync_proto_rawDescData
 }
 
-var file_devopus_sync_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_devopus_sync_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_devopus_sync_v1_sync_proto_goTypes = []any{
 	(*Device)(nil),                // 0: devopus.sync.v1.Device
 	(*WatchRequest)(nil),          // 1: devopus.sync.v1.WatchRequest
 	(*DesiredProject)(nil),        // 2: devopus.sync.v1.DesiredProject
-	(*SecretsKey)(nil),            // 3: devopus.sync.v1.SecretsKey
-	(*PendingDevice)(nil),         // 4: devopus.sync.v1.PendingDevice
-	(*WatchResponse)(nil),         // 5: devopus.sync.v1.WatchResponse
-	(*EnvironmentReport)(nil),     // 6: devopus.sync.v1.EnvironmentReport
-	(*ReportStatusRequest)(nil),   // 7: devopus.sync.v1.ReportStatusRequest
-	(*ReportStatusResponse)(nil),  // 8: devopus.sync.v1.ReportStatusResponse
-	(*ListDevicesRequest)(nil),    // 9: devopus.sync.v1.ListDevicesRequest
-	(*DeviceStatus)(nil),          // 10: devopus.sync.v1.DeviceStatus
-	(*ListDevicesResponse)(nil),   // 11: devopus.sync.v1.ListDevicesResponse
-	nil,                           // 12: devopus.sync.v1.DesiredProject.SecretsEntry
-	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	(*Trust)(nil),                 // 3: devopus.sync.v1.Trust
+	(*Signer)(nil),                // 4: devopus.sync.v1.Signer
+	(*SecretsKey)(nil),            // 5: devopus.sync.v1.SecretsKey
+	(*PendingDevice)(nil),         // 6: devopus.sync.v1.PendingDevice
+	(*WatchResponse)(nil),         // 7: devopus.sync.v1.WatchResponse
+	(*EnvironmentReport)(nil),     // 8: devopus.sync.v1.EnvironmentReport
+	(*ReportStatusRequest)(nil),   // 9: devopus.sync.v1.ReportStatusRequest
+	(*ReportStatusResponse)(nil),  // 10: devopus.sync.v1.ReportStatusResponse
+	(*ListDevicesRequest)(nil),    // 11: devopus.sync.v1.ListDevicesRequest
+	(*DeviceStatus)(nil),          // 12: devopus.sync.v1.DeviceStatus
+	(*ListDevicesResponse)(nil),   // 13: devopus.sync.v1.ListDevicesResponse
+	nil,                           // 14: devopus.sync.v1.DesiredProject.SecretsEntry
+	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
 }
 var file_devopus_sync_v1_sync_proto_depIdxs = []int32{
 	0,  // 0: devopus.sync.v1.WatchRequest.device:type_name -> devopus.sync.v1.Device
-	12, // 1: devopus.sync.v1.DesiredProject.secrets:type_name -> devopus.sync.v1.DesiredProject.SecretsEntry
-	2,  // 2: devopus.sync.v1.WatchResponse.projects:type_name -> devopus.sync.v1.DesiredProject
-	3,  // 3: devopus.sync.v1.WatchResponse.key:type_name -> devopus.sync.v1.SecretsKey
-	4,  // 4: devopus.sync.v1.WatchResponse.pending_devices:type_name -> devopus.sync.v1.PendingDevice
-	0,  // 5: devopus.sync.v1.ReportStatusRequest.device:type_name -> devopus.sync.v1.Device
-	6,  // 6: devopus.sync.v1.ReportStatusRequest.environments:type_name -> devopus.sync.v1.EnvironmentReport
-	0,  // 7: devopus.sync.v1.DeviceStatus.device:type_name -> devopus.sync.v1.Device
-	13, // 8: devopus.sync.v1.DeviceStatus.last_seen:type_name -> google.protobuf.Timestamp
-	6,  // 9: devopus.sync.v1.DeviceStatus.environments:type_name -> devopus.sync.v1.EnvironmentReport
-	10, // 10: devopus.sync.v1.ListDevicesResponse.devices:type_name -> devopus.sync.v1.DeviceStatus
-	1,  // 11: devopus.sync.v1.SyncService.Watch:input_type -> devopus.sync.v1.WatchRequest
-	7,  // 12: devopus.sync.v1.SyncService.ReportStatus:input_type -> devopus.sync.v1.ReportStatusRequest
-	9,  // 13: devopus.sync.v1.SyncService.ListDevices:input_type -> devopus.sync.v1.ListDevicesRequest
-	5,  // 14: devopus.sync.v1.SyncService.Watch:output_type -> devopus.sync.v1.WatchResponse
-	8,  // 15: devopus.sync.v1.SyncService.ReportStatus:output_type -> devopus.sync.v1.ReportStatusResponse
-	11, // 16: devopus.sync.v1.SyncService.ListDevices:output_type -> devopus.sync.v1.ListDevicesResponse
-	14, // [14:17] is the sub-list for method output_type
-	11, // [11:14] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	14, // 1: devopus.sync.v1.DesiredProject.secrets:type_name -> devopus.sync.v1.DesiredProject.SecretsEntry
+	4,  // 2: devopus.sync.v1.Trust.signers:type_name -> devopus.sync.v1.Signer
+	2,  // 3: devopus.sync.v1.WatchResponse.projects:type_name -> devopus.sync.v1.DesiredProject
+	5,  // 4: devopus.sync.v1.WatchResponse.key:type_name -> devopus.sync.v1.SecretsKey
+	6,  // 5: devopus.sync.v1.WatchResponse.pending_devices:type_name -> devopus.sync.v1.PendingDevice
+	3,  // 6: devopus.sync.v1.WatchResponse.trust:type_name -> devopus.sync.v1.Trust
+	0,  // 7: devopus.sync.v1.ReportStatusRequest.device:type_name -> devopus.sync.v1.Device
+	8,  // 8: devopus.sync.v1.ReportStatusRequest.environments:type_name -> devopus.sync.v1.EnvironmentReport
+	0,  // 9: devopus.sync.v1.DeviceStatus.device:type_name -> devopus.sync.v1.Device
+	15, // 10: devopus.sync.v1.DeviceStatus.last_seen:type_name -> google.protobuf.Timestamp
+	8,  // 11: devopus.sync.v1.DeviceStatus.environments:type_name -> devopus.sync.v1.EnvironmentReport
+	12, // 12: devopus.sync.v1.ListDevicesResponse.devices:type_name -> devopus.sync.v1.DeviceStatus
+	1,  // 13: devopus.sync.v1.SyncService.Watch:input_type -> devopus.sync.v1.WatchRequest
+	9,  // 14: devopus.sync.v1.SyncService.ReportStatus:input_type -> devopus.sync.v1.ReportStatusRequest
+	11, // 15: devopus.sync.v1.SyncService.ListDevices:input_type -> devopus.sync.v1.ListDevicesRequest
+	7,  // 16: devopus.sync.v1.SyncService.Watch:output_type -> devopus.sync.v1.WatchResponse
+	10, // 17: devopus.sync.v1.SyncService.ReportStatus:output_type -> devopus.sync.v1.ReportStatusResponse
+	13, // 18: devopus.sync.v1.SyncService.ListDevices:output_type -> devopus.sync.v1.ListDevicesResponse
+	16, // [16:19] is the sub-list for method output_type
+	13, // [13:16] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_devopus_sync_v1_sync_proto_init() }
@@ -1045,7 +1238,7 @@ func file_devopus_sync_v1_sync_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_devopus_sync_v1_sync_proto_rawDesc), len(file_devopus_sync_v1_sync_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

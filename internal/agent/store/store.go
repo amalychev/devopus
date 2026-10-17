@@ -24,6 +24,7 @@ import (
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/git"
 	"github.com/amalychev/devopus/internal/importer"
+	"github.com/amalychev/devopus/internal/signing"
 	"github.com/amalychev/devopus/internal/spec"
 )
 
@@ -199,6 +200,9 @@ type ServerProject struct {
 	// OverridesAllowed and OverridesPermitted say what devopus.yaml may change.
 	OverridesAllowed   []string
 	OverridesPermitted bool
+	// The author's signature of this version (ADR-0018).
+	Signature    []byte
+	SignerDevice string
 }
 
 // ServerKey is the workspace's key as this device has it: wrapped for it.
@@ -213,9 +217,12 @@ type ServerKey struct {
 // workspace — are stopped with their data kept. A project held with 'devopus down'
 // stays stopped. A project of a folder with the same name is left alone; its name is
 // returned. The revision moves only when something changed.
-func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projects []ServerProject, root func(name string) string) (rev uint64, conflicts []string, err error) {
+// trust is what the server says signatures are checked with; its root counts only the
+// first time: then it is pinned.
+func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projects []ServerProject, trust *signing.Set, root func(name string) string) (rev uint64, conflicts []string, err error) {
 	rev, err = s.updateIfChanged(func(st *agentv2.DesiredState) error {
 		conflicts = nil // fn runs twice: once to see whether anything changes
+		set := pin(st, workspaceID, trust)
 		given := map[string]bool{}
 		for _, sp := range projects {
 			p := findProject(st, sp.Name)
@@ -231,8 +238,16 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 				start = true
 			}
 			start = start || p.Orphaned
-			if pending := review(p, sp.Version, sp.Spec); pending == nil {
-				applySpec(p, sp.Version, sp.Spec)
+			signedBy, why := "", ""
+			if set == nil {
+				why = "the workspace has no root of trust yet"
+			} else if who, verr := set.Verify(sp.Name, sp.Version, sp.Spec, sp.SignerDevice, sp.Signature); verr != nil {
+				why = verr.Error()
+			} else {
+				signedBy = who
+			}
+			if pending := review(p, sp.Version, sp.Spec, signedBy, why); pending == nil {
+				applySpec(p, sp.Version, sp.Spec, signedBy)
 			} else if pending.Hash != p.Declined {
 				p.Pending = pending
 			} else {
@@ -263,18 +278,42 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 	return rev, conflicts, err
 }
 
+// pin keeps the first root of trust the server gave for a workspace and checks with
+// it from then on. Another root from the server is only recorded: signatures count
+// against the pinned one.
+func pin(st *agentv2.DesiredState, workspace string, trust *signing.Set) *signing.Set {
+	if trust == nil || len(trust.Root) == 0 {
+		return nil
+	}
+	if st.TrustRoots == nil {
+		st.TrustRoots = map[string]*agentv2.TrustRoot{}
+	}
+	pinned := st.TrustRoots[workspace]
+	if pinned == nil {
+		pinned = &agentv2.TrustRoot{PublicKey: trust.Root, DeviceId: trust.RootDevice, Email: trust.RootEmail}
+		st.TrustRoots[workspace] = pinned
+	}
+	pinned.Offered = nil
+	if !bytes.Equal(pinned.PublicKey, trust.Root) {
+		pinned.Offered = trust.Root
+	}
+	set := *trust
+	set.Workspace, set.Root, set.RootDevice, set.RootEmail = workspace, pinned.PublicKey, pinned.DeviceId, pinned.Email
+	return &set
+}
+
 // review decides whether a server's version of a project applies at once: the first
 // one does, and so does one without risky changes, or whose risky changes are the
 // user's own (ExpectChange). Otherwise it waits for the user: what it returns.
-func review(p *agentv2.ProjectSpec, version int32, next []byte) *agentv2.PendingChange {
-	if len(p.Spec) == 0 || bytes.Equal(p.Spec, next) {
-		return nil
+func review(p *agentv2.ProjectSpec, version int32, next []byte, signedBy, why string) *agentv2.PendingChange {
+	if len(p.Spec) == 0 || bytes.Equal(p.Spec, next) || signedBy != "" {
+		return nil // the first version, no change, or signed by someone the admin trusts
 	}
 	old, err := spec.ParseYAML(p.Spec)
 	if err != nil {
 		return nil // what runs now cannot be read: nothing to compare with
 	}
-	pending := &agentv2.PendingChange{Version: version, Spec: next, Hash: hashOf(next)}
+	pending := &agentv2.PendingChange{Version: version, Spec: next, Hash: hashOf(next), Unverified: why}
 	proj, err := spec.ParseYAML(next)
 	if err != nil {
 		pending.Risky = []string{"the version cannot be read: " + err.Error()}
@@ -314,7 +353,7 @@ func expected(p *agentv2.ProjectSpec, next *spec.Project, changes []spec.Change)
 }
 
 // applySpec makes a version the one the project runs.
-func applySpec(p *agentv2.ProjectSpec, version int32, data []byte) {
+func applySpec(p *agentv2.ProjectSpec, version int32, data []byte, signedBy string) {
 	if next, err := spec.ParseYAML(data); err == nil {
 		for section, sent := range p.Expected {
 			// What the user expected is in: it is done.
@@ -323,7 +362,7 @@ func applySpec(p *agentv2.ProjectSpec, version int32, data []byte) {
 			}
 		}
 	}
-	p.Spec, p.ConfigVersion, p.ConfigHash = data, version, hashOf(data)
+	p.Spec, p.ConfigVersion, p.ConfigHash, p.SignedBy = data, version, hashOf(data), signedBy
 	p.Pending, p.Declined = nil, ""
 }
 
@@ -347,7 +386,7 @@ func (s *Store) ReviewChanges(project, hash string, accept bool) (uint64, error)
 			return ErrNoPending
 		}
 		if accept {
-			applySpec(p, p.Pending.Version, p.Pending.Spec)
+			applySpec(p, p.Pending.Version, p.Pending.Spec, "")
 			return nil
 		}
 		p.Declined, p.Pending = p.Pending.Hash, nil
@@ -374,8 +413,8 @@ func (s *Store) ExpectChange(project, section string, data []byte) (uint64, erro
 			data = []byte{}
 		}
 		p.Expected[section] = data
-		if w := p.Pending; w != nil && review(p, w.Version, w.Spec) == nil {
-			applySpec(p, w.Version, w.Spec)
+		if w := p.Pending; w != nil && review(p, w.Version, w.Spec, "", w.Unverified) == nil {
+			applySpec(p, w.Version, w.Spec, "")
 		}
 		return nil
 	})

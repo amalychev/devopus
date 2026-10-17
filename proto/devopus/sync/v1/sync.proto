@@ -67,6 +67,26 @@ message DesiredProject {
   repeated string overrides_allowed = 6;
   // The user has overrides.use in the project; without it nothing is allowed.
   bool overrides_permitted = 7;
+  // The author's signature of this version and the device that made it (ADR-0018).
+  bytes signature = 8;
+  string signer_device = 9;
+}
+
+// Trust is what an agent checks signatures with: the root, which it pins the first
+// time, and the devices the root certified — every certificate is checked.
+message Trust {
+  bytes root = 1;
+  string root_device = 2;
+  string root_email = 3;
+  repeated Signer signers = 4;
+}
+
+message Signer {
+  string device_id = 1;
+  string user_id = 2;
+  string email = 3;
+  bytes public_key = 4;
+  bytes certificate = 5;
 }
 
 // SecretsKey is the workspace's key for this device.
@@ -103,6 +123,8 @@ message WatchResponse {
   // (Cloudflare, corporate ones) cut connections silent for 100 s. The other fields
   // are empty; the agent skips it.
   bool keepalive = 7;
+  // Absent until the workspace's admin sets a root of trust.
+  Trust trust = 8;
 }
 
 message EnvironmentReport {

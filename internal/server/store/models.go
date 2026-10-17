@@ -112,13 +112,15 @@ type ProjectMember struct {
 }
 
 type ProjectVersion struct {
-	WorkspaceID string
-	ProjectID   string
-	Version     int32
-	Config      string
-	AuthorID    string
-	Message     string
-	CreatedAt   time.Time
+	WorkspaceID  string
+	ProjectID    string
+	Version      int32
+	Config       string
+	AuthorID     string
+	Message      string
+	CreatedAt    time.Time
+	Signature    []byte
+	SignerDevice string
 }
 
 type Secret struct {
@@ -131,6 +133,16 @@ type Secret struct {
 	UpdatedAt   time.Time
 }
 
+type SigningKey struct {
+	WorkspaceID string
+	DeviceID    string
+	UserID      string
+	Name        string
+	PublicKey   []byte
+	Certificate []byte
+	CreatedAt   time.Time
+}
+
 type User struct {
 	ID     string
 	Email  string
@@ -138,10 +150,13 @@ type User struct {
 }
 
 type Workspace struct {
-	ID            string
-	Name          string
-	CreatedAt     time.Time
-	KeyGeneration int32
+	ID              string
+	Name            string
+	CreatedAt       time.Time
+	KeyGeneration   int32
+	TrustRoot       []byte
+	TrustRootDevice string
+	TrustRootUser   string
 }
 
 type WorkspaceKey struct {

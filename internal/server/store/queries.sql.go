@@ -248,6 +248,27 @@ func (q *Queries) Audit(ctx context.Context, arg AuditParams) ([]AuditRow, error
 	return items, nil
 }
 
+const certifySigningKey = `-- name: CertifySigningKey :exec
+UPDATE signing_keys SET certificate = $4 WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3
+`
+
+type CertifySigningKeyParams struct {
+	WorkspaceID string
+	DeviceID    string
+	UserID      string
+	Certificate []byte
+}
+
+func (q *Queries) CertifySigningKey(ctx context.Context, arg CertifySigningKeyParams) error {
+	_, err := q.db.Exec(ctx, certifySigningKey,
+		arg.WorkspaceID,
+		arg.DeviceID,
+		arg.UserID,
+		arg.Certificate,
+	)
+	return err
+}
+
 const clearDeviceEnvironments = `-- name: ClearDeviceEnvironments :exec
 DELETE FROM device_environments WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3
 `
@@ -345,7 +366,7 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 }
 
 const createWorkspace = `-- name: CreateWorkspace :one
-INSERT INTO workspaces (id, name, created_at) VALUES ($1, $2, $3) RETURNING id, name, created_at, key_generation
+INSERT INTO workspaces (id, name, created_at) VALUES ($1, $2, $3) RETURNING id, name, created_at, key_generation, trust_root, trust_root_device, trust_root_user
 `
 
 type CreateWorkspaceParams struct {
@@ -362,6 +383,9 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		&i.Name,
 		&i.CreatedAt,
 		&i.KeyGeneration,
+		&i.TrustRoot,
+		&i.TrustRootDevice,
+		&i.TrustRootUser,
 	)
 	return i, err
 }
@@ -992,7 +1016,7 @@ func (q *Queries) ProjectSecrets(ctx context.Context, projectID string) ([]Proje
 }
 
 const projectVersion = `-- name: ProjectVersion :one
-SELECT v.workspace_id, v.project_id, v.version, v.config, v.author_id, v.message, v.created_at, u.email AS author FROM project_versions v JOIN users u ON u.id = v.author_id
+SELECT v.workspace_id, v.project_id, v.version, v.config, v.author_id, v.message, v.created_at, v.signature, v.signer_device, u.email AS author FROM project_versions v JOIN users u ON u.id = v.author_id
 WHERE v.project_id = $1 AND v.version = $2
 `
 
@@ -1002,14 +1026,16 @@ type ProjectVersionParams struct {
 }
 
 type ProjectVersionRow struct {
-	WorkspaceID string
-	ProjectID   string
-	Version     int32
-	Config      string
-	AuthorID    string
-	Message     string
-	CreatedAt   time.Time
-	Author      string
+	WorkspaceID  string
+	ProjectID    string
+	Version      int32
+	Config       string
+	AuthorID     string
+	Message      string
+	CreatedAt    time.Time
+	Signature    []byte
+	SignerDevice string
+	Author       string
 }
 
 func (q *Queries) ProjectVersion(ctx context.Context, arg ProjectVersionParams) (ProjectVersionRow, error) {
@@ -1023,13 +1049,15 @@ func (q *Queries) ProjectVersion(ctx context.Context, arg ProjectVersionParams) 
 		&i.AuthorID,
 		&i.Message,
 		&i.CreatedAt,
+		&i.Signature,
+		&i.SignerDevice,
 		&i.Author,
 	)
 	return i, err
 }
 
 const projectVersions = `-- name: ProjectVersions :many
-SELECT v.version, v.message, v.created_at, u.email AS author FROM project_versions v JOIN users u ON u.id = v.author_id
+SELECT v.version, v.message, v.created_at, u.email AS author, (v.signature IS NOT NULL)::boolean AS signed FROM project_versions v JOIN users u ON u.id = v.author_id
 WHERE v.project_id = $1
 ORDER BY v.version DESC
 LIMIT $2
@@ -1045,6 +1073,7 @@ type ProjectVersionsRow struct {
 	Message   string
 	CreatedAt time.Time
 	Author    string
+	Signed    bool
 }
 
 func (q *Queries) ProjectVersions(ctx context.Context, arg ProjectVersionsParams) ([]ProjectVersionsRow, error) {
@@ -1061,6 +1090,7 @@ func (q *Queries) ProjectVersions(ctx context.Context, arg ProjectVersionsParams
 			&i.Message,
 			&i.CreatedAt,
 			&i.Author,
+			&i.Signed,
 		); err != nil {
 			return nil, err
 		}
@@ -1135,7 +1165,7 @@ func (q *Queries) RemoveProjectRole(ctx context.Context, arg RemoveProjectRolePa
 }
 
 const renameWorkspace = `-- name: RenameWorkspace :one
-UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING id, name, created_at, key_generation
+UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING id, name, created_at, key_generation, trust_root, trust_root_device, trust_root_user
 `
 
 type RenameWorkspaceParams struct {
@@ -1151,6 +1181,9 @@ func (q *Queries) RenameWorkspace(ctx context.Context, arg RenameWorkspaceParams
 		&i.Name,
 		&i.CreatedAt,
 		&i.KeyGeneration,
+		&i.TrustRoot,
+		&i.TrustRootDevice,
+		&i.TrustRootUser,
 	)
 	return i, err
 }
@@ -1282,6 +1315,124 @@ func (q *Queries) SetSecret(ctx context.Context, arg SetSecretParams) error {
 	return err
 }
 
+const setTrustRoot = `-- name: SetTrustRoot :exec
+UPDATE workspaces SET trust_root = $2, trust_root_device = $3, trust_root_user = $4 WHERE id = $1
+`
+
+type SetTrustRootParams struct {
+	ID              string
+	TrustRoot       []byte
+	TrustRootDevice string
+	TrustRootUser   string
+}
+
+func (q *Queries) SetTrustRoot(ctx context.Context, arg SetTrustRootParams) error {
+	_, err := q.db.Exec(ctx, setTrustRoot,
+		arg.ID,
+		arg.TrustRoot,
+		arg.TrustRootDevice,
+		arg.TrustRootUser,
+	)
+	return err
+}
+
+const signProjectVersion = `-- name: SignProjectVersion :exec
+UPDATE project_versions SET signature = $3, signer_device = $4
+WHERE project_id = $1 AND version = $2 AND signature IS NULL
+`
+
+type SignProjectVersionParams struct {
+	ProjectID    string
+	Version      int32
+	Signature    []byte
+	SignerDevice string
+}
+
+func (q *Queries) SignProjectVersion(ctx context.Context, arg SignProjectVersionParams) error {
+	_, err := q.db.Exec(ctx, signProjectVersion,
+		arg.ProjectID,
+		arg.Version,
+		arg.Signature,
+		arg.SignerDevice,
+	)
+	return err
+}
+
+const signingKey = `-- name: SigningKey :one
+SELECT workspace_id, device_id, user_id, name, public_key, certificate, created_at FROM signing_keys WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3
+`
+
+type SigningKeyParams struct {
+	WorkspaceID string
+	DeviceID    string
+	UserID      string
+}
+
+func (q *Queries) SigningKey(ctx context.Context, arg SigningKeyParams) (SigningKey, error) {
+	row := q.db.QueryRow(ctx, signingKey, arg.WorkspaceID, arg.DeviceID, arg.UserID)
+	var i SigningKey
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.DeviceID,
+		&i.UserID,
+		&i.Name,
+		&i.PublicKey,
+		&i.Certificate,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const signingKeys = `-- name: SigningKeys :many
+SELECT k.workspace_id, k.device_id, k.user_id, k.name, k.public_key, k.certificate, k.created_at, u.email, m.role FROM signing_keys k
+JOIN users u ON u.id = k.user_id
+JOIN members m ON m.workspace_id = k.workspace_id AND m.user_id = k.user_id
+WHERE k.workspace_id = $1
+ORDER BY u.email, k.name
+`
+
+type SigningKeysRow struct {
+	WorkspaceID string
+	DeviceID    string
+	UserID      string
+	Name        string
+	PublicKey   []byte
+	Certificate []byte
+	CreatedAt   time.Time
+	Email       string
+	Role        string
+}
+
+func (q *Queries) SigningKeys(ctx context.Context, workspaceID string) ([]SigningKeysRow, error) {
+	rows, err := q.db.Query(ctx, signingKeys, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SigningKeysRow
+	for rows.Next() {
+		var i SigningKeysRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.DeviceID,
+			&i.UserID,
+			&i.Name,
+			&i.PublicKey,
+			&i.Certificate,
+			&i.CreatedAt,
+			&i.Email,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertDevice = `-- name: UpsertDevice :exec
 INSERT INTO devices (workspace_id, device_id, user_id, name, agent_version, last_seen)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -1326,6 +1477,35 @@ type UpsertDeviceKeyParams struct {
 
 func (q *Queries) UpsertDeviceKey(ctx context.Context, arg UpsertDeviceKeyParams) error {
 	_, err := q.db.Exec(ctx, upsertDeviceKey,
+		arg.WorkspaceID,
+		arg.DeviceID,
+		arg.UserID,
+		arg.Name,
+		arg.PublicKey,
+		arg.CreatedAt,
+	)
+	return err
+}
+
+const upsertSigningKey = `-- name: UpsertSigningKey :exec
+INSERT INTO signing_keys (workspace_id, device_id, user_id, name, public_key, created_at)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (workspace_id, device_id, user_id)
+DO UPDATE SET name = excluded.name, public_key = excluded.public_key, created_at = excluded.created_at,
+    certificate = CASE WHEN signing_keys.public_key = excluded.public_key THEN signing_keys.certificate END
+`
+
+type UpsertSigningKeyParams struct {
+	WorkspaceID string
+	DeviceID    string
+	UserID      string
+	Name        string
+	PublicKey   []byte
+	CreatedAt   time.Time
+}
+
+func (q *Queries) UpsertSigningKey(ctx context.Context, arg UpsertSigningKeyParams) error {
+	_, err := q.db.Exec(ctx, upsertSigningKey,
 		arg.WorkspaceID,
 		arg.DeviceID,
 		arg.UserID,
@@ -1456,18 +1636,21 @@ func (q *Queries) UserProjectRoles(ctx context.Context, arg UserProjectRolesPara
 }
 
 const userWorkspaces = `-- name: UserWorkspaces :many
-SELECT w.id, w.name, w.created_at, w.key_generation, m.role FROM workspaces w
+SELECT w.id, w.name, w.created_at, w.key_generation, w.trust_root, w.trust_root_device, w.trust_root_user, m.role FROM workspaces w
 JOIN members m ON m.workspace_id = w.id
 WHERE m.user_id = $1
 ORDER BY w.name
 `
 
 type UserWorkspacesRow struct {
-	ID            string
-	Name          string
-	CreatedAt     time.Time
-	KeyGeneration int32
-	Role          string
+	ID              string
+	Name            string
+	CreatedAt       time.Time
+	KeyGeneration   int32
+	TrustRoot       []byte
+	TrustRootDevice string
+	TrustRootUser   string
+	Role            string
 }
 
 func (q *Queries) UserWorkspaces(ctx context.Context, userID string) ([]UserWorkspacesRow, error) {
@@ -1484,6 +1667,9 @@ func (q *Queries) UserWorkspaces(ctx context.Context, userID string) ([]UserWork
 			&i.Name,
 			&i.CreatedAt,
 			&i.KeyGeneration,
+			&i.TrustRoot,
+			&i.TrustRootDevice,
+			&i.TrustRootUser,
 			&i.Role,
 		); err != nil {
 			return nil, err
@@ -1497,7 +1683,7 @@ func (q *Queries) UserWorkspaces(ctx context.Context, userID string) ([]UserWork
 }
 
 const workspace = `-- name: Workspace :one
-SELECT id, name, created_at, key_generation FROM workspaces WHERE id = $1
+SELECT id, name, created_at, key_generation, trust_root, trust_root_device, trust_root_user FROM workspaces WHERE id = $1
 `
 
 func (q *Queries) Workspace(ctx context.Context, id string) (Workspace, error) {
@@ -1508,6 +1694,9 @@ func (q *Queries) Workspace(ctx context.Context, id string) (Workspace, error) {
 		&i.Name,
 		&i.CreatedAt,
 		&i.KeyGeneration,
+		&i.TrustRoot,
+		&i.TrustRootDevice,
+		&i.TrustRootUser,
 	)
 	return i, err
 }
@@ -1556,7 +1745,7 @@ func (q *Queries) WorkspaceDeviceKeys(ctx context.Context, workspaceID string) (
 }
 
 const workspaceForUpdate = `-- name: WorkspaceForUpdate :one
-SELECT id, name, created_at, key_generation FROM workspaces WHERE id = $1 FOR UPDATE
+SELECT id, name, created_at, key_generation, trust_root, trust_root_device, trust_root_user FROM workspaces WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) WorkspaceForUpdate(ctx context.Context, id string) (Workspace, error) {
@@ -1567,6 +1756,9 @@ func (q *Queries) WorkspaceForUpdate(ctx context.Context, id string) (Workspace,
 		&i.Name,
 		&i.CreatedAt,
 		&i.KeyGeneration,
+		&i.TrustRoot,
+		&i.TrustRootDevice,
+		&i.TrustRootUser,
 	)
 	return i, err
 }

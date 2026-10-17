@@ -135,7 +135,7 @@ SELECT v.*, u.email AS author FROM project_versions v JOIN users u ON u.id = v.a
 WHERE v.project_id = $1 AND v.version = $2;
 
 -- name: ProjectVersions :many
-SELECT v.version, v.message, v.created_at, u.email AS author FROM project_versions v JOIN users u ON u.id = v.author_id
+SELECT v.version, v.message, v.created_at, u.email AS author, (v.signature IS NOT NULL)::boolean AS signed FROM project_versions v JOIN users u ON u.id = v.author_id
 WHERE v.project_id = $1
 ORDER BY v.version DESC
 LIMIT $2;
@@ -220,3 +220,30 @@ WHERE s.project_id = $1 ORDER BY s.name;
 -- name: WorkspaceSecrets :many
 SELECT s.*, p.name AS project FROM secrets s JOIN projects p ON p.id = s.project_id
 WHERE s.workspace_id = $1 ORDER BY p.name, s.name;
+
+-- name: UpsertSigningKey :exec
+INSERT INTO signing_keys (workspace_id, device_id, user_id, name, public_key, created_at)
+VALUES ($1, $2, $3, $4, $5, $6)
+ON CONFLICT (workspace_id, device_id, user_id)
+DO UPDATE SET name = excluded.name, public_key = excluded.public_key, created_at = excluded.created_at,
+    certificate = CASE WHEN signing_keys.public_key = excluded.public_key THEN signing_keys.certificate END;
+
+-- name: SigningKey :one
+SELECT * FROM signing_keys WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3;
+
+-- name: SigningKeys :many
+SELECT k.*, u.email, m.role FROM signing_keys k
+JOIN users u ON u.id = k.user_id
+JOIN members m ON m.workspace_id = k.workspace_id AND m.user_id = k.user_id
+WHERE k.workspace_id = $1
+ORDER BY u.email, k.name;
+
+-- name: CertifySigningKey :exec
+UPDATE signing_keys SET certificate = $4 WHERE workspace_id = $1 AND device_id = $2 AND user_id = $3;
+
+-- name: SetTrustRoot :exec
+UPDATE workspaces SET trust_root = $2, trust_root_device = $3, trust_root_user = $4 WHERE id = $1;
+
+-- name: SignProjectVersion :exec
+UPDATE project_versions SET signature = $3, signer_device = $4
+WHERE project_id = $1 AND version = $2 AND signature IS NULL;

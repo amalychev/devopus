@@ -86,6 +86,9 @@ func (s *Service) desired(ctx context.Context, c *caller, device string) (*syncv
 		return nil, err
 	}
 	out := &syncv1.WatchResponse{WorkspaceId: w.ID, WorkspaceName: w.Name, AdminEmail: admin.Email}
+	if out.Trust, err = s.trustFor(ctx, c.workspace); err != nil {
+		return nil, err
+	}
 	projects, err := s.q.Projects(ctx, c.workspace)
 	if err != nil {
 		return nil, err
@@ -99,7 +102,7 @@ func (s *Service) desired(ctx context.Context, c *caller, device string) (*syncv
 			return nil, err
 		}
 		dp := &syncv1.DesiredProject{Id: p.ID, Name: p.Name, Version: p.Version, ConfigYaml: v.Config,
-			OverridesPermitted: c.subject.Can(authz.OverridesUse, p.Name)}
+			OverridesPermitted: c.subject.Can(authz.OverridesUse, p.Name), Signature: v.Signature, SignerDevice: v.SignerDevice}
 		// Admins and teamlead may override anything; developers what the policy allows.
 		if c.subject.Role == authz.Admin || c.subject.Projects[p.Name] == authz.Teamlead {
 			dp.OverridesAllowed = []string{spec.AllowAll}

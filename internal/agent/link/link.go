@@ -28,6 +28,7 @@ import (
 	"github.com/amalychev/devopus/internal/agent/store"
 	"github.com/amalychev/devopus/internal/credentials"
 	"github.com/amalychev/devopus/internal/secrets"
+	"github.com/amalychev/devopus/internal/signing"
 	"github.com/amalychev/devopus/internal/spec"
 )
 
@@ -126,7 +127,7 @@ func (l *Link) Run(ctx context.Context) {
 			continue
 		case connect.CodeOf(err) == connect.CodePermissionDenied:
 			// Not a member any more: the workspace's projects stop here.
-			if _, _, serr := l.opt.Store.SyncServer(ws.ID, "", store.ServerKey{}, nil, root); serr != nil {
+			if _, _, serr := l.opt.Store.SyncServer(ws.ID, "", store.ServerKey{}, nil, nil, root); serr != nil {
 				l.opt.Log.Error("stop the workspace's projects", "err", serr)
 			}
 			l.opt.Log.Warn("the workspace server refused this device", "workspace", ws.Name, "err", err)
@@ -244,10 +245,10 @@ func (l *Link) watch(ctx context.Context, ws *credentials.Workspace, tok string)
 		projects := make([]store.ServerProject, 0, len(m.Projects))
 		for _, p := range m.Projects {
 			projects = append(projects, store.ServerProject{Name: p.Name, Spec: []byte(p.ConfigYaml), Version: p.Version, Secrets: p.Secrets,
-				OverridesAllowed: p.OverridesAllowed, OverridesPermitted: p.OverridesPermitted})
+				OverridesAllowed: p.OverridesAllowed, OverridesPermitted: p.OverridesPermitted, Signature: p.Signature, SignerDevice: p.SignerDevice})
 		}
 		key := store.ServerKey{Generation: m.GetKey().GetGeneration(), Wrapped: m.GetKey().GetWrapped()}
-		_, conflicts, err := l.opt.Store.SyncServer(m.WorkspaceId, m.AdminEmail, key, projects, root)
+		_, conflicts, err := l.opt.Store.SyncServer(m.WorkspaceId, m.AdminEmail, key, projects, TrustSet(m.WorkspaceId, m.Trust), root)
 		if err != nil {
 			return err
 		}
@@ -295,6 +296,19 @@ func (l *Link) report(ctx context.Context) {
 			l.opt.Log.Debug("report to the workspace server", "err", err)
 		}
 	}
+}
+
+// TrustSet is the server's word on signatures, as the store checks it: the root
+// counts only until one is pinned, each certificate is checked against it.
+func TrustSet(workspace string, t *syncv1.Trust) *signing.Set {
+	if t == nil {
+		return nil
+	}
+	set := &signing.Set{Workspace: workspace, Root: t.Root, RootDevice: t.RootDevice, RootEmail: t.RootEmail}
+	for _, sg := range t.Signers {
+		set.Signers = append(set.Signers, signing.Signer{DeviceID: sg.DeviceId, UserID: sg.UserId, Email: sg.Email, Public: sg.PublicKey, Certificate: sg.Certificate})
+	}
+	return set
 }
 
 var errNotLinked = errors.New("not linked to a workspace")

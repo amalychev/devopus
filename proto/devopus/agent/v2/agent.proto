@@ -74,6 +74,18 @@ message DesiredState {
   repeated ProjectSpec projects = 2;
   repeated EnvironmentSpec environments = 3;
   DeviceSettings device = 4;
+  // The root of trust of each workspace, pinned the first time the agent saw it
+  // (ADR-0018): the server cannot replace it.
+  map<string, TrustRoot> trust_roots = 5;
+}
+
+message TrustRoot {
+  bytes public_key = 1;
+  string device_id = 2;
+  string email = 3;
+  // The server gives another root than the pinned one: signatures do not count until
+  // the user looks into it.
+  bytes offered = 4;
 }
 
 // DeviceSettings are per device, not per project.
@@ -130,6 +142,9 @@ message ProjectSpec {
   map<string, bytes> expected = 17;
   // sha256 of a version the user declined: it is not asked about again.
   string declined = 18;
+  // Who signed the version the project runs, checked against the pinned root; empty:
+  // unsigned or not trusted.
+  string signed_by = 19;
 }
 
 message PendingChange {
@@ -140,6 +155,8 @@ message PendingChange {
   // The risky changes, then the rest.
   repeated string risky = 4;
   repeated string other = 5;
+  // Why its signature does not count: unsigned, an uncertified device…
+  string unverified = 6;
 }
 
 enum EnvironmentKind {

@@ -144,6 +144,9 @@ func fileOf(account string) string {
 	if strings.HasSuffix(account, deviceKeySuffix) {
 		return filepath.Join(paths.Home(), "device-key")
 	}
+	if strings.HasSuffix(account, signingKeySuffix) {
+		return filepath.Join(paths.Home(), "signing-key")
+	}
 	return tokenFile()
 }
 

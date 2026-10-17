@@ -34,6 +34,7 @@ import (
 	"github.com/amalychev/devopus/internal/credentials"
 	"github.com/amalychev/devopus/internal/pgtest"
 	"github.com/amalychev/devopus/internal/secrets"
+	"github.com/amalychev/devopus/internal/signing"
 	"github.com/amalychev/devopus/internal/server"
 	serverstore "github.com/amalychev/devopus/internal/server/store"
 )
@@ -422,12 +423,38 @@ func TestAgentFromWorkspace(t *testing.T) {
 	}
 	serves("reviewed settings v2 pw " + password + " Python 3.13")
 
+	// R21, layer 2: the admin's device becomes the root of trust; the developer's agent
+	// pins it. A risky change the admin signs then applies without asking.
+	leadSig, _ := signing.NewKey()
+	if _, err := ws.RegisterSigningKey(ctx, bearer(&workspacev1.RegisterSigningKeyRequest{WorkspaceId: wsID, DeviceId: "lead-mac", DeviceName: "mac", PublicKey: leadSig.Public()}, lead)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.SetTrustRoot(ctx, bearer(&workspacev1.SetTrustRootRequest{WorkspaceId: wsID, DeviceId: "lead-mac"}, lead)); err != nil {
+		t.Fatal(err)
+	}
+	put, err := ws.PutApp(ctx, bearer(&workspacev1.PutAppRequest{WorkspaceId: wsID, Project: project, Name: "web",
+		AppYaml: strings.Replace(webYAML, "echo settings", "echo signed settings", 1)}, lead))
+	if err != nil {
+		t.Fatal(err)
+	}
+	conf := put.Msg.Config
+	if _, err := ws.SignVersion(ctx, bearer(&workspacev1.SignVersionRequest{WorkspaceId: wsID, Project: project, Version: conf.Version, DeviceId: "lead-mac",
+		Signature: leadSig.Sign(signing.SettingsMessage(wsID, project, conf.Version, []byte(conf.Yaml)))}, lead)); err != nil {
+		t.Fatal(err)
+	}
+	serves("signed settings v2 pw " + password + " Python 3.13")
+	for _, p := range status().Projects {
+		if p.Name == project && (p.SignedBy != "lead@acme.dev" || p.Pending != nil) {
+			t.Errorf("signed version on the device: signed by %q, pending %v", p.SignedBy, p.Pending)
+		}
+	}
+
 	// The server goes away: the environment keeps running on what the agent has.
 	srv.CloseClientConnections()
 	srv.Close()
 	serverUp = false
 	time.Sleep(3 * time.Second)
-	serves("reviewed settings v2 pw " + password + " Python 3.13")
+	serves("signed settings v2 pw " + password + " Python 3.13")
 	for _, e := range status().Environments {
 		if e.Id == envID && e.Phase != agentv2.Phase_PHASE_RUNNING {
 			t.Errorf("without the server: %v %s", e.Phase, e.Error)

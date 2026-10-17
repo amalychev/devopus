@@ -36,7 +36,12 @@ export function History({ current, project }: { current: Current; project: Proje
                 </TableCell>
                 <TableCell className="max-w-56 truncate">{v.message}</TableCell>
                 <TableCell className="text-muted-foreground">
-                  {v.author}
+                  {v.author}{" "}
+                  {!v.signed && (
+                    <Badge variant="outline" title="Made in the browser or by an older CLI: the team's agents ask before applying new code from it">
+                      unsigned
+                    </Badge>
+                  )}
                   <br />
                   <span className="text-xs">{when(v.createdAt)}</span>
                 </TableCell>

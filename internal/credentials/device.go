@@ -8,6 +8,7 @@ import (
 
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/secrets"
+	"github.com/amalychev/devopus/internal/signing"
 )
 
 // deviceKeySuffix names the device key's item in the key store: the account is the
@@ -45,6 +46,49 @@ func DeviceKey() (*age.X25519Identity, error) {
 			return err
 		}
 		if key, err = secrets.NewKey(); err != nil {
+			return err
+		}
+		if err := st.set(account, key.String()); err != nil && store != StoreFile {
+			return (file{}).set(account, key.String())
+		} else if err != nil {
+			return err
+		}
+		return nil
+	})
+	return key, err
+}
+
+// signingKeySuffix names the device's signing key in the key store.
+const signingKeySuffix = "#signing-key"
+
+// SigningKey is this device's key for signing versions of projects' settings
+// (ADR-0018): made on first use and kept like the device key.
+func SigningKey() (signing.Key, error) {
+	deviceKeyMu.Lock()
+	defer deviceKeyMu.Unlock()
+	var key signing.Key
+	err := withLock(func() error {
+		store := pickStore()
+		if s, err := Load(); err == nil && s != nil && s.Store != "" {
+			store = s.Store
+		}
+		st, err := open(store)
+		if err != nil {
+			return err
+		}
+		account := paths.Home() + signingKeySuffix
+		raw, err := st.get(account)
+		if errors.Is(err, errNoSecret) && store != StoreFile {
+			raw, err = (file{}).get(account)
+		}
+		if err == nil {
+			key, err = signing.ParseKey(raw)
+			return err
+		}
+		if !errors.Is(err, errNoSecret) {
+			return err
+		}
+		if key, err = signing.NewKey(); err != nil {
 			return err
 		}
 		if err := st.set(account, key.String()); err != nil && store != StoreFile {

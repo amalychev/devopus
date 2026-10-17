@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -161,6 +162,9 @@ func (p *Project) WithSection(section string, data []byte) (*Project, error) {
 		if err := yaml.Unmarshal(data, &sv); err != nil {
 			return nil, fmt.Errorf("%s: %w", section, err)
 		}
+		if t, ok := catalog.Lookup(sv.Type); ok {
+			sv.Type = t.Name // as the server stores it: node → nodejs
+		}
 		if out.Services == nil {
 			out.Services = map[string]*Service{}
 		}
@@ -176,6 +180,37 @@ func same(x, y any) bool {
 	a, errA := yaml.Marshal(x)
 	b, errB := yaml.Marshal(y)
 	return errA == nil && errB == nil && string(a) == string(b)
+}
+
+// WithoutApp is the project without an application, the services attached to it
+// detached: what removing it does.
+func (p *Project) WithoutApp(name string) *Project {
+	out := p.Clone()
+	delete(out.Apps, name)
+	for _, s := range out.Services {
+		s.Apps = slices.DeleteFunc(s.Apps, func(a string) bool { return a == name })
+	}
+	return out
+}
+
+// Same reports how two versions differ, as YAML; nil when they are the same.
+func Same(want, got *Project) error {
+	a, errA := want.YAML()
+	b, errB := got.YAML()
+	if errA != nil || errB != nil {
+		return errors.Join(errA, errB)
+	}
+	if string(a) == string(b) {
+		return nil
+	}
+	var what []string
+	for _, c := range Diff(want, got) {
+		what = append(what, c.What)
+	}
+	if len(what) == 0 {
+		what = []string{"details outside the usual fields"}
+	}
+	return fmt.Errorf("it differs from what you sent: %s", strings.Join(what, "; "))
 }
 
 // trustedImage: a service runs the catalog's image of its type, or no image of its own.

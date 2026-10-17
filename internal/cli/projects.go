@@ -77,6 +77,39 @@ func (p *inProject) edit(ctx context.Context, change func(base int32) (*workspac
 	}
 }
 
+// sign signs the version the caller made in this project: want checks the server's
+// version against the change.
+func (p *inProject) sign(ctx context.Context, a *app, conf *workspacev1.ProjectConfig, want func(got *spec.Project) error) {
+	a.signVersion(ctx, p.s, p.ws, p.c, p.name, conf, want)
+}
+
+// sectionIs: the server's version is the project as it was, with this section as sent.
+func sectionIs(base *spec.Project, section string, sent []byte) func(got *spec.Project) error {
+	return func(got *spec.Project) error {
+		want, err := base.WithSection(section, sent)
+		if err != nil {
+			return err
+		}
+		return spec.Same(want, got)
+	}
+}
+
+// sectionsKept: the server's version has the applications and services as they were;
+// only the project's own settings changed.
+func sectionsKept(apps map[string]*spec.App, services map[string]*spec.Service) func(got *spec.Project) error {
+	return func(got *spec.Project) error {
+		want := got.Clone()
+		want.Apps, want.Services = apps, services
+		if want.Apps == nil {
+			want.Apps = map[string]*spec.App{}
+		}
+		if want.Services == nil {
+			want.Services = map[string]*spec.Service{}
+		}
+		return spec.Same(want, got)
+	}
+}
+
 func toYAML(v any) string {
 	b, err := yaml.Marshal(v)
 	if err != nil {
@@ -131,6 +164,13 @@ func (a *app) projectCmd() *cobra.Command {
 				return rpcErr(err)
 			}
 			cfg, _ := spec.ParseYAML([]byte(res.Msg.Config.Yaml))
+			var imported *spec.Project
+			if config != "" {
+				imported, _ = spec.ParseYAML([]byte(config))
+			} else {
+				imported = &spec.Project{}
+			}
+			a.signVersion(ctx, s, cur, c, args[0], res.Msg.Config, sectionsKept(imported.Apps, imported.Services))
 			if err := a.uploadSecrets(ctx, args[0], found); err != nil {
 				fmt.Fprintf(a.stderr, "The project is created, but its secrets are not stored: %v\nSet them with 'devopus secrets set %s <NAME>'.\n", err, args[0])
 			}
@@ -227,6 +267,7 @@ func (a *app) projectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			p.sign(cmd.Context(), a, conf, sectionsKept(p.cfg.Apps, p.cfg.Services))
 			return a.changed(conf, "%s: %s", p.name, conf.Message)
 		},
 	}
@@ -333,9 +374,13 @@ func (a *app) projectConfigCmd() *cobra.Command {
 				return a.writeProto(res.Msg)
 			}
 			w := tabwriter.NewWriter(a.stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "VERSION\tWHEN\tWHO\tWHAT")
+			fmt.Fprintln(w, "VERSION\tWHEN\tWHO\tSIGNED\tWHAT")
 			for _, v := range res.Msg.Versions {
-				fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", v.Version, v.CreatedAt.AsTime().Local().Format("2 Jan 15:04"), v.Author, v.Message)
+				signed := "no"
+				if v.Signed {
+					signed = "yes"
+				}
+				fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n", v.Version, v.CreatedAt.AsTime().Local().Format("2 Jan 15:04"), v.Author, signed, v.Message)
 			}
 			return w.Flush()
 		},
@@ -359,6 +404,17 @@ func (a *app) projectConfigCmd() *cobra.Command {
 			if err != nil {
 				return rpcErr(err)
 			}
+			a.signVersion(cmd.Context(), s, cur, c, args[0], res.Msg.Config, func(got *spec.Project) error {
+				old, err := c.GetProjectConfig(cmd.Context(), req(s, &workspacev1.GetProjectConfigRequest{WorkspaceId: cur.ID, Project: args[0], Version: int32(v)}))
+				if err != nil {
+					return rpcErr(err)
+				}
+				want, err := spec.ParseYAML([]byte(old.Msg.Config.Yaml))
+				if err != nil {
+					return err
+				}
+				return spec.Same(want, got)
+			})
 			return a.changed(res.Msg.Config, "%s is back to version %d", args[0], v)
 		},
 	}
@@ -585,6 +641,7 @@ func (a *app) appCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				var sent []byte
 				conf, err := p.edit(cmd.Context(), func(base int32) (*workspacev1.ProjectConfig, error) {
 					app := &spec.App{}
 					if !create {
@@ -597,6 +654,7 @@ func (a *app) appCmd() *cobra.Command {
 						return nil, err
 					}
 					a.expectChange(p.name, "apps."+args[1], app)
+					sent = []byte(toYAML(app))
 					r, err := p.c.PutApp(cmd.Context(), req(p.s, &workspacev1.PutAppRequest{WorkspaceId: p.ws.ID, Project: p.name, BaseVersion: base, Name: args[1], AppYaml: toYAML(app), Create: create}))
 					if err != nil {
 						return nil, err
@@ -606,6 +664,7 @@ func (a *app) appCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
+				p.sign(cmd.Context(), a, conf, sectionIs(p.cfg, "apps."+args[1], sent))
 				return a.changed(conf, "%s: %s", args[0], conf.Message)
 			},
 		}
@@ -632,6 +691,7 @@ func (a *app) appCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			p.sign(cmd.Context(), a, conf, func(got *spec.Project) error { return spec.Same(p.cfg.WithoutApp(args[1]), got) })
 			return a.changed(conf, "%s: %s", args[0], conf.Message)
 		},
 	}
@@ -711,6 +771,7 @@ func (f *serviceFlags) apply(c *cobra.Command, s *spec.Service) error {
 }
 
 func (a *app) putService(cmd *cobra.Command, p *inProject, name string, create bool, edit func(*spec.Service) error) error {
+	var sent []byte
 	conf, err := p.edit(cmd.Context(), func(base int32) (*workspacev1.ProjectConfig, error) {
 		svc := &spec.Service{}
 		if !create {
@@ -723,6 +784,7 @@ func (a *app) putService(cmd *cobra.Command, p *inProject, name string, create b
 			return nil, err
 		}
 		a.expectChange(p.name, "services."+name, svc)
+		sent = []byte(toYAML(svc))
 		r, err := p.c.PutService(cmd.Context(), req(p.s, &workspacev1.PutServiceRequest{WorkspaceId: p.ws.ID, Project: p.name, BaseVersion: base, Name: name, ServiceYaml: toYAML(svc), Create: create}))
 		if err != nil {
 			return nil, err
@@ -732,6 +794,7 @@ func (a *app) putService(cmd *cobra.Command, p *inProject, name string, create b
 	if err != nil {
 		return err
 	}
+	p.sign(cmd.Context(), a, conf, sectionIs(p.cfg, "services."+name, sent))
 	return a.changed(conf, "%s: %s", p.name, conf.Message)
 }
 
@@ -853,6 +916,7 @@ func (a *app) serviceCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			p.sign(cmd.Context(), a, conf, sectionIs(p.cfg, "services."+args[1], nil))
 			return a.changed(conf, "%s: %s", args[0], conf.Message)
 		},
 	}

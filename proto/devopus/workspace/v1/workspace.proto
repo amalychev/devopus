@@ -161,6 +161,50 @@ service WorkspaceService {
     };
   }
 
+  // Signatures of settings (ADR-0018): devices' signing keys, the workspace's root of
+  // trust (a key of the admin's device), the root's certificates for the devices of
+  // people who change settings, and the authors' signatures of versions. The server
+  // keeps and hands them out; agents check them and trust no word of the server's.
+
+  // RegisterSigningKey records the signing key of one of the caller's devices. A new
+  // key for the device needs a new certificate.
+  rpc RegisterSigningKey(RegisterSigningKeyRequest) returns (RegisterSigningKeyResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  // SetTrustRoot makes a signing key of the admin's device the workspace's root of
+  // trust. Once: agents pin the first root and take no other.
+  rpc SetTrustRoot(SetTrustRootRequest) returns (SetTrustRootResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.manage"
+    };
+  }
+  // ListSigningKeys shows the root and every device's signing key, certified or not.
+  rpc ListSigningKeys(ListSigningKeysRequest) returns (ListSigningKeysResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  // CertifySigningKey stores the root's certificate for a device, made on the admin's
+  // device that holds the root.
+  rpc CertifySigningKey(CertifySigningKeyRequest) returns (CertifySigningKeyResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.manage"
+    };
+  }
+  // SignVersion stores the author's signature of a version of a project's settings.
+  rpc SignVersion(SignVersionRequest) returns (SignVersionResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+
   // Secrets are end-to-end (ADR-0009): the server keeps the workspace's public key,
   // its private key wrapped for each device, and ciphertexts. It reads no value.
 
@@ -321,6 +365,10 @@ message ProjectConfig {
   // What changed: "service set php 8.4", "rollback to 3"…
   string message = 4;
   google.protobuf.Timestamp created_at = 5;
+  // The author's signature (signing.SettingsMessage) and the device that made it;
+  // empty while unsigned.
+  bytes signature = 6;
+  string signer_device = 7;
 }
 
 message ProjectVersion {
@@ -328,6 +376,8 @@ message ProjectVersion {
   string author = 2;
   string message = 3;
   google.protobuf.Timestamp created_at = 4;
+  // Signed by the author's device; whether agents trust it depends on its certificate.
+  bool signed = 5;
 }
 
 message ProjectRole {
@@ -783,3 +833,73 @@ message ServiceType {
 message ListServiceTypesResponse {
   repeated ServiceType types = 1;
 }
+
+message RegisterSigningKeyRequest {
+  string workspace_id = 1;
+  string device_id = 2;
+  string device_name = 3;
+  // Ed25519, 32 bytes.
+  bytes public_key = 4;
+}
+
+message RegisterSigningKeyResponse {
+  // The device's key has a certificate (or is the root).
+  bool certified = 1;
+}
+
+message SetTrustRootRequest {
+  string workspace_id = 1;
+  // A device of the caller whose signing key is registered.
+  string device_id = 2;
+}
+
+message SetTrustRootResponse {}
+
+message ListSigningKeysRequest {
+  string workspace_id = 1;
+}
+
+message TrustRoot {
+  bytes public_key = 1;
+  string device_id = 2;
+  string device_name = 3;
+  string user_email = 4;
+}
+
+message SigningKey {
+  string device_id = 1;
+  string device_name = 2;
+  string user_id = 3;
+  string user_email = 4;
+  // admin, teamlead or developer.
+  string role = 5;
+  bytes public_key = 6;
+  // The root's signature of signing.SignerMessage; empty: not certified.
+  bytes certificate = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message ListSigningKeysResponse {
+  // Absent until the admin sets one.
+  TrustRoot root = 1;
+  repeated SigningKey keys = 2;
+}
+
+message CertifySigningKeyRequest {
+  string workspace_id = 1;
+  string device_id = 2;
+  string user_id = 3;
+  bytes certificate = 4;
+}
+
+message CertifySigningKeyResponse {}
+
+message SignVersionRequest {
+  string workspace_id = 1;
+  string project = 2;
+  int32 version = 3;
+  string device_id = 4;
+  bytes signature = 5;
+}
+
+message SignVersionResponse {}

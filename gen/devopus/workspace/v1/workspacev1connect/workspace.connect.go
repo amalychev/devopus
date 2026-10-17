@@ -94,6 +94,21 @@ const (
 	// WorkspaceServiceRemoveServiceProcedure is the fully-qualified name of the WorkspaceService's
 	// RemoveService RPC.
 	WorkspaceServiceRemoveServiceProcedure = "/devopus.workspace.v1.WorkspaceService/RemoveService"
+	// WorkspaceServiceRegisterSigningKeyProcedure is the fully-qualified name of the WorkspaceService's
+	// RegisterSigningKey RPC.
+	WorkspaceServiceRegisterSigningKeyProcedure = "/devopus.workspace.v1.WorkspaceService/RegisterSigningKey"
+	// WorkspaceServiceSetTrustRootProcedure is the fully-qualified name of the WorkspaceService's
+	// SetTrustRoot RPC.
+	WorkspaceServiceSetTrustRootProcedure = "/devopus.workspace.v1.WorkspaceService/SetTrustRoot"
+	// WorkspaceServiceListSigningKeysProcedure is the fully-qualified name of the WorkspaceService's
+	// ListSigningKeys RPC.
+	WorkspaceServiceListSigningKeysProcedure = "/devopus.workspace.v1.WorkspaceService/ListSigningKeys"
+	// WorkspaceServiceCertifySigningKeyProcedure is the fully-qualified name of the WorkspaceService's
+	// CertifySigningKey RPC.
+	WorkspaceServiceCertifySigningKeyProcedure = "/devopus.workspace.v1.WorkspaceService/CertifySigningKey"
+	// WorkspaceServiceSignVersionProcedure is the fully-qualified name of the WorkspaceService's
+	// SignVersion RPC.
+	WorkspaceServiceSignVersionProcedure = "/devopus.workspace.v1.WorkspaceService/SignVersion"
 	// WorkspaceServiceGetSecretsKeyProcedure is the fully-qualified name of the WorkspaceService's
 	// GetSecretsKey RPC.
 	WorkspaceServiceGetSecretsKeyProcedure = "/devopus.workspace.v1.WorkspaceService/GetSecretsKey"
@@ -192,6 +207,19 @@ type WorkspaceServiceClient interface {
 	// attached to.
 	PutService(context.Context, *connect.Request[v1.PutServiceRequest]) (*connect.Response[v1.PutServiceResponse], error)
 	RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error)
+	// RegisterSigningKey records the signing key of one of the caller's devices. A new
+	// key for the device needs a new certificate.
+	RegisterSigningKey(context.Context, *connect.Request[v1.RegisterSigningKeyRequest]) (*connect.Response[v1.RegisterSigningKeyResponse], error)
+	// SetTrustRoot makes a signing key of the admin's device the workspace's root of
+	// trust. Once: agents pin the first root and take no other.
+	SetTrustRoot(context.Context, *connect.Request[v1.SetTrustRootRequest]) (*connect.Response[v1.SetTrustRootResponse], error)
+	// ListSigningKeys shows the root and every device's signing key, certified or not.
+	ListSigningKeys(context.Context, *connect.Request[v1.ListSigningKeysRequest]) (*connect.Response[v1.ListSigningKeysResponse], error)
+	// CertifySigningKey stores the root's certificate for a device, made on the admin's
+	// device that holds the root.
+	CertifySigningKey(context.Context, *connect.Request[v1.CertifySigningKeyRequest]) (*connect.Response[v1.CertifySigningKeyResponse], error)
+	// SignVersion stores the author's signature of a version of a project's settings.
+	SignVersion(context.Context, *connect.Request[v1.SignVersionRequest]) (*connect.Response[v1.SignVersionResponse], error)
 	// GetSecretsKey is the workspace's current public key, and its private key wrapped
 	// for one of the caller's devices if it has reached it.
 	GetSecretsKey(context.Context, *connect.Request[v1.GetSecretsKeyRequest]) (*connect.Response[v1.GetSecretsKeyResponse], error)
@@ -357,6 +385,36 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workspaceServiceMethods.ByName("RemoveService")),
 			connect.WithClientOptions(opts...),
 		),
+		registerSigningKey: connect.NewClient[v1.RegisterSigningKeyRequest, v1.RegisterSigningKeyResponse](
+			httpClient,
+			baseURL+WorkspaceServiceRegisterSigningKeyProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("RegisterSigningKey")),
+			connect.WithClientOptions(opts...),
+		),
+		setTrustRoot: connect.NewClient[v1.SetTrustRootRequest, v1.SetTrustRootResponse](
+			httpClient,
+			baseURL+WorkspaceServiceSetTrustRootProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("SetTrustRoot")),
+			connect.WithClientOptions(opts...),
+		),
+		listSigningKeys: connect.NewClient[v1.ListSigningKeysRequest, v1.ListSigningKeysResponse](
+			httpClient,
+			baseURL+WorkspaceServiceListSigningKeysProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("ListSigningKeys")),
+			connect.WithClientOptions(opts...),
+		),
+		certifySigningKey: connect.NewClient[v1.CertifySigningKeyRequest, v1.CertifySigningKeyResponse](
+			httpClient,
+			baseURL+WorkspaceServiceCertifySigningKeyProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("CertifySigningKey")),
+			connect.WithClientOptions(opts...),
+		),
+		signVersion: connect.NewClient[v1.SignVersionRequest, v1.SignVersionResponse](
+			httpClient,
+			baseURL+WorkspaceServiceSignVersionProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("SignVersion")),
+			connect.WithClientOptions(opts...),
+		),
 		getSecretsKey: connect.NewClient[v1.GetSecretsKeyRequest, v1.GetSecretsKeyResponse](
 			httpClient,
 			baseURL+WorkspaceServiceGetSecretsKeyProcedure,
@@ -489,6 +547,11 @@ type workspaceServiceClient struct {
 	removeApp             *connect.Client[v1.RemoveAppRequest, v1.RemoveAppResponse]
 	putService            *connect.Client[v1.PutServiceRequest, v1.PutServiceResponse]
 	removeService         *connect.Client[v1.RemoveServiceRequest, v1.RemoveServiceResponse]
+	registerSigningKey    *connect.Client[v1.RegisterSigningKeyRequest, v1.RegisterSigningKeyResponse]
+	setTrustRoot          *connect.Client[v1.SetTrustRootRequest, v1.SetTrustRootResponse]
+	listSigningKeys       *connect.Client[v1.ListSigningKeysRequest, v1.ListSigningKeysResponse]
+	certifySigningKey     *connect.Client[v1.CertifySigningKeyRequest, v1.CertifySigningKeyResponse]
+	signVersion           *connect.Client[v1.SignVersionRequest, v1.SignVersionResponse]
 	getSecretsKey         *connect.Client[v1.GetSecretsKeyRequest, v1.GetSecretsKeyResponse]
 	registerDeviceKey     *connect.Client[v1.RegisterDeviceKeyRequest, v1.RegisterDeviceKeyResponse]
 	createSecretsKey      *connect.Client[v1.CreateSecretsKeyRequest, v1.CreateSecretsKeyResponse]
@@ -602,6 +665,31 @@ func (c *workspaceServiceClient) PutService(ctx context.Context, req *connect.Re
 // RemoveService calls devopus.workspace.v1.WorkspaceService.RemoveService.
 func (c *workspaceServiceClient) RemoveService(ctx context.Context, req *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error) {
 	return c.removeService.CallUnary(ctx, req)
+}
+
+// RegisterSigningKey calls devopus.workspace.v1.WorkspaceService.RegisterSigningKey.
+func (c *workspaceServiceClient) RegisterSigningKey(ctx context.Context, req *connect.Request[v1.RegisterSigningKeyRequest]) (*connect.Response[v1.RegisterSigningKeyResponse], error) {
+	return c.registerSigningKey.CallUnary(ctx, req)
+}
+
+// SetTrustRoot calls devopus.workspace.v1.WorkspaceService.SetTrustRoot.
+func (c *workspaceServiceClient) SetTrustRoot(ctx context.Context, req *connect.Request[v1.SetTrustRootRequest]) (*connect.Response[v1.SetTrustRootResponse], error) {
+	return c.setTrustRoot.CallUnary(ctx, req)
+}
+
+// ListSigningKeys calls devopus.workspace.v1.WorkspaceService.ListSigningKeys.
+func (c *workspaceServiceClient) ListSigningKeys(ctx context.Context, req *connect.Request[v1.ListSigningKeysRequest]) (*connect.Response[v1.ListSigningKeysResponse], error) {
+	return c.listSigningKeys.CallUnary(ctx, req)
+}
+
+// CertifySigningKey calls devopus.workspace.v1.WorkspaceService.CertifySigningKey.
+func (c *workspaceServiceClient) CertifySigningKey(ctx context.Context, req *connect.Request[v1.CertifySigningKeyRequest]) (*connect.Response[v1.CertifySigningKeyResponse], error) {
+	return c.certifySigningKey.CallUnary(ctx, req)
+}
+
+// SignVersion calls devopus.workspace.v1.WorkspaceService.SignVersion.
+func (c *workspaceServiceClient) SignVersion(ctx context.Context, req *connect.Request[v1.SignVersionRequest]) (*connect.Response[v1.SignVersionResponse], error) {
+	return c.signVersion.CallUnary(ctx, req)
 }
 
 // GetSecretsKey calls devopus.workspace.v1.WorkspaceService.GetSecretsKey.
@@ -737,6 +825,19 @@ type WorkspaceServiceHandler interface {
 	// attached to.
 	PutService(context.Context, *connect.Request[v1.PutServiceRequest]) (*connect.Response[v1.PutServiceResponse], error)
 	RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error)
+	// RegisterSigningKey records the signing key of one of the caller's devices. A new
+	// key for the device needs a new certificate.
+	RegisterSigningKey(context.Context, *connect.Request[v1.RegisterSigningKeyRequest]) (*connect.Response[v1.RegisterSigningKeyResponse], error)
+	// SetTrustRoot makes a signing key of the admin's device the workspace's root of
+	// trust. Once: agents pin the first root and take no other.
+	SetTrustRoot(context.Context, *connect.Request[v1.SetTrustRootRequest]) (*connect.Response[v1.SetTrustRootResponse], error)
+	// ListSigningKeys shows the root and every device's signing key, certified or not.
+	ListSigningKeys(context.Context, *connect.Request[v1.ListSigningKeysRequest]) (*connect.Response[v1.ListSigningKeysResponse], error)
+	// CertifySigningKey stores the root's certificate for a device, made on the admin's
+	// device that holds the root.
+	CertifySigningKey(context.Context, *connect.Request[v1.CertifySigningKeyRequest]) (*connect.Response[v1.CertifySigningKeyResponse], error)
+	// SignVersion stores the author's signature of a version of a project's settings.
+	SignVersion(context.Context, *connect.Request[v1.SignVersionRequest]) (*connect.Response[v1.SignVersionResponse], error)
 	// GetSecretsKey is the workspace's current public key, and its private key wrapped
 	// for one of the caller's devices if it has reached it.
 	GetSecretsKey(context.Context, *connect.Request[v1.GetSecretsKeyRequest]) (*connect.Response[v1.GetSecretsKeyResponse], error)
@@ -898,6 +999,36 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 		connect.WithSchema(workspaceServiceMethods.ByName("RemoveService")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workspaceServiceRegisterSigningKeyHandler := connect.NewUnaryHandler(
+		WorkspaceServiceRegisterSigningKeyProcedure,
+		svc.RegisterSigningKey,
+		connect.WithSchema(workspaceServiceMethods.ByName("RegisterSigningKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceSetTrustRootHandler := connect.NewUnaryHandler(
+		WorkspaceServiceSetTrustRootProcedure,
+		svc.SetTrustRoot,
+		connect.WithSchema(workspaceServiceMethods.ByName("SetTrustRoot")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceListSigningKeysHandler := connect.NewUnaryHandler(
+		WorkspaceServiceListSigningKeysProcedure,
+		svc.ListSigningKeys,
+		connect.WithSchema(workspaceServiceMethods.ByName("ListSigningKeys")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceCertifySigningKeyHandler := connect.NewUnaryHandler(
+		WorkspaceServiceCertifySigningKeyProcedure,
+		svc.CertifySigningKey,
+		connect.WithSchema(workspaceServiceMethods.ByName("CertifySigningKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceSignVersionHandler := connect.NewUnaryHandler(
+		WorkspaceServiceSignVersionProcedure,
+		svc.SignVersion,
+		connect.WithSchema(workspaceServiceMethods.ByName("SignVersion")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workspaceServiceGetSecretsKeyHandler := connect.NewUnaryHandler(
 		WorkspaceServiceGetSecretsKeyProcedure,
 		svc.GetSecretsKey,
@@ -1046,6 +1177,16 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 			workspaceServicePutServiceHandler.ServeHTTP(w, r)
 		case WorkspaceServiceRemoveServiceProcedure:
 			workspaceServiceRemoveServiceHandler.ServeHTTP(w, r)
+		case WorkspaceServiceRegisterSigningKeyProcedure:
+			workspaceServiceRegisterSigningKeyHandler.ServeHTTP(w, r)
+		case WorkspaceServiceSetTrustRootProcedure:
+			workspaceServiceSetTrustRootHandler.ServeHTTP(w, r)
+		case WorkspaceServiceListSigningKeysProcedure:
+			workspaceServiceListSigningKeysHandler.ServeHTTP(w, r)
+		case WorkspaceServiceCertifySigningKeyProcedure:
+			workspaceServiceCertifySigningKeyHandler.ServeHTTP(w, r)
+		case WorkspaceServiceSignVersionProcedure:
+			workspaceServiceSignVersionHandler.ServeHTTP(w, r)
 		case WorkspaceServiceGetSecretsKeyProcedure:
 			workspaceServiceGetSecretsKeyHandler.ServeHTTP(w, r)
 		case WorkspaceServiceRegisterDeviceKeyProcedure:
@@ -1165,6 +1306,26 @@ func (UnimplementedWorkspaceServiceHandler) PutService(context.Context, *connect
 
 func (UnimplementedWorkspaceServiceHandler) RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RemoveService is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) RegisterSigningKey(context.Context, *connect.Request[v1.RegisterSigningKeyRequest]) (*connect.Response[v1.RegisterSigningKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RegisterSigningKey is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) SetTrustRoot(context.Context, *connect.Request[v1.SetTrustRootRequest]) (*connect.Response[v1.SetTrustRootResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.SetTrustRoot is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) ListSigningKeys(context.Context, *connect.Request[v1.ListSigningKeysRequest]) (*connect.Response[v1.ListSigningKeysResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.ListSigningKeys is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) CertifySigningKey(context.Context, *connect.Request[v1.CertifySigningKeyRequest]) (*connect.Response[v1.CertifySigningKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.CertifySigningKey is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) SignVersion(context.Context, *connect.Request[v1.SignVersionRequest]) (*connect.Response[v1.SignVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.SignVersion is not implemented"))
 }
 
 func (UnimplementedWorkspaceServiceHandler) GetSecretsKey(context.Context, *connect.Request[v1.GetSecretsKeyRequest]) (*connect.Response[v1.GetSecretsKeyResponse], error) {

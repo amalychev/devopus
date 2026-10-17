@@ -33,6 +33,8 @@ type pendingChange struct {
 	Version int32    `json:"version"`
 	Risky   []string `json:"risky"`
 	Other   []string `json:"other"`
+	// Why its signature does not let it apply by itself.
+	Unverified string `json:"unverified,omitempty"`
 }
 
 func (a *app) changesCmd() *cobra.Command {
@@ -50,7 +52,7 @@ func (a *app) changesCmd() *cobra.Command {
 				return nil, nil, fail(ExitInvalid, "nothing of %s waits for you", project)
 			}
 			if p.Pending != nil {
-				out = append(out, pendingChange{Project: p.Name, Running: p.ConfigVersion, Version: p.Pending.Version, Risky: p.Pending.Risky, Other: p.Pending.Other})
+				out = append(out, pendingChange{Project: p.Name, Running: p.ConfigVersion, Version: p.Pending.Version, Risky: p.Pending.Risky, Other: p.Pending.Other, Unverified: p.Pending.Unverified})
 				if project != "" {
 					return out, p, nil
 				}
@@ -63,6 +65,9 @@ func (a *app) changesCmd() *cobra.Command {
 	}
 	show := func(c pendingChange) {
 		fmt.Fprintf(a.stdout, "%s: v%d → v%d\n", c.Project, c.Running, c.Version)
+		if c.Unverified != "" {
+			fmt.Fprintf(a.stdout, "  Not trusted by itself: %s.\n", c.Unverified)
+		}
 		fmt.Fprintln(a.stdout, "  New code on this machine:")
 		for _, x := range c.Risky {
 			fmt.Fprintf(a.stdout, "    %s\n", x)

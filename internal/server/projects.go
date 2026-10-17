@@ -33,7 +33,8 @@ func checkDomain(d string) error {
 }
 
 func configInfo(v store.ProjectVersionRow) *workspacev1.ProjectConfig {
-	return &workspacev1.ProjectConfig{Version: v.Version, Yaml: v.Config, Author: v.Author, Message: v.Message, CreatedAt: timestamppb.New(v.CreatedAt)}
+	return &workspacev1.ProjectConfig{Version: v.Version, Yaml: v.Config, Author: v.Author, Message: v.Message, CreatedAt: timestamppb.New(v.CreatedAt),
+		Signature: v.Signature, SignerDevice: v.SignerDevice}
 }
 
 func projectInfo(p store.Project, role authz.Role) *workspacev1.Project {
@@ -254,7 +255,7 @@ func (s *Service) ListProjectVersions(ctx context.Context, req *connect.Request[
 	}
 	resp := &workspacev1.ListProjectVersionsResponse{}
 	for _, r := range rows {
-		resp.Versions = append(resp.Versions, &workspacev1.ProjectVersion{Version: r.Version, Author: r.Author, Message: r.Message, CreatedAt: timestamppb.New(r.CreatedAt)})
+		resp.Versions = append(resp.Versions, &workspacev1.ProjectVersion{Version: r.Version, Author: r.Author, Message: r.Message, CreatedAt: timestamppb.New(r.CreatedAt), Signed: r.Signed})
 	}
 	return connect.NewResponse(resp), nil
 }
