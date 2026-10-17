@@ -15,6 +15,7 @@ import (
 
 	"github.com/amalychev/devopus/examples/demo"
 	authv1 "github.com/amalychev/devopus/gen/devopus/auth/v1"
+	"github.com/amalychev/devopus/gen/devopus/sync/v1/syncv1connect"
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
 	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
 	"github.com/amalychev/devopus/internal/authz"
@@ -41,8 +42,10 @@ func saveCurrent(c *current) error { return credentials.SetCurrentWorkspace(c) }
 
 // session is a signed-in call context: an access token for Auth and workspace servers.
 type session struct {
-	acc  credentials.Access
-	auth interface {
+	acc credentials.Access
+	// servers keeps the access tokens for workspace servers, by audience.
+	servers map[string]string
+	auth    interface {
 		RegisterWorkspace(context.Context, *connect.Request[authv1.RegisterWorkspaceRequest]) (*connect.Response[authv1.RegisterWorkspaceResponse], error)
 		ForgetWorkspace(context.Context, *connect.Request[authv1.ForgetWorkspaceRequest]) (*connect.Response[authv1.ForgetWorkspaceResponse], error)
 		ListWorkspaces(context.Context, *connect.Request[authv1.ListWorkspacesRequest]) (*connect.Response[authv1.ListWorkspacesResponse], error)
@@ -58,7 +61,34 @@ func (a *app) session(ctx context.Context) (*session, error) {
 }
 
 func (s *session) server(url string) workspacev1connect.WorkspaceServiceClient {
-	return workspacev1connect.NewWorkspaceServiceClient(&http.Client{Timeout: 30 * time.Second}, url)
+	return workspacev1connect.NewWorkspaceServiceClient(&http.Client{Timeout: 30 * time.Second}, url, connect.WithInterceptors(s.forServer(url)))
+}
+
+func (s *session) syncServer(url string) syncv1connect.SyncServiceClient {
+	return syncv1connect.NewSyncServiceClient(&http.Client{Timeout: 30 * time.Second}, url, connect.WithInterceptors(s.forServer(url)))
+}
+
+// forServer signs calls to a workspace server with a token for it alone: a server
+// accepts only tokens of its own address (one run by someone else cannot replay them).
+func (s *session) forServer(url string) connect.UnaryInterceptorFunc {
+	return func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			aud := credentials.Audience(url)
+			tok, ok := s.servers[aud]
+			if !ok {
+				acc, err := credentials.RefreshFor(ctx, aud)
+				if err != nil {
+					return nil, err
+				}
+				if s.servers == nil {
+					s.servers = map[string]string{}
+				}
+				tok, s.servers[aud] = acc.Token, acc.Token
+			}
+			req.Header().Set("Authorization", "Bearer "+tok)
+			return next(ctx, req)
+		}
+	}
 }
 
 func req[T any](s *session, msg *T) *connect.Request[T] { return bearer(msg, s.acc) }

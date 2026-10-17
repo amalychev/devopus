@@ -58,6 +58,16 @@ func signUp(t *testing.T, a *authtest.Server, email string) *authv1.CompleteEmai
 	return res.Msg
 }
 
+// forServer trades a sign-in for an access token of a workspace server.
+func forServer(t *testing.T, a *authtest.Server, s *authv1.CompleteEmailSignInResponse, serverURL string) string {
+	t.Helper()
+	res, err := credentials.Client(a.URL).Refresh(context.Background(), connect.NewRequest(&authv1.RefreshRequest{RefreshToken: s.Tokens.RefreshToken, Audience: serverURL}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res.Msg.Tokens.AccessToken
+}
+
 func bearer[T any](msg *T, access string) *connect.Request[T] {
 	r := connect.NewRequest(msg)
 	r.Header().Set("Authorization", "Bearer "+access)
@@ -107,11 +117,13 @@ func TestAgentFromWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 	keys := &token.Remote{URL: a.URL + "/.well-known/jwks.json"}
-	svc, err := server.New(pool, server.Config{Keys: keys.Key, AuthIssuer: a.URL, Mailer: a.Inbox})
+	srv := httptest.NewUnstartedServer(nil)
+	srv.Start()
+	svc, err := server.New(pool, server.Config{Keys: keys.Key, AuthIssuer: a.URL, Mailer: a.Inbox, PublicURL: srv.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(svc.Handler())
+	srv.Config.Handler = svc.Handler()
 	serverUp := true
 	t.Cleanup(func() {
 		if serverUp {
@@ -138,7 +150,7 @@ func TestAgentFromWorkspace(t *testing.T) {
 
 	// The teamlead sets up the workspace elsewhere and invites the developer.
 	project := "w7-" + store.NewID()
-	lead := signUp(t, a, "lead@acme.dev").Tokens.AccessToken
+	lead := forServer(t, a, signUp(t, a, "lead@acme.dev"), srv.URL)
 	w, err := ws.CreateWorkspace(ctx, bearer(&workspacev1.CreateWorkspaceRequest{Name: "acme"}, lead))
 	if err != nil {
 		t.Fatal(err)
@@ -170,10 +182,14 @@ func TestAgentFromWorkspace(t *testing.T) {
 
 	// The developer signs in on this machine and accepts: that is all they do.
 	dev := signUp(t, a, "dev@acme.dev")
-	if _, err := ws.AcceptInvite(ctx, bearer(&workspacev1.AcceptInviteRequest{Code: inv.Msg.Code}, dev.Tokens.AccessToken)); err != nil {
+	if err := credentials.Save(credentials.FromTokens(a.URL, dev.User, dev.Tokens), dev.Tokens.RefreshToken); err != nil {
 		t.Fatal(err)
 	}
-	if err := credentials.Save(credentials.FromTokens(a.URL, dev.User, dev.Tokens), dev.Tokens.RefreshToken); err != nil {
+	devAcc, err := credentials.RefreshFor(ctx, srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.AcceptInvite(ctx, bearer(&workspacev1.AcceptInviteRequest{Code: inv.Msg.Code}, devAcc.Token)); err != nil {
 		t.Fatal(err)
 	}
 	if err := credentials.SetCurrentWorkspace(&credentials.Workspace{ID: wsID, Name: "acme", ServerURL: srv.URL}); err != nil {

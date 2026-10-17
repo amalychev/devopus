@@ -15,8 +15,9 @@ type Keeper struct {
 	Log *slog.Logger
 
 	mu     sync.Mutex
-	access Access
-	quiet  bool // "signed out" is logged once
+	access Access            // for Auth: keeps the session alive
+	others map[string]Access // by audience: for workspace servers
+	quiet  bool              // "signed out" is logged once
 }
 
 // margin is how long before expiry an access token is replaced.
@@ -30,6 +31,28 @@ func (k *Keeper) Token(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return k.access.Token, nil
+}
+
+// TokenFor is a valid access token for a workspace server (credentials.Audience).
+func (k *Keeper) TokenFor(ctx context.Context, audience string) (string, error) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if err := k.ensure(ctx); err != nil {
+		return "", err
+	}
+	a, ok := k.others[audience]
+	if ok && a.Session.SessionID == k.access.Session.SessionID && time.Until(a.ExpiresAt) > margin {
+		return a.Token, nil
+	}
+	a, err := RefreshFor(ctx, audience)
+	if err != nil {
+		return "", err
+	}
+	if k.others == nil {
+		k.others = map[string]Access{}
+	}
+	k.others[audience] = a
+	return a.Token, nil
 }
 
 // Session is the sign-in the keeper works with; nil when nobody is signed in.

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -160,7 +161,10 @@ func (s *Service) authenticate(ctx context.Context, header string) (*caller, err
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("sign in first: devopus login"))
 	}
-	claims, err := token.Verify(raw, s.cfg.Keys, token.Expect{Issuer: s.cfg.AuthIssuer, Audience: token.DefaultAudience, Now: s.cfg.Now()})
+	claims, err := token.Verify(raw, s.cfg.Keys, token.Expect{Issuer: s.cfg.AuthIssuer, Audience: s.cfg.PublicURL, Now: s.cfg.Now()})
+	if errors.Is(err, token.ErrClaims) {
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("the token is not for this server (%s): sign in again, or update devopus", s.cfg.PublicURL))
+	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}

@@ -34,8 +34,8 @@ import (
 // Options of a link.
 type Options struct {
 	Store *store.Store
-	// Token is the user's access token.
-	Token func(ctx context.Context) (string, error)
+	// Token is the user's access token for a workspace server (credentials.Audience).
+	Token func(ctx context.Context, audience string) (string, error)
 	// Statuses are the device's environments now; Changed signals a change of them.
 	Statuses func() []*agentv2.EnvironmentStatus
 	Changed  <-chan *agentv2.EnvironmentStatus
@@ -109,7 +109,7 @@ func (l *Link) Run(ctx context.Context) {
 			l.sleep(ctx, l.opt.Wait)
 			continue
 		}
-		tok, err := l.opt.Token(ctx)
+		tok, err := l.opt.Token(ctx, credentials.Audience(ws.ServerURL))
 		if err != nil {
 			l.set(func(s *State) {
 				*s = State{Workspace: ws.Name, Server: ws.ServerURL, Error: "not signed in: " + err.Error()}
@@ -302,7 +302,7 @@ func (l *Link) Report(ctx context.Context) error {
 	if err != nil || ws == nil || !l.State().Connected {
 		return errNotLinked
 	}
-	tok, err := l.opt.Token(ctx)
+	tok, err := l.opt.Token(ctx, credentials.Audience(ws.ServerURL))
 	if err != nil {
 		return err
 	}

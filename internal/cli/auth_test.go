@@ -178,7 +178,7 @@ func TestSignInFlows(t *testing.T) {
 	if code != ExitOK || !strings.Contains(out, "Account created; signed in as "+email) {
 		t.Fatalf("register: %d\n%s\n%s", code, out, errOut)
 	}
-	for _, want := range []string{"Plan: Free (Self-hosted and Team plans are coming)", "Code sent to " + email + " (valid 10 minutes)", "The code is wrong"} {
+	for _, want := range []string{"Plan: Free (or --plan self-hosted; Team coming)", "Code sent to " + email + " (valid 10 minutes)", "The code is wrong"} {
 		if !strings.Contains(errOut, want) {
 			t.Errorf("register stderr lacks %q:\n%s", want, errOut)
 		}

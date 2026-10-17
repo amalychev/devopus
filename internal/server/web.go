@@ -217,8 +217,13 @@ func (s *Service) webComplete(w http.ResponseWriter, r *http.Request) (any, erro
 	if err != nil {
 		return nil, err
 	}
-	s.setRefresh(w, r, res.Msg.Tokens)
-	return webSession{AccessToken: res.Msg.Tokens.AccessToken, ExpiresAt: res.Msg.Tokens.AccessExpiresAt.AsTime(),
+	// The first access token is Auth's own: trade it at once for one of this server.
+	ref, err := s.authClient().Refresh(r.Context(), forward(r, &authv1.RefreshRequest{RefreshToken: res.Msg.Tokens.RefreshToken, Audience: s.cfg.PublicURL}))
+	if err != nil {
+		return nil, err
+	}
+	s.setRefresh(w, r, ref.Msg.Tokens)
+	return webSession{AccessToken: ref.Msg.Tokens.AccessToken, ExpiresAt: ref.Msg.Tokens.AccessExpiresAt.AsTime(),
 		Email: res.Msg.User.Email, UserID: res.Msg.User.Id, Created: res.Msg.Created}, nil
 }
 
@@ -228,7 +233,7 @@ func (s *Service) webRefresh(w http.ResponseWriter, r *http.Request) (any, error
 		// Not signed in on this browser: an answer, not an error, for the page's first look.
 		return map[string]bool{"signedIn": false}, nil
 	}
-	res, err := s.authClient().Refresh(r.Context(), forward(r, &authv1.RefreshRequest{RefreshToken: c.Value}))
+	res, err := s.authClient().Refresh(r.Context(), forward(r, &authv1.RefreshRequest{RefreshToken: c.Value, Audience: s.cfg.PublicURL}))
 	if err != nil {
 		if connect.CodeOf(err) == connect.CodeUnauthenticated {
 			clearRefresh(w)

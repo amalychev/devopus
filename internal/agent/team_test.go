@@ -42,11 +42,13 @@ func newTeam(t *testing.T, ctx context.Context) *team {
 		t.Fatal(err)
 	}
 	keys := &token.Remote{URL: a.URL + "/.well-known/jwks.json"}
-	svc, err := server.New(pool, server.Config{Keys: keys.Key, AuthIssuer: a.URL, Mailer: a.Inbox})
+	srv := httptest.NewUnstartedServer(nil)
+	srv.Start()
+	svc, err := server.New(pool, server.Config{Keys: keys.Key, AuthIssuer: a.URL, Mailer: a.Inbox, PublicURL: srv.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(svc.Handler())
+	srv.Config.Handler = svc.Handler()
 	t.Cleanup(func() {
 		srv.CloseClientConnections()
 		srv.Close()
@@ -55,7 +57,12 @@ func newTeam(t *testing.T, ctx context.Context) *team {
 	if err := credentials.Save(credentials.FromTokens(a.URL, me.User, me.Tokens), me.Tokens.RefreshToken); err != nil {
 		t.Fatal(err)
 	}
-	tm := &team{ws: workspacev1connect.NewWorkspaceServiceClient(http.DefaultClient, srv.URL), token: me.Tokens.AccessToken}
+	// A token for this server: servers accept only tokens of their own address.
+	acc, err := credentials.RefreshFor(ctx, srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm := &team{ws: workspacev1connect.NewWorkspaceServiceClient(http.DefaultClient, srv.URL), token: acc.Token}
 	w, err := tm.ws.CreateWorkspace(ctx, bearer(&workspacev1.CreateWorkspaceRequest{Name: "e2e"}, tm.token))
 	if err != nil {
 		t.Fatal(err)

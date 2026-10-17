@@ -41,6 +41,10 @@ type Config struct {
 	// AuthURL is where the web interface's sign-in goes (the server talks to Auth for
 	// the browser).
 	AuthURL string
+	// PublicURL is the server's address as clients use it. It is the audience of the
+	// access tokens it accepts: a token for another server — a self-hosted one run by
+	// someone else, say — does not work here, and ours not there.
+	PublicURL string
 	// Mailer sends invites; the log when nil.
 	Mailer mail.Mailer
 	Log    *slog.Logger
@@ -65,6 +69,10 @@ func New(pool *pgxpool.Pool, cfg Config) (*Service, error) {
 	if cfg.Keys == nil || cfg.AuthIssuer == "" {
 		return nil, errors.New("server: Auth's keys and issuer are not set")
 	}
+	if cfg.PublicURL == "" {
+		return nil, errors.New("server: the public URL is not set")
+	}
+	cfg.PublicURL = strings.TrimRight(cfg.PublicURL, "/")
 	if cfg.Log == nil {
 		cfg.Log = slog.New(slog.DiscardHandler)
 	}

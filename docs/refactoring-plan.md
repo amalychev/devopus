@@ -247,7 +247,12 @@
 
 ### Дальше: этапы 4–5
 
-- **R12** (этап 4) — self-hosted: `devopus server install/upgrade/backup` на Ubuntu.
+- **R12** (этап 4) — self-hosted: `devopus server install/upgrade/backup` на Ubuntu. ✅ 17.10.2026:
+  - **Токены привязаны к серверу:** `aud` access-токена — адрес сервера воркспейса; сервер принимает только свои (`--public-url`), CLI, агент и веб получают токен под конкретный сервер (`credentials.RefreshFor`, `Keeper.TokenFor`, BFF). Self-hosted сервер не может повторить токены участников на облачном и наоборот.
+  - `devopus server run --domain` — HTTPS на :443 с сертификатами Let's Encrypt (autocert), :80 — проверки и перенаправление.
+  - `devopus server install/status/backup/restore/upgrade/uninstall` (`internal/selfhost`): PostgreSQL в контейнере с томом и паролем в файле `0600`, служба systemd от системного пользователя с `CAP_NET_BIND_SERVICE` и защитой файловой системы, настройки в `/etc/devopus/server.env` (`0600`); повторная установка сохраняет данные; `upgrade` — бэкап, загрузка релиза с проверкой контрольной суммы, замена, перезапуск; `--dry-run` показывает план. Руководство — [self-hosting.md](self-hosting.md).
+  - План Self-hosted доступен при регистрации (`register --plan self-hosted`, выбор в веб-форме); по умолчанию — Free.
+  - **Проверено:** установка, переустановка, бэкап, восстановление, удаление — тестом на настоящих Docker и PostgreSQL; скачивание и замена релиза; отказ токену чужого сервера в матрице прав. **Не проверено:** настоящая Ubuntu с systemd и публичным доменом (ACME).
 - **R13–R14** (этап 5) — серверы админа: `devopus agent install --server` с токеном устройства, `env create staging|production` с ACME и откатом.
 
 Планируются после R11.

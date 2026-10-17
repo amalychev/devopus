@@ -30,12 +30,14 @@ func TestWebSignIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	keys := &token.Remote{URL: a.URL + "/.well-known/jwks.json"}
-	svc, err := New(pool, Config{Keys: keys.Key, AuthIssuer: a.URL, AuthURL: a.URL})
+	srv := httptest.NewUnstartedServer(nil)
+	srv.Start()
+	defer srv.Close()
+	svc, err := New(pool, Config{Keys: keys.Key, AuthIssuer: a.URL, AuthURL: a.URL, PublicURL: srv.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(svc.Handler())
-	defer srv.Close()
+	srv.Config.Handler = svc.Handler()
 	jar, _ := cookiejar.New(nil)
 	browser := &http.Client{Jar: jar}
 

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	syncv1 "github.com/amalychev/devopus/gen/devopus/sync/v1"
-	"github.com/amalychev/devopus/gen/devopus/sync/v1/syncv1connect"
 	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
 )
 
@@ -53,7 +51,7 @@ func (a *app) driftCmd() *cobra.Command {
 			for _, p := range projects.Msg.Projects {
 				current[p.Name] = p.Version
 			}
-			sc := syncv1connect.NewSyncServiceClient(&http.Client{Timeout: 30 * time.Second}, cur.ServerURL)
+			sc := s.syncServer(cur.ServerURL)
 			res, err := sc.ListDevices(ctx, req(s, &syncv1.ListDevicesRequest{WorkspaceId: cur.ID, Project: project}))
 			if err != nil {
 				return rpcErr(err)

@@ -325,7 +325,7 @@ func Run(ctx context.Context, opt Options) error {
 
 	changes, unsubscribe := a.hub.Subscribe()
 	defer unsubscribe()
-	a.link = link.New(link.Options{Store: st, Token: a.creds.Token, Statuses: a.rec.Statuses, Changed: changes, Version: opt.Version, Log: log})
+	a.link = link.New(link.Options{Store: st, Token: a.creds.TokenFor, Statuses: a.rec.Statuses, Changed: changes, Version: opt.Version, Log: log})
 	go a.link.Run(ctx)
 	go a.watchOverrides(ctx)
 

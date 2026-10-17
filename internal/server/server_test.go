@@ -68,12 +68,14 @@ func newEnv(t *testing.T) *env {
 	key := token.Key{ID: "k1", Private: priv}
 	set := token.JWKS{Keys: []token.JWK{token.PublicJWK(key)}}
 	in := &inbox{}
-	svc, err := New(pool, Config{Keys: set.Find, AuthIssuer: issuer, Mailer: in})
+	srv := httptest.NewUnstartedServer(nil)
+	srv.Start()
+	t.Cleanup(srv.Close)
+	svc, err := New(pool, Config{Keys: set.Find, AuthIssuer: issuer, Mailer: in, PublicURL: srv.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(svc.Handler())
-	t.Cleanup(srv.Close)
+	srv.Config.Handler = svc.Handler()
 	return &env{svc: svc, url: srv.URL, key: key, client: workspacev1connect.NewWorkspaceServiceClient(http.DefaultClient, srv.URL), inbox: in}
 }
 
@@ -81,7 +83,7 @@ func newEnv(t *testing.T) *env {
 func (e *env) token(email string) string {
 	id := "usr_" + strings.Split(email, "@")[0]
 	tok, err := token.Sign(e.key, token.Claims{Issuer: issuer, Subject: id, Session: "ses_" + id, Email: email,
-		Audience: token.DefaultAudience, IssuedAt: time.Now().Unix(), Expiry: time.Now().Add(time.Hour).Unix()})
+		Audience: e.url, IssuedAt: time.Now().Unix(), Expiry: time.Now().Add(time.Hour).Unix()})
 	if err != nil {
 		panic(err)
 	}
@@ -263,9 +265,14 @@ func TestRoleMatrix(t *testing.T) {
 	}
 	// A token Auth did not sign.
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
-	forged, _ := token.Sign(token.Key{ID: "k1", Private: priv}, token.Claims{Issuer: issuer, Subject: "usr_x", Session: "s", Email: "x@acme.dev", Audience: token.DefaultAudience, Expiry: time.Now().Add(time.Hour).Unix()})
+	forged, _ := token.Sign(token.Key{ID: "k1", Private: priv}, token.Claims{Issuer: issuer, Subject: "usr_x", Session: "s", Email: "x@acme.dev", Audience: e.url, Expiry: time.Now().Add(time.Hour).Unix()})
 	if got := e.call(t, service().Methods().ByName("ListWorkspaces"), forged, ""); !strings.HasPrefix(got, "unauthenticated") {
 		t.Errorf("forged token: %s", got)
+	}
+	// A real token for another server: a self-hosted one, say, replaying it here.
+	elsewhere, _ := token.Sign(e.key, token.Claims{Issuer: issuer, Subject: "usr_x", Session: "s", Email: "x@acme.dev", Audience: "https://ws.other.example", Expiry: time.Now().Add(time.Hour).Unix()})
+	if got := e.call(t, service().Methods().ByName("ListWorkspaces"), elsewhere, ""); !strings.HasPrefix(got, "unauthenticated") || !strings.Contains(got, "not for this server") {
+		t.Errorf("token of another server: %s", got)
 	}
 }
 
@@ -563,7 +570,7 @@ func TestWatch(t *testing.T) {
 
 	// The stream ends with the access token.
 	short, _ := token.Sign(e.key, token.Claims{Issuer: issuer, Subject: "usr_" + strings.Split(f.lead, "@")[0], Session: "s", Email: f.lead,
-		Audience: token.DefaultAudience, Expiry: time.Now().Add(2 * time.Second).Unix()})
+		Audience: e.url, Expiry: time.Now().Add(2 * time.Second).Unix()})
 	r := connect.NewRequest(&syncv1.WatchRequest{WorkspaceId: f.ws, Device: device})
 	r.Header().Set("Authorization", "Bearer "+short)
 	st, err := sc.Watch(ctx, r)

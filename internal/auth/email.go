@@ -19,7 +19,7 @@ import (
 // Plans an account can have. Only Free can be chosen now.
 var plans = []*authv1.PlanInfo{
 	{Plan: authv1.Plan_PLAN_FREE, Name: "Free", Description: "Cloud workspace for a small team", Available: true},
-	{Plan: authv1.Plan_PLAN_SELF_HOSTED, Name: "Self-hosted", Description: "The workspace server on your own server (coming)"},
+	{Plan: authv1.Plan_PLAN_SELF_HOSTED, Name: "Self-hosted", Description: "The workspace server on your own server: devopus server install", Available: true},
 	{Plan: authv1.Plan_PLAN_TEAM, Name: "Team", Description: "Paid plan for larger teams (coming)"},
 }
 

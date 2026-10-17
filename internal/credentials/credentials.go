@@ -169,7 +169,11 @@ type Access struct {
 // Refresh trades the stored refresh token for new tokens and stores the rotated one.
 // A session Auth no longer accepts is forgotten on the device: the error wraps
 // ErrSignedOut with Auth's reason.
-func Refresh(ctx context.Context) (Access, error) {
+func Refresh(ctx context.Context) (Access, error) { return RefreshFor(ctx, "") }
+
+// RefreshFor is Refresh with an access token for one workspace server: its audience
+// is the server's address, and no other server accepts it. Empty: Auth's own calls.
+func RefreshFor(ctx context.Context, audience string) (Access, error) {
 	var a Access
 	err := withLock(func() error {
 		s, err := Load()
@@ -183,7 +187,7 @@ func Refresh(ctx context.Context) (Access, error) {
 		if err != nil {
 			return err
 		}
-		res, err := Client(s.AuthURL).Refresh(ctx, connect.NewRequest(&authv1.RefreshRequest{RefreshToken: rt}))
+		res, err := Client(s.AuthURL).Refresh(ctx, connect.NewRequest(&authv1.RefreshRequest{RefreshToken: rt, Audience: Audience(audience)}))
 		if connect.CodeOf(err) == connect.CodeUnauthenticated {
 			_ = forget()
 			var ce *connect.Error
@@ -203,6 +207,10 @@ func Refresh(ctx context.Context) (Access, error) {
 	})
 	return a, err
 }
+
+// Audience is how a workspace server is named in tokens: its address without a
+// trailing slash.
+func Audience(serverURL string) string { return strings.TrimRight(serverURL, "/") }
 
 // FromTokens describes the session tokens belong to.
 func FromTokens(authURL string, u *authv1.User, t *authv1.Tokens) Session {

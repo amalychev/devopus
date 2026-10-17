@@ -35,7 +35,8 @@ var noSignIn = map[string]bool{
 	"devopus version": true, "devopus help": true, "devopus completion": true,
 	"devopus agent run": true, "devopus agent stop": true, "devopus agent uninstall": true,
 	"devopus panel run": true, "devopus panel stop": true, "devopus panel uninstall": true,
-	"devopus server run": true,
+	"devopus server run": true, "devopus server install": true, "devopus server status": true, "devopus server backup": true,
+	"devopus server restore": true, "devopus server upgrade": true, "devopus server uninstall": true,
 }
 
 // requireSignIn refuses commands when nobody is signed in on this device. It checks
@@ -94,7 +95,7 @@ func (a *app) registerCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&email, "email", "", "email address (asked when not given)")
-	cmd.Flags().StringVar(&plan, "plan", "", "plan: free (Self-hosted and paid plans are coming)")
+	cmd.Flags().StringVar(&plan, "plan", "", "plan: free (default) or self-hosted (your own workspace server)")
 	cmd.Flags().StringVar(&authURL, "auth-url", credentials.AuthURL(), "Auth service ($DEVOPUS_AUTH_URL)")
 	return cmd
 }
@@ -212,13 +213,27 @@ func (a *app) choosePlan(ctx context.Context, c authv1connect.AuthServiceClient,
 		}
 		return 0, fail(ExitInvalid, "unknown plan %q; available: %s", want, strings.Join(availableNames, ", "))
 	}
-	if len(availableNames) != 1 {
-		return 0, fail(ExitInvalid, "choose a plan with --plan: %s", strings.Join(availableNames, ", "))
+	// The first available plan is the default: Free.
+	for _, p := range res.Msg.Plans {
+		if p.Available {
+			only = p
+			break
+		}
+	}
+	if only == nil {
+		return 0, fail(ExitError, "no plan is available now")
 	}
 	if !a.json {
-		note := ""
+		var notes []string
+		if others := len(availableNames) - 1; others > 0 {
+			notes = append(notes, "or --plan "+strings.Join(availableNames[1:], ", "))
+		}
 		if len(coming) > 0 {
-			note = " (" + strings.Join(coming, " and ") + " plans are coming)"
+			notes = append(notes, strings.Join(coming, " and ")+" coming")
+		}
+		note := ""
+		if len(notes) > 0 {
+			note = " (" + strings.Join(notes, "; ") + ")"
 		}
 		fmt.Fprintf(a.stderr, "Plan: %s%s\n", only.Name, note)
 	}

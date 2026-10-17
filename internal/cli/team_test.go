@@ -36,11 +36,13 @@ func startTeam(t *testing.T) *authtest.Server {
 		t.Fatal(err)
 	}
 	keys := &token.Remote{URL: a.URL + "/.well-known/jwks.json"}
-	svc, err := server.New(pool, server.Config{Keys: keys.Key, AuthIssuer: a.URL, Mailer: a.Inbox})
+	srv := httptest.NewUnstartedServer(nil)
+	srv.Start()
+	svc, err := server.New(pool, server.Config{Keys: keys.Key, AuthIssuer: a.URL, Mailer: a.Inbox, PublicURL: srv.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(svc.Handler())
+	srv.Config.Handler = svc.Handler()
 	t.Cleanup(srv.Close)
 	t.Setenv("DEVOPUS_AUTH_URL", a.URL)
 	t.Setenv("DEVOPUS_SERVER_URL", srv.URL)
@@ -238,11 +240,11 @@ func TestProjects(t *testing.T) {
 	if out := ok(t, "drift"); !strings.Contains(out, "No drift") {
 		t.Errorf("drift before any device:\n%s", out)
 	}
-	acc, err := credentials.Refresh(t.Context())
+	cur, _ := credentials.CurrentWorkspace()
+	acc, err := credentials.RefreshFor(t.Context(), cur.ServerURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cur, _ := credentials.CurrentWorkspace()
 	rep := connect.NewRequest(&syncv1.ReportStatusRequest{WorkspaceId: cur.ID, Device: &syncv1.Device{Id: "dev-1", Name: "laptop"},
 		Environments: []*syncv1.EnvironmentReport{{Project: "demo", Id: "e1", Kind: "base", Phase: "running", ConfigVersion: 1,
 			Overrides: []string{"services.php.version: 8.3 → 8.4"}, RejectedOverrides: []string{"services.db.port: 5432 → 6543: not allowed"}}}})

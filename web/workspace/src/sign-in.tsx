@@ -6,6 +6,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { auth, errorText, type Plan } from "@ws/api"
+import { Select } from "@ws/ui"
 
 // SignIn is 'devopus login --email' and 'devopus register' on a page: an email, the
 // one-time code sent to it, and for a new account the plan.
@@ -15,6 +16,7 @@ export function SignIn() {
   const [challenge, setChallenge] = React.useState<string>()
   const [code, setCode] = React.useState("")
   const [plans, setPlans] = React.useState<Plan[]>([])
+  const [plan, setPlan] = React.useState(0)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string>()
 
@@ -47,9 +49,9 @@ export function SignIn() {
 
   const verify = (e: React.FormEvent) => {
     e.preventDefault()
-    const plan = plans.find((p) => p.available)?.id ?? 1
+    const chosen = plan || plans.find((p) => p.available)?.id || 1
     run(async () => {
-      await auth.complete(challenge!, code.trim(), plan)
+      await auth.complete(challenge!, code.trim(), chosen)
     })
   }
 
@@ -89,14 +91,18 @@ export function SignIn() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-                {register && available.length > 0 && (
-                  <FieldDescription>
-                    Plan: {available.map((p) => p.name).join(", ")}
-                    {coming.length > 0 &&
-                      ` (${coming.map((p) => p.name).join(" and ")} plans are coming)`}
-                  </FieldDescription>
-                )}
               </Field>
+              {register && available.length > 0 && (
+                <Field>
+                  <FieldLabel htmlFor="plan">Plan</FieldLabel>
+                  <Select id="plan" value={String(plan || available[0].id)} onChange={(v) => setPlan(Number(v))}
+                    options={available.map((p) => ({ value: String(p.id), label: p.name }))} />
+                  <FieldDescription>
+                    {available.find((p) => p.id === (plan || available[0].id))?.description}
+                    {coming.length > 0 && ` · ${coming.map((p) => p.name).join(" and ")} coming`}
+                  </FieldDescription>
+                </Field>
+              )}
               <Button type="submit" disabled={busy || !email.trim()}>
                 {busy && <Spinner />}
                 Send code
