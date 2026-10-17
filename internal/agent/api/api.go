@@ -333,6 +333,27 @@ func (s *Server) Down(_ context.Context, req *connect.Request[agentv2.DownReques
 	return connect.NewResponse(&agentv2.DownResponse{Revision: rev}), nil
 }
 
+func (s *Server) ReviewChanges(_ context.Context, req *connect.Request[agentv2.ReviewChangesRequest]) (*connect.Response[agentv2.ReviewChangesResponse], error) {
+	rev, err := s.b.Store().ReviewChanges(req.Msg.Project, req.Msg.Hash, req.Msg.Accept)
+	if errors.Is(err, store.ErrNoPending) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	if err != nil {
+		return nil, storeError(err)
+	}
+	return connect.NewResponse(&agentv2.ReviewChangesResponse{DesiredRevision: rev}), nil
+}
+
+func (s *Server) ExpectChange(_ context.Context, req *connect.Request[agentv2.ExpectChangeRequest]) (*connect.Response[agentv2.ExpectChangeResponse], error) {
+	if _, err := s.b.Store().ExpectChange(req.Msg.Project, req.Msg.Section, req.Msg.Yaml); err != nil {
+		if errors.Is(err, store.ErrUnknownProject) {
+			return nil, storeError(err)
+		}
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&agentv2.ExpectChangeResponse{}), nil
+}
+
 func (s *Server) Watch(ctx context.Context, req *connect.Request[agentv2.WatchRequest], stream *connect.ServerStream[agentv2.WatchResponse]) error {
 	want := func(st *agentv2.EnvironmentStatus) bool {
 		return req.Msg.EnvironmentId == "" || st.Id == req.Msg.EnvironmentId

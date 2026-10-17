@@ -19,8 +19,10 @@ type driftRow struct {
 	Online                             bool
 	LastSeen                           time.Time
 	Version, Current                   int32
-	Phase, Error                       string
-	Overrides, Refused                 []string
+	// A newer version waits for the machine's user to accept it: it runs new code.
+	Pending            int32 `json:",omitempty"`
+	Phase, Error       string
+	Overrides, Refused []string
 }
 
 func (d driftRow) drifts() bool {
@@ -65,7 +67,7 @@ func (a *app) driftCmd() *cobra.Command {
 					}
 					r := driftRow{User: d.UserEmail, Device: d.Device.Name, Project: e.Project, Environment: env, Online: d.Online,
 						LastSeen: d.LastSeen.AsTime(), Version: e.ConfigVersion, Current: current[e.Project], Phase: e.Phase, Error: e.Error,
-						Overrides: e.Overrides, Refused: e.RejectedOverrides}
+						Overrides: e.Overrides, Refused: e.RejectedOverrides, Pending: e.PendingVersion}
 					if all || r.drifts() {
 						rows = append(rows, r)
 					}
@@ -82,7 +84,10 @@ func (a *app) driftCmd() *cobra.Command {
 			fmt.Fprintln(w, "WHO\tMACHINE\tPROJECT\tENV\tSETTINGS\tSTATE\tPERSONAL OVERRIDES")
 			for _, r := range rows {
 				version := fmt.Sprintf("v%d", r.Version)
-				if r.Version != r.Current {
+				switch {
+				case r.Pending != 0:
+					version += fmt.Sprintf(" (v%d waits for them to accept)", r.Pending)
+				case r.Version != r.Current:
 					version += fmt.Sprintf(" (current v%d)", r.Current)
 				}
 				state := r.Phase

@@ -120,6 +120,8 @@ message EnvironmentReport {
   // with their reasons: the drift a teamlead sees.
   repeated string overrides = 10;
   repeated string rejected_overrides = 11;
+  // A newer version with risky changes waits for the user on the device (risk R21).
+  int32 pending_version = 12;
 }
 
 message ReportStatusRequest {

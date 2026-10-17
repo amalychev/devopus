@@ -212,7 +212,7 @@ func (x *syncService) ReportStatus(ctx context.Context, req *connect.Request[syn
 			if err := q.AddDeviceEnvironment(ctx, store.AddDeviceEnvironmentParams{
 				WorkspaceID: c.workspace, DeviceID: d.Id, UserID: c.userID, EnvID: e.Id, Project: e.Project, Kind: e.Kind,
 				Name: e.Name, Branch: e.Branch, Phase: e.Phase, Url: e.Url, Error: e.Error, ConfigVersion: e.ConfigVersion,
-				Overrides: nonNilStrings(e.Overrides), RejectedOverrides: nonNilStrings(e.RejectedOverrides),
+				Overrides: nonNilStrings(e.Overrides), RejectedOverrides: nonNilStrings(e.RejectedOverrides), PendingVersion: e.PendingVersion,
 			}); err != nil {
 				return err
 			}
@@ -240,7 +240,7 @@ func (x *syncService) ListDevices(ctx context.Context, req *connect.Request[sync
 		k := [2]string{e.DeviceID, e.UserID}
 		byDevice[k] = append(byDevice[k], &syncv1.EnvironmentReport{Project: e.Project, Id: e.EnvID, Kind: e.Kind, Name: e.Name,
 			Branch: e.Branch, Phase: e.Phase, Url: e.Url, Error: e.Error, ConfigVersion: e.ConfigVersion,
-			Overrides: e.Overrides, RejectedOverrides: e.RejectedOverrides})
+			Overrides: e.Overrides, RejectedOverrides: e.RejectedOverrides, PendingVersion: e.PendingVersion})
 	}
 	resp := &syncv1.ListDevicesResponse{}
 	now := s.now()

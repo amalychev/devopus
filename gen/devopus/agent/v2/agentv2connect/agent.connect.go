@@ -71,6 +71,12 @@ const (
 	AgentServiceLogsProcedure = "/devopus.agent.v2.AgentService/Logs"
 	// AgentServiceResourcesProcedure is the fully-qualified name of the AgentService's Resources RPC.
 	AgentServiceResourcesProcedure = "/devopus.agent.v2.AgentService/Resources"
+	// AgentServiceReviewChangesProcedure is the fully-qualified name of the AgentService's
+	// ReviewChanges RPC.
+	AgentServiceReviewChangesProcedure = "/devopus.agent.v2.AgentService/ReviewChanges"
+	// AgentServiceExpectChangeProcedure is the fully-qualified name of the AgentService's ExpectChange
+	// RPC.
+	AgentServiceExpectChangeProcedure = "/devopus.agent.v2.AgentService/ExpectChange"
 )
 
 // AgentServiceClient is a client for the devopus.agent.v2.AgentService service.
@@ -105,6 +111,12 @@ type AgentServiceClient interface {
 	LogSources(context.Context, *connect.Request[v2.LogSourcesRequest]) (*connect.Response[v2.LogSourcesResponse], error)
 	Logs(context.Context, *connect.Request[v2.LogsRequest]) (*connect.ServerStreamForClient[v2.LogsResponse], error)
 	Resources(context.Context, *connect.Request[v2.ResourcesRequest]) (*connect.Response[v2.ResourcesResponse], error)
+	// ReviewChanges accepts or declines the version of a server project that waits for
+	// the user (ProjectSpec.pending).
+	ReviewChanges(context.Context, *connect.Request[v2.ReviewChangesRequest]) (*connect.Response[v2.ReviewChangesResponse], error)
+	// ExpectChange tells the agent what its user is changing in a server project, so
+	// that the version with it is applied without asking them.
+	ExpectChange(context.Context, *connect.Request[v2.ExpectChangeRequest]) (*connect.Response[v2.ExpectChangeResponse], error)
 }
 
 // NewAgentServiceClient constructs a client for the devopus.agent.v2.AgentService service. By
@@ -208,6 +220,18 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(agentServiceMethods.ByName("Resources")),
 			connect.WithClientOptions(opts...),
 		),
+		reviewChanges: connect.NewClient[v2.ReviewChangesRequest, v2.ReviewChangesResponse](
+			httpClient,
+			baseURL+AgentServiceReviewChangesProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("ReviewChanges")),
+			connect.WithClientOptions(opts...),
+		),
+		expectChange: connect.NewClient[v2.ExpectChangeRequest, v2.ExpectChangeResponse](
+			httpClient,
+			baseURL+AgentServiceExpectChangeProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("ExpectChange")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -228,6 +252,8 @@ type agentServiceClient struct {
 	logSources      *connect.Client[v2.LogSourcesRequest, v2.LogSourcesResponse]
 	logs            *connect.Client[v2.LogsRequest, v2.LogsResponse]
 	resources       *connect.Client[v2.ResourcesRequest, v2.ResourcesResponse]
+	reviewChanges   *connect.Client[v2.ReviewChangesRequest, v2.ReviewChangesResponse]
+	expectChange    *connect.Client[v2.ExpectChangeRequest, v2.ExpectChangeResponse]
 }
 
 // Status calls devopus.agent.v2.AgentService.Status.
@@ -305,6 +331,16 @@ func (c *agentServiceClient) Resources(ctx context.Context, req *connect.Request
 	return c.resources.CallUnary(ctx, req)
 }
 
+// ReviewChanges calls devopus.agent.v2.AgentService.ReviewChanges.
+func (c *agentServiceClient) ReviewChanges(ctx context.Context, req *connect.Request[v2.ReviewChangesRequest]) (*connect.Response[v2.ReviewChangesResponse], error) {
+	return c.reviewChanges.CallUnary(ctx, req)
+}
+
+// ExpectChange calls devopus.agent.v2.AgentService.ExpectChange.
+func (c *agentServiceClient) ExpectChange(ctx context.Context, req *connect.Request[v2.ExpectChangeRequest]) (*connect.Response[v2.ExpectChangeResponse], error) {
+	return c.expectChange.CallUnary(ctx, req)
+}
+
 // AgentServiceHandler is an implementation of the devopus.agent.v2.AgentService service.
 type AgentServiceHandler interface {
 	// Status reports the agent, the container runtime and every environment.
@@ -337,6 +373,12 @@ type AgentServiceHandler interface {
 	LogSources(context.Context, *connect.Request[v2.LogSourcesRequest]) (*connect.Response[v2.LogSourcesResponse], error)
 	Logs(context.Context, *connect.Request[v2.LogsRequest], *connect.ServerStream[v2.LogsResponse]) error
 	Resources(context.Context, *connect.Request[v2.ResourcesRequest]) (*connect.Response[v2.ResourcesResponse], error)
+	// ReviewChanges accepts or declines the version of a server project that waits for
+	// the user (ProjectSpec.pending).
+	ReviewChanges(context.Context, *connect.Request[v2.ReviewChangesRequest]) (*connect.Response[v2.ReviewChangesResponse], error)
+	// ExpectChange tells the agent what its user is changing in a server project, so
+	// that the version with it is applied without asking them.
+	ExpectChange(context.Context, *connect.Request[v2.ExpectChangeRequest]) (*connect.Response[v2.ExpectChangeResponse], error)
 }
 
 // NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -436,6 +478,18 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(agentServiceMethods.ByName("Resources")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentServiceReviewChangesHandler := connect.NewUnaryHandler(
+		AgentServiceReviewChangesProcedure,
+		svc.ReviewChanges,
+		connect.WithSchema(agentServiceMethods.ByName("ReviewChanges")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentServiceExpectChangeHandler := connect.NewUnaryHandler(
+		AgentServiceExpectChangeProcedure,
+		svc.ExpectChange,
+		connect.WithSchema(agentServiceMethods.ByName("ExpectChange")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/devopus.agent.v2.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentServiceStatusProcedure:
@@ -468,6 +522,10 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 			agentServiceLogsHandler.ServeHTTP(w, r)
 		case AgentServiceResourcesProcedure:
 			agentServiceResourcesHandler.ServeHTTP(w, r)
+		case AgentServiceReviewChangesProcedure:
+			agentServiceReviewChangesHandler.ServeHTTP(w, r)
+		case AgentServiceExpectChangeProcedure:
+			agentServiceExpectChangeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -535,4 +593,12 @@ func (UnimplementedAgentServiceHandler) Logs(context.Context, *connect.Request[v
 
 func (UnimplementedAgentServiceHandler) Resources(context.Context, *connect.Request[v2.ResourcesRequest]) (*connect.Response[v2.ResourcesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v2.AgentService.Resources is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) ReviewChanges(context.Context, *connect.Request[v2.ReviewChangesRequest]) (*connect.Response[v2.ReviewChangesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v2.AgentService.ReviewChanges is not implemented"))
+}
+
+func (UnimplementedAgentServiceHandler) ExpectChange(context.Context, *connect.Request[v2.ExpectChangeRequest]) (*connect.Response[v2.ExpectChangeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.agent.v2.AgentService.ExpectChange is not implemented"))
 }

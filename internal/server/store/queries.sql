@@ -151,8 +151,8 @@ DELETE FROM device_environments WHERE workspace_id = $1 AND device_id = $2 AND u
 
 -- name: AddDeviceEnvironment :exec
 INSERT INTO device_environments (workspace_id, device_id, user_id, env_id, project, kind, name, branch, phase, url, error, config_version,
-    overrides, rejected_overrides)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
+    overrides, rejected_overrides, pending_version)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
 
 -- name: Devices :many
 SELECT d.*, u.email FROM devices d JOIN users u ON u.id = d.user_id

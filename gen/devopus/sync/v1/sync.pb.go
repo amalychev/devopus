@@ -492,8 +492,10 @@ type EnvironmentReport struct {
 	// with their reasons: the drift a teamlead sees.
 	Overrides         []string `protobuf:"bytes,10,rep,name=overrides,proto3" json:"overrides,omitempty"`
 	RejectedOverrides []string `protobuf:"bytes,11,rep,name=rejected_overrides,json=rejectedOverrides,proto3" json:"rejected_overrides,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// A newer version with risky changes waits for the user on the device (risk R21).
+	PendingVersion int32 `protobuf:"varint,12,opt,name=pending_version,json=pendingVersion,proto3" json:"pending_version,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *EnvironmentReport) Reset() {
@@ -601,6 +603,13 @@ func (x *EnvironmentReport) GetRejectedOverrides() []string {
 		return x.RejectedOverrides
 	}
 	return nil
+}
+
+func (x *EnvironmentReport) GetPendingVersion() int32 {
+	if x != nil {
+		return x.PendingVersion
+	}
+	return 0
 }
 
 type ReportStatusRequest struct {
@@ -921,7 +930,7 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"adminEmail\x12;\n" +
 	"\bprojects\x18\x04 \x03(\v2\x1f.devopus.sync.v1.DesiredProjectR\bprojects\x12-\n" +
 	"\x03key\x18\x05 \x01(\v2\x1b.devopus.sync.v1.SecretsKeyR\x03key\x12G\n" +
-	"\x0fpending_devices\x18\x06 \x03(\v2\x1e.devopus.sync.v1.PendingDeviceR\x0ependingDevices\"\xaf\x02\n" +
+	"\x0fpending_devices\x18\x06 \x03(\v2\x1e.devopus.sync.v1.PendingDeviceR\x0ependingDevices\"\xd8\x02\n" +
 	"\x11EnvironmentReport\x12\x18\n" +
 	"\aproject\x18\x01 \x01(\tR\aproject\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -934,7 +943,8 @@ const file_devopus_sync_v1_sync_proto_rawDesc = "" +
 	"\x0econfig_version\x18\t \x01(\x05R\rconfigVersion\x12\x1c\n" +
 	"\toverrides\x18\n" +
 	" \x03(\tR\toverrides\x12-\n" +
-	"\x12rejected_overrides\x18\v \x03(\tR\x11rejectedOverrides\"\xb1\x01\n" +
+	"\x12rejected_overrides\x18\v \x03(\tR\x11rejectedOverrides\x12'\n" +
+	"\x0fpending_version\x18\f \x01(\x05R\x0ependingVersion\"\xb1\x01\n" +
 	"\x13ReportStatusRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12/\n" +
 	"\x06device\x18\x02 \x01(\v2\x17.devopus.sync.v1.DeviceR\x06device\x12F\n" +

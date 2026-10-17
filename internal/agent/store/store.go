@@ -231,9 +231,15 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 				start = true
 			}
 			start = start || p.Orphaned
-			sum := sha256.Sum256(sp.Spec)
-			p.WorkspaceId, p.Spec, p.ConfigVersion, p.AdminEmail = workspaceID, sp.Spec, sp.Version, adminEmail
-			p.Config, p.ConfigHash, p.Orphaned = nil, hex.EncodeToString(sum[:]), false
+			if pending := review(p, sp.Version, sp.Spec); pending == nil {
+				applySpec(p, sp.Version, sp.Spec)
+			} else if pending.Hash != p.Declined {
+				p.Pending = pending
+			} else {
+				p.Pending = nil
+			}
+			p.WorkspaceId, p.AdminEmail = workspaceID, adminEmail
+			p.Config, p.Orphaned = nil, false
 			p.Secrets, p.KeyWrap, p.KeyGeneration = sp.Secrets, key.Wrapped, key.Generation
 			p.OverridesAllowed, p.OverridesPermitted = sp.OverridesAllowed, sp.OverridesPermitted
 			base := ensureBase(st, sp.Name)
@@ -255,6 +261,124 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 		return nil
 	})
 	return rev, conflicts, err
+}
+
+// review decides whether a server's version of a project applies at once: the first
+// one does, and so does one without risky changes, or whose risky changes are the
+// user's own (ExpectChange). Otherwise it waits for the user: what it returns.
+func review(p *agentv2.ProjectSpec, version int32, next []byte) *agentv2.PendingChange {
+	if len(p.Spec) == 0 || bytes.Equal(p.Spec, next) {
+		return nil
+	}
+	old, err := spec.ParseYAML(p.Spec)
+	if err != nil {
+		return nil // what runs now cannot be read: nothing to compare with
+	}
+	pending := &agentv2.PendingChange{Version: version, Spec: next, Hash: hashOf(next)}
+	proj, err := spec.ParseYAML(next)
+	if err != nil {
+		pending.Risky = []string{"the version cannot be read: " + err.Error()}
+		return pending
+	}
+	changes := spec.Diff(old, proj)
+	if len(spec.Risky(changes)) == 0 || expected(p, proj, changes) {
+		return nil
+	}
+	for _, c := range changes {
+		if c.Risky {
+			pending.Risky = append(pending.Risky, c.What)
+		} else {
+			pending.Other = append(pending.Other, c.What)
+		}
+	}
+	return pending
+}
+
+// expected: every risky change is in a section the user changed themselves, and the
+// version has it as they sent it.
+func expected(p *agentv2.ProjectSpec, next *spec.Project, changes []spec.Change) bool {
+	for _, c := range changes {
+		if !c.Risky {
+			continue
+		}
+		data, ok := p.Expected[c.Section]
+		if c.Section == "" || !ok {
+			return false
+		}
+		theirs, err := next.WithSection(c.Section, data)
+		if err != nil || len(spec.Risky(spec.Diff(theirs, next))) > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// applySpec makes a version the one the project runs.
+func applySpec(p *agentv2.ProjectSpec, version int32, data []byte) {
+	if next, err := spec.ParseYAML(data); err == nil {
+		for section, sent := range p.Expected {
+			// What the user expected is in: it is done.
+			if theirs, err := next.WithSection(section, sent); err != nil || len(spec.Diff(theirs, next)) == 0 {
+				delete(p.Expected, section)
+			}
+		}
+	}
+	p.Spec, p.ConfigVersion, p.ConfigHash = data, version, hashOf(data)
+	p.Pending, p.Declined = nil, ""
+}
+
+func hashOf(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
+// ErrNoPending: the project has no version waiting, or another one than the user saw.
+var ErrNoPending = errors.New("no such version waits for you")
+
+// ReviewChanges accepts or declines the version that waits for the user. A declined
+// one is not asked about again; the project keeps the version it runs.
+func (s *Store) ReviewChanges(project, hash string, accept bool) (uint64, error) {
+	return s.update(func(st *agentv2.DesiredState) error {
+		p := findProject(st, project)
+		if p == nil {
+			return fmt.Errorf("%w %q", ErrUnknownProject, project)
+		}
+		if p.Pending == nil || (hash != "" && p.Pending.Hash != hash) {
+			return ErrNoPending
+		}
+		if accept {
+			applySpec(p, p.Pending.Version, p.Pending.Spec)
+			return nil
+		}
+		p.Declined, p.Pending = p.Pending.Hash, nil
+		return nil
+	})
+}
+
+// ExpectChange records what the user is changing in a server project, so that the
+// version with it applies without asking them; a version that waits for it already
+// applies now.
+func (s *Store) ExpectChange(project, section string, data []byte) (uint64, error) {
+	if _, err := (&spec.Project{}).WithSection(section, data); err != nil {
+		return 0, err
+	}
+	return s.update(func(st *agentv2.DesiredState) error {
+		p := findProject(st, project)
+		if p == nil || p.WorkspaceId == "" {
+			return fmt.Errorf("%w %q of the workspace", ErrUnknownProject, project)
+		}
+		if p.Expected == nil {
+			p.Expected = map[string][]byte{}
+		}
+		if data == nil {
+			data = []byte{}
+		}
+		p.Expected[section] = data
+		if w := p.Pending; w != nil && review(p, w.Version, w.Spec) == nil {
+			applySpec(p, w.Version, w.Spec)
+		}
+		return nil
+	})
 }
 
 // updateIfChanged is update that keeps the revision when fn changed nothing.

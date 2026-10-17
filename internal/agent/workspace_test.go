@@ -377,12 +377,57 @@ func TestAgentFromWorkspace(t *testing.T) {
 		}
 	}
 
+	// R21: the teamlead changes the command — new code on the developer's machine. It
+	// waits for them; the environment runs the version it has.
+	webYAML := strings.SplitN(strings.SplitN(appYAML("2"), "web:\n", 2)[1], "services:", 2)[0]
+	if _, err := ws.PutApp(ctx, bearer(&workspacev1.PutAppRequest{WorkspaceId: wsID, Project: project, Name: "web",
+		AppYaml: strings.Replace(webYAML, "echo settings", "echo reviewed settings", 1)}, lead)); err != nil {
+		t.Fatal(err)
+	}
+	var pending *agentv2.PendingChange
+	for deadline := time.Now().Add(30 * time.Second); pending == nil; time.Sleep(300 * time.Millisecond) {
+		for _, p := range status().Projects {
+			if p.Name == project && p.Pending != nil {
+				pending = p.Pending
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the risky version did not wait")
+		}
+	}
+	if pending.Version != 4 || len(pending.Risky) != 1 || !strings.Contains(pending.Risky[0], "apps.web.command") {
+		t.Errorf("pending: %+v", pending)
+	}
+	time.Sleep(2 * time.Second)
+	serves("settings v2 pw " + password + " Python 3.13")
+	if _, b, _ := httpsTry(ctx, "127.0.0.1", ports.HTTPS, host, "/", roots); strings.Contains(b, "reviewed") {
+		t.Fatalf("applied without asking: %q", b)
+	}
+	// The teamlead sees who has not accepted it.
+	for deadline := time.Now().Add(90 * time.Second); ; time.Sleep(500 * time.Millisecond) {
+		res, err := sc.ListDevices(ctx, bearer(&syncv1.ListDevicesRequest{WorkspaceId: wsID, Project: project}, lead))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := res.Msg.Devices; len(d) == 1 && len(d[0].Environments) == 1 && d[0].Environments[0].PendingVersion == 4 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("pending in drift: %v", res.Msg.Devices)
+		}
+	}
+	// The developer accepts.
+	if _, err := c.ReviewChanges(ctx, connect.NewRequest(&agentv2.ReviewChangesRequest{Project: project, Hash: pending.Hash, Accept: true})); err != nil {
+		t.Fatal(err)
+	}
+	serves("reviewed settings v2 pw " + password + " Python 3.13")
+
 	// The server goes away: the environment keeps running on what the agent has.
 	srv.CloseClientConnections()
 	srv.Close()
 	serverUp = false
 	time.Sleep(3 * time.Second)
-	serves("settings v2 pw " + password + " Python 3.13")
+	serves("reviewed settings v2 pw " + password + " Python 3.13")
 	for _, e := range status().Environments {
 		if e.Id == envID && e.Phase != agentv2.Phase_PHASE_RUNNING {
 			t.Errorf("without the server: %v %s", e.Phase, e.Error)

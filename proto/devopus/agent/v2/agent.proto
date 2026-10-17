@@ -38,7 +38,35 @@ service AgentService {
   rpc LogSources(LogSourcesRequest) returns (LogSourcesResponse);
   rpc Logs(LogsRequest) returns (stream LogsResponse);
   rpc Resources(ResourcesRequest) returns (ResourcesResponse);
+  // ReviewChanges accepts or declines the version of a server project that waits for
+  // the user (ProjectSpec.pending).
+  rpc ReviewChanges(ReviewChangesRequest) returns (ReviewChangesResponse);
+  // ExpectChange tells the agent what its user is changing in a server project, so
+  // that the version with it is applied without asking them.
+  rpc ExpectChange(ExpectChangeRequest) returns (ExpectChangeResponse);
 }
+
+message ReviewChangesRequest {
+  string project = 1;
+  // The pending version's hash, as the user saw it: a newer version is not accepted
+  // in its place.
+  string hash = 2;
+  bool accept = 3;
+}
+
+message ReviewChangesResponse {
+  uint64 desired_revision = 1;
+}
+
+message ExpectChangeRequest {
+  string project = 1;
+  // apps.<name> or services.<name>.
+  string section = 2;
+  // The section in YAML as the user sent it to the server; empty: removed.
+  bytes yaml = 3;
+}
+
+message ExpectChangeResponse {}
 
 // DesiredState is what must exist on this device. Revision grows with every change.
 message DesiredState {
@@ -92,6 +120,26 @@ message ProjectSpec {
   // overrides.use at all.
   repeated string overrides_allowed = 14;
   bool overrides_permitted = 15;
+  // A version from the server with risky changes — a new image outside the catalog,
+  // commands, hooks, builds, host folders, another repository (risk R21) — waits for
+  // the user: the project keeps running config_version until they accept it.
+  PendingChange pending = 16;
+  // What this device's user just changed themselves (devopus app/service set), by
+  // section ("apps.api"): a version whose risky changes are these is theirs, and is
+  // applied without asking. Cleared when a version is applied.
+  map<string, bytes> expected = 17;
+  // sha256 of a version the user declined: it is not asked about again.
+  string declined = 18;
+}
+
+message PendingChange {
+  int32 version = 1;
+  bytes spec = 2;
+  // sha256 of spec, hex: what ReviewChanges accepts.
+  string hash = 3;
+  // The risky changes, then the rest.
+  repeated string risky = 4;
+  repeated string other = 5;
 }
 
 enum EnvironmentKind {

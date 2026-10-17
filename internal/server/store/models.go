@@ -42,6 +42,7 @@ type DeviceEnvironment struct {
 	ConfigVersion     int32
 	Overrides         []string
 	RejectedOverrides []string
+	PendingVersion    int32
 }
 
 type DeviceKey struct {

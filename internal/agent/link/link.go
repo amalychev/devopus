@@ -306,11 +306,14 @@ func (l *Link) Report(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	versions := map[string]int32{}
+	versions, pending := map[string]int32{}, map[string]int32{}
 	overrides := map[string]spec.OverrideResult{}
 	for _, p := range l.opt.Store.Snapshot().Projects {
 		if p.WorkspaceId == ws.ID && !p.Orphaned {
 			versions[p.Name] = p.ConfigVersion
+			if p.Pending != nil {
+				pending[p.Name] = p.Pending.Version
+			}
 			_, overrides[p.Name], _ = store.EffectiveProject(p)
 		}
 	}
@@ -328,6 +331,7 @@ func (l *Link) Report(ctx context.Context) error {
 			Project: e.Project, Id: e.Id, Kind: kind, Name: e.Name, Branch: e.Branch,
 			Phase: strings.ToLower(strings.TrimPrefix(e.Phase.String(), "PHASE_")), Url: e.Url, Error: e.Error, ConfigVersion: v,
 			Overrides: overrides[e.Project].Applied, RejectedOverrides: overrides[e.Project].Rejected,
+			PendingVersion: pending[e.Project],
 		})
 	}
 	req := connect.NewRequest(msg)

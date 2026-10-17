@@ -596,6 +596,7 @@ func (a *app) appCmd() *cobra.Command {
 					if err := f.apply(cmd, app); err != nil {
 						return nil, err
 					}
+					a.expectChange(p.name, "apps."+args[1], app)
 					r, err := p.c.PutApp(cmd.Context(), req(p.s, &workspacev1.PutAppRequest{WorkspaceId: p.ws.ID, Project: p.name, BaseVersion: base, Name: args[1], AppYaml: toYAML(app), Create: create}))
 					if err != nil {
 						return nil, err
@@ -620,6 +621,7 @@ func (a *app) appCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			a.expectChange(p.name, "apps."+args[1], nil)
 			conf, err := p.edit(cmd.Context(), func(base int32) (*workspacev1.ProjectConfig, error) {
 				r, err := p.c.RemoveApp(cmd.Context(), req(p.s, &workspacev1.RemoveAppRequest{WorkspaceId: p.ws.ID, Project: p.name, BaseVersion: base, Name: args[1]}))
 				if err != nil {
@@ -720,6 +722,7 @@ func (a *app) putService(cmd *cobra.Command, p *inProject, name string, create b
 		if err := edit(svc); err != nil {
 			return nil, err
 		}
+		a.expectChange(p.name, "services."+name, svc)
 		r, err := p.c.PutService(cmd.Context(), req(p.s, &workspacev1.PutServiceRequest{WorkspaceId: p.ws.ID, Project: p.name, BaseVersion: base, Name: name, ServiceYaml: toYAML(svc), Create: create}))
 		if err != nil {
 			return nil, err

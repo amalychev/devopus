@@ -317,6 +317,11 @@ func (a *app) printStatus(s *agentv2.StatusResponse) {
 		}
 	}
 	w.Flush()
+	for _, p := range s.Projects {
+		if p.Pending != nil {
+			fmt.Fprintf(a.stdout, "\n%s: settings v%d wait for you: they run new code on this machine. 'devopus changes' shows them.\n", p.Name, p.Pending.Version)
+		}
+	}
 	for _, e := range s.Environments {
 		a.printUnits(e)
 	}

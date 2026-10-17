@@ -46,7 +46,12 @@ export function Drift({ current, project }: { current: Current; project: Project
                 </TableCell>
                 <TableCell>{e.kind === "feature" ? e.name : "base"}</TableCell>
                 <TableCell>
-                  v{e.configVersion} {e.configVersion !== project.config.version && <Badge variant="destructive">behind</Badge>}
+                  v{e.configVersion}{" "}
+                  {e.pendingVersion ? (
+                    <Badge variant="outline" title="It runs new code: the developer accepts it with 'devopus changes accept'">v{e.pendingVersion} waits for them</Badge>
+                  ) : (
+                    e.configVersion !== project.config.version && <Badge variant="destructive">behind</Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   {e.phase}
