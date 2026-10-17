@@ -1,6 +1,7 @@
 import { Code, ConnectError, createClient, type Interceptor } from "@connectrpc/connect"
 import { createConnectTransport } from "@connectrpc/connect-web"
 
+import { SyncService } from "@/gen/devopus/sync/v1/sync_pb"
 import { WorkspaceService } from "@/gen/devopus/workspace/v1/workspace_pb"
 
 // The workspace server serves this app, its API and the sign-in: the refresh token
@@ -124,6 +125,7 @@ const transport = createConnectTransport({
 })
 
 export const ws = createClient(WorkspaceService, transport)
+export const sync = createClient(SyncService, transport)
 
 export function errorText(err: unknown): string {
   if (err instanceof Error && !(err instanceof ConnectError) && "status" in err) {

@@ -10,15 +10,14 @@ import type { Current } from "@ws/app"
 import { FormDialog } from "@ws/dialogs"
 import { ErrorNote, PageHeader, useAction, useLoad, when } from "@ws/ui"
 
-// Projects for now are names that roles hang on; their applications, services and
-// versions come to the web with stage 4 (the CLI has them: devopus project …).
-export function Projects({ current }: { current: Current }) {
+// Projects of the workspace: those the caller has a role in (the admin sees all).
+export function Projects({ current, open }: { current: Current; open: (name: string) => void }) {
   const list = useLoad(() => ws.listProjects({ workspaceId: current.workspace.id }), [current.workspace.id])
   const [creating, setCreating] = React.useState(false)
   const projects = list.data?.projects ?? []
   return (
     <>
-      <PageHeader title="Projects" description="Products of the workspace. Settings, applications and services: devopus project show <name>.">
+      <PageHeader title="Projects" description="Products of the workspace: their applications, services, settings and secrets.">
         {current.can("project.create") && <Button onClick={() => setCreating(true)}>New project</Button>}
       </PageHeader>
       <ErrorNote error={list.error} />
@@ -41,7 +40,7 @@ export function Projects({ current }: { current: Current }) {
           </TableHeader>
           <TableBody>
             {projects.map((p) => (
-              <TableRow key={p.id}>
+              <TableRow key={p.id} className="cursor-pointer" onClick={() => open(p.name)}>
                 <TableCell className="font-medium">{p.name}</TableCell>
                 <TableCell>{p.role || "admin"}</TableCell>
                 <TableCell>v{p.version}</TableCell>

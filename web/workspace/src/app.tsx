@@ -23,6 +23,7 @@ import { Invites } from "@ws/pages/invites"
 import { Members } from "@ws/pages/members"
 import { Overview } from "@ws/pages/overview"
 import { Projects } from "@ws/pages/projects"
+import { ProjectPage, tabs, type Tab } from "@ws/project/page"
 import { SignIn } from "@ws/sign-in"
 
 // The current workspace and what the signed-in user may do in it, for every page.
@@ -43,19 +44,25 @@ const pages = [
 
 type PageId = (typeof pages)[number]["id"]
 
-// The page lives in the URL hash: #/members.
-function usePage(): [PageId, (p: PageId) => void] {
-  const read = (): PageId => {
-    const id = window.location.hash.replace(/^#\/?/, "")
-    return (pages.find((p) => p.id === id)?.id ?? "overview") as PageId
+type Route = { page: PageId; project?: string; tab?: Tab }
+
+// The page lives in the URL hash: #/members, #/projects/shop/services.
+function useRoute(): [Route, (path: string) => void] {
+  const read = (): Route => {
+    const [id, project, tab] = window.location.hash.replace(/^#\/?/, "").split("/")
+    const page = (pages.find((p) => p.id === id)?.id ?? "overview") as PageId
+    if (page === "projects" && project) {
+      return { page, project: decodeURIComponent(project), tab: (tabs.find((t) => t.id === tab)?.id ?? "apps") as Tab }
+    }
+    return { page }
   }
-  const [page, setPage] = React.useState(read)
+  const [route, setRoute] = React.useState(read)
   React.useEffect(() => {
-    const on = () => setPage(read())
+    const on = () => setRoute(read())
     window.addEventListener("hashchange", on)
     return () => window.removeEventListener("hashchange", on)
   }, [])
-  return [page, (p) => (window.location.hash = `/${p}`)]
+  return [route, (path) => (window.location.hash = `/${path}`)]
 }
 
 export function App() {
@@ -99,7 +106,9 @@ function Signed({ session }: { session: Session }) {
   const [info, setInfo] = React.useState<GetWorkspaceResponse>()
   const [creating, setCreating] = React.useState(false)
   const [accepting, setAccepting] = React.useState(false)
-  const [page, setPage] = usePage()
+  const [route, go] = useRoute()
+  const page = route.page
+  const setPage = (p: PageId) => go(p)
   const [tick, setTick] = React.useState(0)
 
   const loadList = React.useCallback(() => {
@@ -220,8 +229,10 @@ function Signed({ session }: { session: Session }) {
           <Members current={current} />
         ) : page === "invites" && current.can("members.invite") ? (
           <Invites current={current} />
+        ) : page === "projects" && route.project ? (
+          <ProjectPage key={route.project} current={current} name={route.project} tab={route.tab ?? "apps"} go={go} />
         ) : page === "projects" ? (
-          <Projects current={current} />
+          <Projects current={current} open={(name) => go(`projects/${encodeURIComponent(name)}/apps`)} />
         ) : page === "audit" && current.can("workspace.manage") ? (
           <Audit current={current} />
         ) : (

@@ -32,6 +32,11 @@ extend google.protobuf.MethodOptions {
 }
 
 service WorkspaceService {
+  // ListServiceTypes is the catalog of service types (internal/catalog): what
+  // 'devopus service add' and the web interface offer.
+  rpc ListServiceTypes(ListServiceTypesRequest) returns (ListServiceTypesResponse) {
+    option (access) = {scope: SCOPE_SIGNED_IN};
+  }
   // CreateWorkspace makes a workspace; its creator is its admin.
   rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse) {
     option (access) = {scope: SCOPE_SIGNED_IN};
@@ -759,4 +764,22 @@ message PrepareRotationResponse {
   int32 generation = 1;
   repeated SealedSecret secrets = 2;
   repeated DeviceKey devices = 3;
+}
+
+message ListServiceTypesRequest {}
+
+message ServiceType {
+  string name = 1;
+  // runtime: the applications run on its image; container: a container of its own;
+  // process: an application's code with its own command (queue, cronjob).
+  string kind = 2;
+  // The image repository; the version is its tag.
+  string repo = 3;
+  int32 port = 4;
+  int32 ui_port = 5;
+  repeated string aliases = 6;
+}
+
+message ListServiceTypesResponse {
+  repeated ServiceType types = 1;
 }

@@ -109,6 +109,15 @@ func (s *Service) change(ctx context.Context, project string, base int32, fn fun
 	return out, err
 }
 
+func (s *Service) ListServiceTypes(context.Context, *connect.Request[workspacev1.ListServiceTypesRequest]) (*connect.Response[workspacev1.ListServiceTypesResponse], error) {
+	resp := &workspacev1.ListServiceTypesResponse{}
+	for _, t := range catalog.Types() {
+		resp.Types = append(resp.Types, &workspacev1.ServiceType{Name: t.Name, Kind: string(t.Kind), Repo: t.Repo,
+			Port: int32(t.Port), UiPort: int32(t.UIPort), Aliases: t.Aliases})
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (s *Service) CreateProject(ctx context.Context, req *connect.Request[workspacev1.CreateProjectRequest]) (*connect.Response[workspacev1.CreateProjectResponse], error) {
 	m := req.Msg
 	name := strings.TrimSpace(m.Name)

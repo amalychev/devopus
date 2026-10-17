@@ -84,6 +84,9 @@ var byName = func() map[string]Type {
 	return m
 }()
 
+// Types lists the types, in the catalog's order: runtimes, containers, processes.
+func Types() []Type { return append([]Type{}, types...) }
+
 // Lookup finds a type by its name or an alias.
 func Lookup(name string) (Type, bool) {
 	t, ok := byName[strings.ToLower(name)]

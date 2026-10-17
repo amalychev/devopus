@@ -28,6 +28,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/devopus.workspace.v1.WorkspaceService": { target: server, changeOrigin: true },
+      "/devopus.sync.v1.SyncService": { target: server, changeOrigin: true },
       "/web/auth": { target: server, changeOrigin: true },
     },
   },

@@ -38,6 +38,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// WorkspaceServiceListServiceTypesProcedure is the fully-qualified name of the WorkspaceService's
+	// ListServiceTypes RPC.
+	WorkspaceServiceListServiceTypesProcedure = "/devopus.workspace.v1.WorkspaceService/ListServiceTypes"
 	// WorkspaceServiceCreateWorkspaceProcedure is the fully-qualified name of the WorkspaceService's
 	// CreateWorkspace RPC.
 	WorkspaceServiceCreateWorkspaceProcedure = "/devopus.workspace.v1.WorkspaceService/CreateWorkspace"
@@ -149,6 +152,9 @@ const (
 
 // WorkspaceServiceClient is a client for the devopus.workspace.v1.WorkspaceService service.
 type WorkspaceServiceClient interface {
+	// ListServiceTypes is the catalog of service types (internal/catalog): what
+	// 'devopus service add' and the web interface offer.
+	ListServiceTypes(context.Context, *connect.Request[v1.ListServiceTypesRequest]) (*connect.Response[v1.ListServiceTypesResponse], error)
 	// CreateWorkspace makes a workspace; its creator is its admin.
 	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
 	// ListWorkspaces lists the workspaces the user is a member of on this server.
@@ -237,6 +243,12 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 	baseURL = strings.TrimRight(baseURL, "/")
 	workspaceServiceMethods := v1.File_devopus_workspace_v1_workspace_proto.Services().ByName("WorkspaceService").Methods()
 	return &workspaceServiceClient{
+		listServiceTypes: connect.NewClient[v1.ListServiceTypesRequest, v1.ListServiceTypesResponse](
+			httpClient,
+			baseURL+WorkspaceServiceListServiceTypesProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("ListServiceTypes")),
+			connect.WithClientOptions(opts...),
+		),
 		createWorkspace: connect.NewClient[v1.CreateWorkspaceRequest, v1.CreateWorkspaceResponse](
 			httpClient,
 			baseURL+WorkspaceServiceCreateWorkspaceProcedure,
@@ -458,6 +470,7 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // workspaceServiceClient implements WorkspaceServiceClient.
 type workspaceServiceClient struct {
+	listServiceTypes      *connect.Client[v1.ListServiceTypesRequest, v1.ListServiceTypesResponse]
 	createWorkspace       *connect.Client[v1.CreateWorkspaceRequest, v1.CreateWorkspaceResponse]
 	listWorkspaces        *connect.Client[v1.ListWorkspacesRequest, v1.ListWorkspacesResponse]
 	getWorkspace          *connect.Client[v1.GetWorkspaceRequest, v1.GetWorkspaceResponse]
@@ -494,6 +507,11 @@ type workspaceServiceClient struct {
 	revokePermission      *connect.Client[v1.RevokePermissionRequest, v1.RevokePermissionResponse]
 	removeFromProject     *connect.Client[v1.RemoveFromProjectRequest, v1.RemoveFromProjectResponse]
 	removeMember          *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
+}
+
+// ListServiceTypes calls devopus.workspace.v1.WorkspaceService.ListServiceTypes.
+func (c *workspaceServiceClient) ListServiceTypes(ctx context.Context, req *connect.Request[v1.ListServiceTypesRequest]) (*connect.Response[v1.ListServiceTypesResponse], error) {
+	return c.listServiceTypes.CallUnary(ctx, req)
 }
 
 // CreateWorkspace calls devopus.workspace.v1.WorkspaceService.CreateWorkspace.
@@ -679,6 +697,9 @@ func (c *workspaceServiceClient) RemoveMember(ctx context.Context, req *connect.
 // WorkspaceServiceHandler is an implementation of the devopus.workspace.v1.WorkspaceService
 // service.
 type WorkspaceServiceHandler interface {
+	// ListServiceTypes is the catalog of service types (internal/catalog): what
+	// 'devopus service add' and the web interface offer.
+	ListServiceTypes(context.Context, *connect.Request[v1.ListServiceTypesRequest]) (*connect.Response[v1.ListServiceTypesResponse], error)
 	// CreateWorkspace makes a workspace; its creator is its admin.
 	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
 	// ListWorkspaces lists the workspaces the user is a member of on this server.
@@ -763,6 +784,12 @@ type WorkspaceServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	workspaceServiceMethods := v1.File_devopus_workspace_v1_workspace_proto.Services().ByName("WorkspaceService").Methods()
+	workspaceServiceListServiceTypesHandler := connect.NewUnaryHandler(
+		WorkspaceServiceListServiceTypesProcedure,
+		svc.ListServiceTypes,
+		connect.WithSchema(workspaceServiceMethods.ByName("ListServiceTypes")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workspaceServiceCreateWorkspaceHandler := connect.NewUnaryHandler(
 		WorkspaceServiceCreateWorkspaceProcedure,
 		svc.CreateWorkspace,
@@ -981,6 +1008,8 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 	)
 	return "/devopus.workspace.v1.WorkspaceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case WorkspaceServiceListServiceTypesProcedure:
+			workspaceServiceListServiceTypesHandler.ServeHTTP(w, r)
 		case WorkspaceServiceCreateWorkspaceProcedure:
 			workspaceServiceCreateWorkspaceHandler.ServeHTTP(w, r)
 		case WorkspaceServiceListWorkspacesProcedure:
@@ -1061,6 +1090,10 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 
 // UnimplementedWorkspaceServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedWorkspaceServiceHandler struct{}
+
+func (UnimplementedWorkspaceServiceHandler) ListServiceTypes(context.Context, *connect.Request[v1.ListServiceTypesRequest]) (*connect.Response[v1.ListServiceTypesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.ListServiceTypes is not implemented"))
+}
 
 func (UnimplementedWorkspaceServiceHandler) CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.CreateWorkspace is not implemented"))
