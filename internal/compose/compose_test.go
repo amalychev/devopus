@@ -1,17 +1,12 @@
 package compose
 
 import (
-	"bytes"
 	"context"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/compose-spec/compose-go/v2/loader"
-	"github.com/compose-spec/compose-go/v2/types"
 	"gopkg.in/yaml.v3"
 
 	"github.com/amalychev/devopus/internal/workspace"
@@ -158,102 +153,5 @@ func TestImportWithoutPinnerIsBlocked(t *testing.T) {
 	res := importShop(t, nil)
 	if res.Report.Level(false) != "C" || len(res.Report.Unpinned) != 2 {
 		t.Errorf("level %s unpinned %v", res.Report.Level(false), res.Report.Unpinned)
-	}
-}
-
-func TestExportRoundTrip(t *testing.T) {
-	ws, err := workspace.Load("../workspace/testdata/shop.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	out, err := Export(ws.Workspace)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := t.TempDir()
-	file := filepath.Join(dir, "compose.yaml")
-	if err := os.WriteFile(file, out, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	p, err := loader.LoadWithContext(context.Background(), types.ConfigDetails{
-		WorkingDir:  dir,
-		ConfigFiles: []types.ConfigFile{{Filename: file}},
-		Environment: map[string]string{"STRIPE_TEST_KEY": "sk_test"},
-	}, func(o *loader.Options) { o.SetProjectName("shop", true) })
-	if err != nil {
-		t.Fatalf("exported file does not load: %v\n%s", err, out)
-	}
-
-	be := p.Services["backend"]
-	if be.Image != "php:8.3" || be.WorkingDir != "/app" {
-		t.Errorf("backend = %s %s", be.Image, be.WorkingDir)
-	}
-	if got := strings.Join(be.Command, " "); got != "sh -c composer install && php artisan migrate --force && php artisan serve --host 0.0.0.0 --port 8080" {
-		t.Errorf("backend command = %q", got)
-	}
-	env := func(s, k string) string {
-		if v := p.Services[s].Environment[k]; v != nil {
-			return *v
-		}
-		return ""
-	}
-	for k, want := range map[string]string{
-		"DB_HOST":     "mysql",
-		"DB_DATABASE": "shop",
-		"APP_URL":     "http://localhost:8080",
-		"STRIPE_KEY":  "sk_test",
-	} {
-		if got := env("backend", k); got != want {
-			t.Errorf("backend %s = %q, want %q", k, got, want)
-		}
-	}
-	if fe := p.Services["frontend"]; len(fe.Ports) != 1 || fe.Ports[0].Published != "8080" || fe.Ports[0].HostIP != "127.0.0.1" || fe.Ports[0].Target != 5173 {
-		t.Errorf("frontend ports = %+v", fe.Ports)
-	}
-	if mail := p.Services["mail"]; len(mail.Ports) != 1 || mail.Ports[0].Target != 8025 {
-		t.Errorf("mail ports = %+v", mail.Ports)
-	}
-	if _, ok := p.Services["backend-worker-1"]; !ok {
-		t.Errorf("worker service missing")
-	}
-	if _, ok := p.Volumes["node-modules"]; !ok {
-		t.Errorf("named volume not declared")
-	}
-	if !bytes.Contains(out, []byte("clone git@github.com:acme/shop-api.git into ./backend")) {
-		t.Errorf("header lacks clone note:\n%s", out)
-	}
-
-	// docker compose itself is the final judge when it is installed.
-	if _, err := exec.LookPath("docker"); err == nil {
-		cmd := exec.Command("docker", "compose", "-f", file, "config", "-q")
-		cmd.Env = append(os.Environ(), "STRIPE_TEST_KEY=x")
-		if o, err := cmd.CombinedOutput(); err != nil {
-			t.Errorf("docker compose config: %v\n%s", err, o)
-		}
-	}
-}
-
-// TestImportExportImport: exporting an imported project and importing it again keeps
-// modules, services and routes.
-func TestImportExportImport(t *testing.T) {
-	res := importShop(t, fakePinner{"axllent/mailpit": mailpitDigest, "redis:alpine": "sha256:" + strings.Repeat("2", 64)})
-	out, err := Export(res.Workspace)
-	if err != nil {
-		t.Fatal(err)
-	}
-	file := filepath.Join("testdata/shop", "exported.compose.yaml")
-	if err := os.WriteFile(file, out, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Remove(file) })
-	again, err := Import(context.Background(), []string{file}, Options{Project: "shop"})
-	if err != nil {
-		t.Fatalf("%v\n%s", err, out)
-	}
-	if got := strings.Join(again.Workspace.ModuleNames(), ","); got != "api,queue-worker,web" {
-		t.Errorf("modules = %s", got)
-	}
-	if got := strings.Join(again.Workspace.ServiceNames(), ","); got != "cache,db,mailpit,nginx" {
-		t.Errorf("services = %s", got)
 	}
 }

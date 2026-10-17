@@ -155,8 +155,8 @@ func TestSignInFlows(t *testing.T) {
 	const email = "dev@acme.dev"
 
 	// Without a session commands refuse with exit code 5; version does not need one.
-	if code, _, errOut := cli(t, "", "validate"); code != ExitAuth || !strings.Contains(errOut, "devopus login") {
-		t.Fatalf("validate signed out: %d %s", code, errOut)
+	if code, _, errOut := cli(t, "", "agent", "status"); code != ExitAuth || !strings.Contains(errOut, "devopus login") {
+		t.Fatalf("a command signed out: %d %s", code, errOut)
 	}
 	if code, _, errOut := cli(t, "", "auth", "sessions"); code != ExitAuth {
 		t.Fatalf("auth sessions signed out: %d %s", code, errOut)
@@ -192,8 +192,8 @@ func TestSignInFlows(t *testing.T) {
 		t.Fatalf("whoami: %d\n%s\n%s", code, out, errOut)
 	}
 	// The command that was refused works now.
-	if code, _, errOut := cli(t, "", "schema"); code != ExitOK {
-		t.Fatalf("schema signed in: %d %s", code, errOut)
+	if code, _, errOut := cli(t, "", "agent", "status"); code != ExitOK {
+		t.Fatalf("agent status signed in: %d %s", code, errOut)
 	}
 
 	// Browser sign-in: the page sends the code back to the CLI on 127.0.0.1.
@@ -262,8 +262,8 @@ func TestSignInFlows(t *testing.T) {
 	if code != ExitAuth || !strings.Contains(errOut, "used from somewhere else") {
 		t.Fatalf("whoami after reuse: %d %s", code, errOut)
 	}
-	if code, _, _ := cli(t, "", "schema"); code != ExitAuth {
-		t.Fatalf("schema after the session was closed: %d", code)
+	if code, _, _ := cli(t, "", "agent", "status"); code != ExitAuth {
+		t.Fatalf("agent status after the session was closed: %d", code)
 	}
 
 	// Email sign-in in the terminal, then sign-out.

@@ -375,60 +375,15 @@ func (a *app) upCmd() *cobra.Command {
 	var dir string
 	cmd := &cobra.Command{
 		Use:   "up [project…]",
-		Short: "Bring up the projects of the workspace on this machine, or the project of workspace.yaml here",
+		Short: "Bring up the projects of the current workspace on this machine",
 		Long: "Brings up the base environments of the current workspace's projects (all, or those\n" +
-			"named) on this machine; the agent gets them from the workspace server. In a folder\n" +
-			"with workspace.yaml it brings up that project instead (until stage 3 ends).\n\n" +
+			"named) on this machine; the agent gets them from the workspace server, and brings new\n" +
+			"ones up on its own. 'devopus down' keeps a project stopped here until 'devopus up'.\n\n" +
 			"--dir is the folder of a project's path applications on this machine (the demo:\n" +
-			"devopus up demo --dir examples/demo).",
+			"devopus up demo --dir examples/demo); the agent remembers it.",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if _, ferr := a.workspaceFile(); len(args) > 0 || dir != "" || (ferr != nil && a.file == "") {
-				return a.upServer(args, dir, detach, timeout)
-			}
-			res, file, err := a.load()
-			if err != nil {
-				return err
-			}
-			a.printDiagnostics(file, res.Diagnostics.Warnings())
-			if res.Diagnostics.HasErrors() {
-				a.printDiagnostics(file, res.Diagnostics.Errors())
-				return fail(ExitInvalid, "fix the errors above, then run 'devopus up' again")
-			}
-			if missing, err := missingSecrets(file); err != nil {
-				return fail(ExitError, "%v", err)
-			} else if len(missing) > 0 {
-				return fail(ExitInvalid, "%s, then run 'devopus up' again", secretsHint(file, missing))
-			}
-			abs, err := filepath.Abs(file)
-			if err != nil {
-				return err
-			}
-			config, err := os.ReadFile(abs)
-			if err != nil {
-				return err
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
-			defer cancel()
-			c, err := a.connect(ctx)
-			if err != nil {
-				return err
-			}
-			// Watch first, so no progress is lost between Up and the subscription.
-			w, err := watch(ctx, c)
-			if err != nil {
-				return err
-			}
-			defer w.Close()
-			up, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: abs, Config: config}))
-			if err != nil {
-				return rpcError(err)
-			}
-			envID, rev := up.Msg.EnvironmentId, up.Msg.Revision
-			if detach {
-				return a.done(map[string]any{"environment_id": envID, "revision": rev}, "Environment %s of %s is coming up; 'devopus status' shows progress.\n", envID, res.Workspace.Project)
-			}
-			return a.awaitRunning(ctx, c, w, envID, rev, res.Workspace.Project)
+			return a.upServer(args, dir, detach, timeout)
 		},
 	}
 	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "return without waiting for the environment")
@@ -588,24 +543,18 @@ func (a *app) downCmd() *cobra.Command {
 	var timeout time.Duration
 	cmd := &cobra.Command{
 		Use:   "down [project]",
-		Short: "Stop the environments of a project; --volumes removes them with their data",
-		Long: "Stops the environments of a project on this machine: the project named, the --project\n" +
-			"flag, or the project of workspace.yaml here. A project of the workspace stays stopped\n" +
-			"here until 'devopus up', whatever changes on the server.",
+		Short: "Stop the environments of a project on this machine; --volumes removes them with their data",
+		Long: "Stops the environments of a project on this machine: the one named, or the current\n" +
+			"workspace's only one. It stays stopped here until 'devopus up', whatever changes on\n" +
+			"the server.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 1 {
 				project = args[0]
 			}
-			if project == "" {
-				res, _, err := a.load()
-				if err != nil {
-					return err
-				}
-				if res.Workspace == nil {
-					return fail(ExitInvalid, "cannot read the project name; pass --project")
-				}
-				project = res.Workspace.Project
+			project, err := a.project(project)
+			if err != nil {
+				return err
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
@@ -648,7 +597,7 @@ func (a *app) downCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&volumes, "volumes", false, "remove the environments and their data")
-	cmd.Flags().StringVar(&project, "project", "", "project name (default: from workspace.yaml)")
+	cmd.Flags().StringVar(&project, "project", "", "project (default: the current workspace's only one)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Minute, "how long to wait")
 	return cmd
 }

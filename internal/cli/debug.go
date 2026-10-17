@@ -15,6 +15,7 @@ import (
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
+	"github.com/amalychev/devopus/internal/credentials"
 )
 
 // agentStatus asks the running agent for its status; it does not start one.
@@ -29,7 +30,7 @@ func (a *app) agentStatus() (*agentv2.StatusResponse, error) {
 }
 
 // findEnv resolves an environment by ID, or a feature by slug or name; empty means the
-// base environment of the project in the current folder.
+// base environment of the current workspace's only project.
 func (a *app) findEnv(st *agentv2.StatusResponse, arg string) (*agentv2.EnvironmentStatus, error) {
 	if arg != "" {
 		for _, e := range st.Environments {
@@ -38,10 +39,7 @@ func (a *app) findEnv(st *agentv2.StatusResponse, arg string) (*agentv2.Environm
 			}
 		}
 		// A feature name may repeat across projects: prefer the current project's.
-		project := ""
-		if res, _, err := a.load(); err == nil && res.Workspace != nil {
-			project = res.Workspace.Project
-		}
+		project := onlyProject(st)
 		var match *agentv2.EnvironmentStatus
 		for _, e := range st.Environments {
 			if e.Slug != "" && (e.Slug == arg || strings.EqualFold(e.Name, arg)) && (match == nil || e.Project == project) {
@@ -53,19 +51,31 @@ func (a *app) findEnv(st *agentv2.StatusResponse, arg string) (*agentv2.Environm
 		}
 		return nil, fail(ExitInvalid, "no environment %q; 'devopus status' lists them", arg)
 	}
-	res, _, err := a.load()
-	if err != nil {
-		return nil, err
-	}
-	if res.Workspace == nil {
-		return nil, fail(ExitInvalid, "cannot read the project name from workspace.yaml")
+	project := onlyProject(st)
+	if project == "" {
+		return nil, fail(ExitInvalid, "name the environment: a feature, or an environment id from 'devopus status'")
 	}
 	for _, e := range st.Environments {
-		if e.Project == res.Workspace.Project && e.Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE {
+		if e.Project == project && e.Kind == agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE {
 			return e, nil
 		}
 	}
-	return nil, fail(ExitError, "%s is not up; run 'devopus up'", res.Workspace.Project)
+	return nil, fail(ExitError, "%s is not up; run 'devopus up'", project)
+}
+
+// onlyProject is the current workspace's project when the agent runs exactly one.
+func onlyProject(st *agentv2.StatusResponse) string {
+	cur, _ := credentials.CurrentWorkspace()
+	found := ""
+	for _, p := range st.Projects {
+		if cur != nil && p.WorkspaceId == cur.ID && !p.Orphaned {
+			if found != "" {
+				return ""
+			}
+			found = p.Name
+		}
+	}
+	return found
 }
 
 // findUnit resolves [env] <unit> arguments: one argument is a unit of the base

@@ -1,6 +1,6 @@
 # Демо-проект
 
-Три модуля на одном хосте, база и перехватчик почты — критерий вехи M4.
+Три приложения на одном хосте, база и перехватчик почты. Это проект демо-воркспейса: на нём разрабатывают и отлаживают сам Devopus, на нём же идут сквозные тесты движка.
 
 | Что | Где | Рантайм |
 |---|---|---|
@@ -11,12 +11,12 @@
 | `mail` — Mailpit, веб-интерфейс через `expose` | `https://mail.demo.localhost` | — |
 
 ```bash
-cd examples/demo
-devopus up              # первый раз скачивает образы node, python, php, postgres, mailpit
+devopus workspace demo                  # воркспейс demo с этим проектом; пароль базы — E2E-секретом
+devopus up demo --dir examples/demo     # код приложений — в этой папке; первый раз скачивает образы
 devopus open
 devopus logs api
 devopus exec api -- /venv/bin/python -c "import psycopg; print(psycopg.__version__)"
-devopus down --volumes  # удалить вместе с базой
+devopus down demo --volumes             # удалить вместе с базой
 ```
 
-Если 80/443 заняты, адреса будут на `:18443` (`devopus status` покажет, кто занял порты). Пароль базы — в `.env.secrets` (в git его не кладут; здесь он демо).
+`workspace.yaml` здесь — описание проекта в формате этапа 1: из него `devopus workspace demo` делает проект на сервере. Работать с ним напрямую больше нельзя ([R10](../../docs/refactoring-plan.md)). Если 80/443 заняты, адреса будут на `:18443` (`devopus status` покажет, кто занял порты).

@@ -19,9 +19,7 @@ import (
 	"github.com/amalychev/devopus/gen/devopus/agent/v2/agentv2connect"
 	"github.com/amalychev/devopus/internal/agent/stack"
 	"github.com/amalychev/devopus/internal/agent/store"
-	"github.com/amalychev/devopus/internal/importer"
 	"github.com/amalychev/devopus/internal/spec"
-	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // Backend is what the API needs from the running agent.
@@ -116,35 +114,15 @@ func (s *Server) Up(_ context.Context, req *connect.Request[agentv2.UpRequest]) 
 			return nil, storeError(err)
 		}
 	}
-	ws, path, config, err := s.workspaceOf(req.Msg.Project, req.Msg.WorkspacePath, req.Msg.Config)
+	ws, err := s.projectOf(req.Msg.Project)
 	if err != nil {
 		return nil, err
 	}
-	envID, rev, err := s.b.Store().Up(ws.Name, filepath.Dir(path), config)
+	envID, rev, err := s.b.Store().Up(ws.Name)
 	if err != nil {
 		return nil, storeError(err)
 	}
 	return connect.NewResponse(&agentv2.UpResponse{EnvironmentId: envID, Revision: rev}), nil
-}
-
-// parseWorkspace checks workspace.yaml: the agent does it itself, the CLI may be older
-// or newer than the agent.
-func parseWorkspace(path string, config []byte) (*spec.Project, error) {
-	if !filepath.IsAbs(path) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("workspace_path must be absolute, got %q", path))
-	}
-	res, err := workspace.Parse(config)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s: %w", path, err))
-	}
-	if res.Diagnostics.HasErrors() {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is invalid:\n%s", path, res.Diagnostics.Errors().Error()))
-	}
-	p, err := importer.FromV1(res.Workspace)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s: %w", path, err))
-	}
-	return p, nil
 }
 
 func storeError(err error) error {
@@ -163,7 +141,7 @@ func storeError(err error) error {
 
 func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv2.CreateFeatureRequest]) (*connect.Response[agentv2.CreateFeatureResponse], error) {
 	m := req.Msg
-	ws, path, config, err := s.workspaceOf(m.Project, m.WorkspacePath, m.Config)
+	ws, err := s.projectOf(m.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -186,8 +164,7 @@ func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv2.C
 			reserved = append(reserved, e)
 		}
 	}
-	f, base, rev, err := s.b.Store().CreateFeature(ws.Name, filepath.Dir(path), config,
-		store.NewFeature{Name: m.Name, Branch: branch, Apps: m.Apps, Reserved: reserved})
+	f, base, rev, err := s.b.Store().CreateFeature(ws.Name, store.NewFeature{Name: m.Name, Branch: branch, Apps: m.Apps, Reserved: reserved})
 	if err != nil {
 		return nil, storeError(err)
 	}
@@ -196,7 +173,7 @@ func (s *Server) CreateFeature(_ context.Context, req *connect.Request[agentv2.C
 
 func (s *Server) AddFeatureApps(_ context.Context, req *connect.Request[agentv2.AddFeatureAppsRequest]) (*connect.Response[agentv2.AddFeatureAppsResponse], error) {
 	m := req.Msg
-	ws, path, config, err := s.workspaceOf(m.Project, m.WorkspacePath, m.Config)
+	ws, err := s.projectOf(m.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +183,7 @@ func (s *Server) AddFeatureApps(_ context.Context, req *connect.Request[agentv2.
 	if _, err := stack.Feature(ws, m.Apps); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	env, rev, err := s.b.Store().AddFeatureApps(ws.Name, filepath.Dir(path), config, m.Feature, m.Apps)
+	env, rev, err := s.b.Store().AddFeatureApps(ws.Name, m.Feature, m.Apps)
 	if err != nil {
 		return nil, storeError(err)
 	}

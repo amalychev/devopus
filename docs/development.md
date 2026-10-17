@@ -29,14 +29,15 @@ docker run -d --name devopus-auth-pg -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=aut
 DEVOPUS_AUTH_DATABASE_URL='postgres://postgres:dev@127.0.0.1:5433/auth?sslmode=disable' \
   go run ./cmd/devopus-auth run     # в отдельном терминале; коды из писем — в его выводе
 ./devopus register                # email, код из вывода devopus-auth, план Free
+# сервер воркспейса — в третьем терминале (§3а, «Сервер воркспейса»)
 
 ./devopus doctor          # runtime, порты 80/443, *.localhost, CA
 ./devopus doctor --fix    # доверить локальный CA (macOS спросит пароль) — один раз
 
-cd examples/demo
-../../devopus up          # первый раз скачивает образы; дальше ~10 с
-../../devopus open        # https://demo.localhost
-../../devopus panel open  # локальная веб-панель в браузере
+./devopus workspace demo                 # демо-воркспейс: проект, пароль базы — E2E-секретом
+./devopus up demo --dir examples/demo    # первый раз скачивает образы; дальше ~10 с
+./devopus open                           # https://demo.localhost
+./devopus panel open                     # локальная веб-панель в браузере
 ```
 
 Удобнее положить бинарник в `PATH`: `go build -o ~/.local/bin/devopus ./cmd/devopus`, дальше просто `devopus …`. Все команды по группам и как начать — `devopus --help`; у каждой группы свой `--help` (`devopus agent --help`).
@@ -47,7 +48,7 @@ cd examples/demo
 devopus feature create PAY-1 --apps api   # https://pay-1.demo.localhost, свой worktree и копия базы
 devopus feature list
 devopus feature rm PAY-1
-devopus down --volumes                # убрать демо вместе с данными
+devopus down demo --volumes           # убрать демо вместе с данными
 ```
 
 ## 3. Агент и панель

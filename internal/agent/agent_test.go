@@ -49,6 +49,7 @@ func TestAgentEndToEnd(t *testing.T) {
 	}
 	t.Cleanup(func() { os.RemoveAll(home) })
 	t.Setenv("DEVOPUS_HOME", home)
+	tm := newTeam(t, ctx)
 
 	project := "e2e-" + store.NewID()
 	// Free high ports: a real agent may hold 80/443 or the fallback ports.
@@ -122,21 +123,17 @@ modules:
     routes: [/api]
     command: python -m http.server 8080
 `, project, project)
-	invalid, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: "/src/x/workspace.yaml", Config: []byte("version: 1\n")}))
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("invalid config accepted: %v %v", invalid, err)
+	if _, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{Project: "nope"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Errorf("a project the workspace does not have: %v", err)
 	}
 
-	up, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: filepath.Join(root, "workspace.yaml"), Config: config}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	envID := up.Msg.EnvironmentId
+	tm.project(t, ctx, config)
 	t.Cleanup(func() {
 		// leave nothing behind even if the test fails half-way
 		purge(t, rt, c, project)
 	})
-	st := waitFor(t, ctx, c, envID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
+	up, st := upProject(t, ctx, c, project, root)
+	envID := up.Msg.EnvironmentId
 	if st.Network.GetSubnet() == "" {
 		t.Fatalf("no network in %v", st)
 	}
@@ -228,19 +225,10 @@ modules:
 	if hasNetwork(t, ctx, rt, envID) {
 		t.Fatal("network left behind")
 	}
-	// So are the images built for the project.
-	for i := 0; ; i++ {
-		imgs, err := rt.Images(ctx, paths.Instance())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(imgs) == 0 {
-			break
-		}
-		if i > 50 {
-			t.Fatalf("images left behind: %v", imgs)
-		}
-		time.Sleep(100 * time.Millisecond)
+	// The images built for the project stay: it is still the workspace's, and the next
+	// 'devopus up' reuses them.
+	if imgs, err := rt.Images(ctx, paths.Instance()); err != nil || len(imgs) == 0 {
+		t.Errorf("images of a held project: %v %v", imgs, err)
 	}
 	// The last environment is gone, so is the proxy.
 	for i := 0; len(containers(t, ctx, rt, "")) > 0; i++ {
@@ -312,11 +300,18 @@ func containers(t *testing.T, ctx context.Context, rt *runtime.Docker, role stri
 	return out
 }
 
-// purge removes the project and waits until the agent's containers are gone.
+// purge removes the project's environments, waits until the agent's containers are
+// gone and removes the images built for it.
 func purge(t *testing.T, rt *runtime.Docker, c agentv2connect.AgentServiceClient, project string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	_, _ = c.Down(ctx, connect.NewRequest(&agentv2.DownRequest{Project: project, Purge: true}))
+	defer func() {
+		imgs, _ := rt.Images(ctx, paths.Instance())
+		for _, img := range imgs {
+			_ = rt.RemoveImage(ctx, img.ID)
+		}
+	}()
 	for ctx.Err() == nil {
 		if all, err := rt.Containers(ctx, paths.Instance()); err != nil || len(all) == 0 {
 			return

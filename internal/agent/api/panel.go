@@ -22,7 +22,6 @@ import (
 	"github.com/amalychev/devopus/internal/agent/stack"
 	"github.com/amalychev/devopus/internal/agent/store"
 	"github.com/amalychev/devopus/internal/spec"
-	"github.com/amalychev/devopus/internal/workspace"
 )
 
 // Containers is what the panel's logs and resources need from the runtime.
@@ -31,58 +30,30 @@ type Containers interface {
 	Stats(ctx context.Context, id string) (runtime.Usage, error)
 }
 
-// projectFile reads workspace.yaml of a registered project from its folder: the panel
-// has no file of its own to send, and the file on disk is what the CLI would send.
-func (s *Server) projectFile(project string) (string, []byte, error) {
+// projectOf is a project the agent has, as it runs it: with the personal overrides of
+// devopus.yaml for a project of the workspace server.
+func (s *Server) projectOf(project string) (*spec.Project, error) {
+	if project == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name the project"))
+	}
 	for _, p := range s.b.Store().Snapshot().Projects {
 		if p.Name == project {
-			path := filepath.Join(p.Root, workspace.FileName)
-			config, err := os.ReadFile(path)
+			ws, err := store.ParseProject(p)
 			if err != nil {
-				return "", nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("read %s: %w", path, err))
+				return nil, connect.NewError(connect.CodeInternal, err)
 			}
-			return path, config, nil
+			return ws, nil
 		}
 	}
-	return "", nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%w %q", store.ErrUnknownProject, project))
-}
-
-// workspaceOf is the workspace.yaml of a request: sent by the caller, or read from the
-// project's folder when the caller names only the project. A project of the workspace
-// server has its settings in the store: no file, and nothing the caller sends changes it.
-func (s *Server) workspaceOf(project, path string, config []byte) (*spec.Project, string, []byte, error) {
-	if path == "" && project != "" {
-		for _, p := range s.b.Store().Snapshot().Projects {
-			if p.Name == project && p.WorkspaceId != "" {
-				ws, err := store.ParseProject(p)
-				if err != nil {
-					return nil, "", nil, connect.NewError(connect.CodeInternal, err)
-				}
-				return ws, filepath.Join(p.Root, workspace.FileName), nil, nil
-			}
-		}
-	}
-	if path == "" && project != "" {
-		var err error
-		if path, config, err = s.projectFile(project); err != nil {
-			return nil, "", nil, err
-		}
-	}
-	ws, err := parseWorkspace(path, config)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	if project != "" && ws.Name != project {
-		return nil, "", nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("%s now names project %q, not %q; run 'devopus up' there", path, ws.Name, project))
-	}
-	return ws, path, config, nil
+	return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("%w %q: the projects of the current workspace come from its server ('devopus project list')", store.ErrUnknownProject, project))
 }
 
 func (s *Server) DescribeProject(_ context.Context, req *connect.Request[agentv2.DescribeProjectRequest]) (*connect.Response[agentv2.DescribeProjectResponse], error) {
-	ws, path, _, err := s.workspaceOf(req.Msg.Project, "", nil)
+	ws, err := s.projectOf(req.Msg.Project)
 	if err != nil {
 		return nil, err
 	}
+	path := ""
 	res := &agentv2.DescribeProjectResponse{
 		Project: ws.Name, WorkspacePath: path, Domain: ws.Domain,
 		Services: containerServices(ws), BranchPrefix: ws.Policy().BranchPrefix,

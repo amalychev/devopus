@@ -47,7 +47,6 @@ type app struct {
 	stdin          io.Reader
 	stdout, stderr io.Writer
 	json           bool
-	file           string
 	// openURL opens a link in the browser.
 	openURL func(string) error
 }
@@ -70,14 +69,15 @@ members and projects, the agent and the web panel on this machine, environments 
 their features.
 
 Get started:
-  devopus register                create an account (or 'devopus login')
-  devopus workspace create acme   a workspace for the team; you are its admin
-  devopus invite create <email> --role teamlead --project shop
-  devopus agent install           run the agent as a service and check this machine
-  devopus init                    create workspace.yaml from docker-compose.yml
-  devopus up                      start the project's main environment
-  devopus feature create PAY-1    an environment of its own for a branch
-  devopus panel open              the web panel`,
+  devopus register                       create an account (or 'devopus login')
+  devopus workspace create acme          a workspace for the team; you are its admin
+  devopus project create shop --from-compose docker-compose.yml
+  devopus invite create <email> --role developer --project shop
+  devopus agent install                  run the agent as a service; it brings the projects up
+  devopus feature create PAY-1 --apps api   an environment of its own for a branch
+  devopus panel open                     the web panel
+
+Try it alone: devopus workspace demo, then devopus up demo --dir examples/demo.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -88,7 +88,6 @@ Get started:
 	root.SetOut(stdout)
 	root.SetErr(stderr)
 	root.PersistentFlags().BoolVar(&a.json, "json", false, "machine-readable output")
-	root.PersistentFlags().StringVarP(&a.file, "file", "f", "", "workspace file (default: workspace.yaml in this or a parent directory)")
 	root.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
 		return fail(ExitInvalid, "%v\nRun '%s --help' for usage.", err, c.CommandPath())
 	})
@@ -101,7 +100,6 @@ Get started:
 		&cobra.Group{ID: "machine", Title: "This machine: the agent, the panel and what they need:"},
 		&cobra.Group{ID: "project", Title: "Projects and their main environment:"},
 		&cobra.Group{ID: "features", Title: "Features and data:"},
-		&cobra.Group{ID: "config", Title: "workspace.yaml:"},
 	)
 	add := func(group string, cmds ...*cobra.Command) {
 		for _, c := range cmds {
@@ -114,7 +112,6 @@ Get started:
 	add("machine", a.agentCmd(), a.panelCmd(), a.serverCmd(), a.statusCmd(), a.doctorCmd(), a.proxyCmd())
 	add("project", a.upCmd(), a.downCmd(), a.openCmd(), a.logsCmd(), a.execCmd(), a.routesCmd())
 	add("features", a.featureCmd(), a.dbCmd())
-	add("config", a.initCmd(), a.validateCmd(), a.exportCmd(), a.schemaCmd())
 	root.AddCommand(a.versionCmd())
 
 	err := root.Execute()
@@ -131,42 +128,6 @@ Get started:
 	fmt.Fprintln(stderr, "devopus: "+err.Error())
 	// cobra reports unknown commands and arguments as plain errors.
 	return ExitInvalid
-}
-
-// workspaceFile finds the workspace file: the --file flag, or workspace.yaml in the
-// current directory or the nearest parent.
-func (a *app) workspaceFile() (string, error) {
-	if a.file != "" {
-		return a.file, nil
-	}
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	for {
-		p := filepath.Join(dir, workspace.FileName)
-		if _, err := os.Stat(p); err == nil {
-			return p, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fail(ExitInvalid, "no %s here or in a parent directory; run 'devopus init' or pass --file", workspace.FileName)
-		}
-		dir = parent
-	}
-}
-
-// load reads the workspace file and prints its diagnostics; it fails on errors.
-func (a *app) load() (*workspace.Result, string, error) {
-	file, err := a.workspaceFile()
-	if err != nil {
-		return nil, "", err
-	}
-	res, err := workspace.Load(file)
-	if err != nil {
-		return nil, file, fail(ExitInvalid, "%v", err)
-	}
-	return res, file, nil
 }
 
 // display shortens a path for messages: relative to the working directory when it is

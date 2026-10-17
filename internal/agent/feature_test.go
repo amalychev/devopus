@@ -78,6 +78,7 @@ func TestFeatures(t *testing.T) {
 	}
 	t.Cleanup(func() { os.RemoveAll(home) })
 	t.Setenv("DEVOPUS_HOME", home)
+	tm := newTeam(t, ctx)
 	for k, v := range map[string]string{"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"} {
 		t.Setenv(k, v)
 	}
@@ -132,10 +133,8 @@ func TestFeatures(t *testing.T) {
 		purge(t, rt, c, project)
 	})
 
-	up, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: wsPath, Config: config}))
-	if err != nil {
-		t.Fatal(err)
-	}
+	tm.project(t, ctx, config)
+	up, _ := upProject(t, ctx, c, project, filepath.Dir(wsPath))
 	baseID := up.Msg.EnvironmentId
 	waitFor(t, ctx, c, baseID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
 	status, err := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
@@ -196,7 +195,7 @@ func TestFeatures(t *testing.T) {
 	}()
 
 	// Feature A forks api: web uses api, so it runs in the feature too; store is its own.
-	a, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "PAY-1", Apps: []string{"api"}}))
+	a, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{Project: project, Name: "PAY-1", Apps: []string{"api"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +237,7 @@ func TestFeatures(t *testing.T) {
 	}
 
 	// Feature B forks only web: api and the paths it serves come from the base.
-	b, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "ui-2", Apps: []string{"web"}}))
+	b, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{Project: project, Name: "ui-2", Apps: []string{"web"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,7 +275,8 @@ func TestFeatures(t *testing.T) {
 
 	// database: shared — PAY-1 drops its store and reaches the base's over TCP.
 	shared := fmt.Appendf(nil, featureConfig, project, project, "shared")
-	add, err := c.AddFeatureApps(ctx, connect.NewRequest(&agentv2.AddFeatureAppsRequest{WorkspacePath: wsPath, Config: shared, Feature: "pay-1", Apps: []string{"api"}}))
+	tm.setFeatures(t, ctx, c, shared)
+	add, err := c.AddFeatureApps(ctx, connect.NewRequest(&agentv2.AddFeatureAppsRequest{Project: project, Feature: "pay-1", Apps: []string{"api"}}))
 	if err != nil {
 		t.Fatal(err)
 	}

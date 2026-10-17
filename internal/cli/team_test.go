@@ -181,10 +181,12 @@ func TestProjects(t *testing.T) {
 	a := startTeam(t)
 	signUp(t, a, "admin@acme.dev")
 
-	if out := ok(t, "workspace", "demo"); !strings.Contains(out, "Workspace demo with project demo: 3 applications, 5 services") {
-		t.Fatalf("demo:\n%s", out)
+	code, out, errOut := cli(t, "", "workspace", "demo")
+	if code != ExitOK || !strings.Contains(out, "Workspace demo with project demo: 3 applications, 5 services") || !strings.Contains(out, "devopus up demo --dir examples/demo") ||
+		!strings.Contains(errOut, "Secrets DB_PASSWORD are encrypted here") || !strings.Contains(errOut, "AGE-SECRET-KEY-1") {
+		t.Fatalf("demo: %d\n%s\n%s", code, out, errOut)
 	}
-	out := ok(t, "project", "show", "demo")
+	out = ok(t, "project", "show", "demo")
 	for _, want := range []string{"version 1 · https://demo.localhost", "admin ./admin main /admin php", "php php 8.3 runtime admin", "db postgres 17.6 container api"} {
 		if !strings.Contains(squash(out), want) {
 			t.Errorf("show lacks %q:\n%s", want, out)
@@ -264,9 +266,8 @@ func TestProjects(t *testing.T) {
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, "docker-compose.yml"), composeFile)
 	write(t, filepath.Join(dir, "web", "Dockerfile"), "FROM scratch\n")
-	code, out, errOut := cli(t, "", "project", "create", "shop", "--from-compose", filepath.Join(dir, "docker-compose.yml"), "--no-pin")
-	if code != ExitOK || !strings.Contains(out, "Project shop created") || !strings.Contains(errOut, "Secrets POSTGRES_PASSWORD, SESSION_SECRET are encrypted here and stored in shop") ||
-		!strings.Contains(errOut, "AGE-SECRET-KEY-1") {
+	code, out, errOut = cli(t, "", "project", "create", "shop", "--from-compose", filepath.Join(dir, "docker-compose.yml"), "--no-pin")
+	if code != ExitOK || !strings.Contains(out, "Project shop created") || !strings.Contains(errOut, "Secrets POSTGRES_PASSWORD, SESSION_SECRET are encrypted here and stored in shop") {
 		t.Fatalf("import: %d\n%s\n%s", code, out, errOut)
 	}
 	if y := ok(t, "project", "config", "show", "shop", "-o", "yaml"); strings.Contains(y, "devpass") || strings.Contains(y, "s3cr3t") || !strings.Contains(y, "${{ secrets.POSTGRES_PASSWORD }}") {

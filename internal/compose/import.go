@@ -1,4 +1,5 @@
-// Package compose converts between docker-compose files and workspace.yaml v1.
+// Package compose imports docker-compose files: into workspace.yaml v1, which the
+// importer turns into a project of the model (devopus project create --from-compose).
 // Import follows the rules of specs/workspace-yaml.md checked by prototype P-8.
 package compose
 

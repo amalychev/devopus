@@ -357,12 +357,11 @@ message SetProxyResponse {
 }
 
 message UpRequest {
-  // Absolute path of workspace.yaml.
-  string workspace_path = 1;
-  bytes config = 2;
-  // Instead of the file: a registered project, whose workspace.yaml the agent reads
-  // from its folder (the panel has no file to send), or a project from the workspace
-  // server. Also in CreateFeature and AddFeatureApps.
+  // Were workspace.yaml and its path: projects come from the workspace server (R10).
+  reserved 1, 2;
+  reserved "workspace_path", "config";
+  // A project the agent has: from the workspace server, or registered from a folder
+  // before R10.
   string project = 3;
   // A project from the workspace server: the folder of its path applications.
   string dir = 4;
@@ -396,9 +395,8 @@ message WatchResponse {
 }
 
 message CreateFeatureRequest {
-  // Absolute path of workspace.yaml and its content, as for Up: the project is updated.
-  string workspace_path = 1;
-  bytes config = 2;
+  reserved 1, 2;
+  reserved "workspace_path", "config";
   string name = 3;
   repeated string apps = 4;
   // Default: features.branch_prefix + name.
@@ -415,8 +413,8 @@ message CreateFeatureResponse {
 }
 
 message AddFeatureAppsRequest {
-  string workspace_path = 1;
-  bytes config = 2;
+  reserved 1, 2;
+  reserved "workspace_path", "config";
   // Name, slug or ID of the feature.
   string feature = 3;
   repeated string apps = 4;

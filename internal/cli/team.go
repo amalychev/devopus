@@ -418,8 +418,13 @@ func (a *app) workspaceCmd() *cobra.Command {
 			if err != nil {
 				return rpcErr(err)
 			}
+			// The demo's database password, as a secret of the workspace: made here,
+			// encrypted here, never seen by the server.
+			if err := a.uploadSecrets(ctx, project.Name, map[string]string{"DB_PASSWORD": random(18)}); err != nil {
+				return err
+			}
 			return a.done(map[string]any{"workspace": w.Id, "name": w.Name, "project": pr.Msg.Project.Name, "version": pr.Msg.Config.Version},
-				"✓ Workspace %s with project %s: %d applications, %d services. See it: devopus project show %s\n",
+				"✓ Workspace %s with project %s: %d applications, %d services. Its code is in examples/demo of the Devopus repository:\n  devopus up %s --dir examples/demo\n",
 				w.Name, project.Name, len(project.Apps), len(project.Services), project.Name)
 		},
 	}

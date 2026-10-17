@@ -93,6 +93,7 @@ func TestFeatureData(t *testing.T) {
 	}
 	t.Cleanup(func() { os.RemoveAll(home) })
 	t.Setenv("DEVOPUS_HOME", home)
+	tm := newTeam(t, ctx)
 
 	pgImage, pgData := "postgres:17.6", "/var/lib/postgresql/data"
 	if v := os.Getenv("DEVOPUS_TEST_PG"); v != "" {
@@ -141,10 +142,8 @@ func TestFeatureData(t *testing.T) {
 	}
 	t.Cleanup(func() { purge(t, rt, c, project) })
 
-	up, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: wsPath, Config: config}))
-	if err != nil {
-		t.Fatal(err)
-	}
+	tm.project(t, ctx, config)
+	up, _ := upProject(t, ctx, c, project, filepath.Dir(wsPath))
 	baseID := up.Msg.EnvironmentId
 	waitFor(t, ctx, c, baseID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
 	pgRuns := func(env string) string {
@@ -180,7 +179,7 @@ func TestFeatureData(t *testing.T) {
 	}
 
 	start := time.Now()
-	f, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "f1", Apps: []string{"pgapp", "myapp"}}))
+	f, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{Project: project, Name: "f1", Apps: []string{"pgapp", "myapp"}}))
 	if err != nil {
 		t.Fatal(err)
 	}

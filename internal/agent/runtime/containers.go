@@ -220,7 +220,11 @@ func (d *Docker) CreateContainer(ctx context.Context, spec ContainerSpec) (strin
 		}
 		netCfg = &network.NetworkingConfig{EndpointsConfig: map[string]*network.EndpointSettings{spec.Network: ep}}
 	}
-	res, err := d.cli.ContainerCreate(ctx, client.ContainerCreateOptions{Name: spec.Name, Config: cfg, HostConfig: host, NetworkingConfig: netCfg})
+	opts := client.ContainerCreateOptions{Name: spec.Name, Config: cfg, HostConfig: host, NetworkingConfig: netCfg}
+	res, err := d.cli.ContainerCreate(ctx, opts)
+	if errdefs.IsConflict(err) && d.removeStale(ctx, spec) {
+		res, err = d.cli.ContainerCreate(ctx, opts)
+	}
 	if err != nil {
 		return "", d.notShared(err, spec.Binds)
 	}
@@ -231,6 +235,21 @@ func (d *Docker) CreateContainer(ctx context.Context, spec ContainerSpec) (strin
 		}
 	}
 	return res.ID, nil
+}
+
+// removeStale removes a container that holds the name of a new one when it is this
+// agent's own: a pass interrupted while Docker created a container leaves one behind
+// that the next pass did not see yet. It reports whether the name is free now.
+func (d *Docker) removeStale(ctx context.Context, spec ContainerSpec) bool {
+	instance := spec.Labels[LabelInstance]
+	if spec.Name == "" || instance == "" {
+		return false
+	}
+	c, err := d.cli.ContainerInspect(ctx, spec.Name, client.ContainerInspectOptions{})
+	if err != nil || c.Container.Config == nil || c.Container.Config.Labels[LabelInstance] != instance {
+		return false
+	}
+	return d.RemoveContainer(ctx, c.Container.ID) == nil
 }
 
 // MACFor is a locally administered MAC address made of an IPv4 address, like Docker's

@@ -87,6 +87,7 @@ func TestFeatureSleep(t *testing.T) {
 	}
 	t.Cleanup(func() { os.RemoveAll(home) })
 	t.Setenv("DEVOPUS_HOME", home)
+	tm := newTeam(t, ctx)
 
 	project := "sl-" + store.NewID()
 	root := filepath.Join(home, "repo")
@@ -131,10 +132,8 @@ func TestFeatureSleep(t *testing.T) {
 	}
 	t.Cleanup(func() { purge(t, rt, c, project) })
 
-	up, err := c.Up(ctx, connect.NewRequest(&agentv2.UpRequest{WorkspacePath: wsPath, Config: config}))
-	if err != nil {
-		t.Fatal(err)
-	}
+	tm.project(t, ctx, config)
+	up, _ := upProject(t, ctx, c, project, filepath.Dir(wsPath))
 	baseID := up.Msg.EnvironmentId
 	waitFor(t, ctx, c, baseID, func(s *agentv2.EnvironmentStatus) bool { return s.Phase == agentv2.Phase_PHASE_RUNNING })
 	status, _ := c.Status(ctx, connect.NewRequest(&agentv2.StatusRequest{}))
@@ -162,7 +161,7 @@ func TestFeatureSleep(t *testing.T) {
 		return res.StatusCode, string(b), nil
 	}
 
-	f, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{WorkspacePath: wsPath, Config: config, Name: "f1", Apps: []string{"api"}}))
+	f, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{Project: project, Name: "f1", Apps: []string{"api"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,13 +255,14 @@ func TestFeatureSleep(t *testing.T) {
 
 	// Budget: one feature of the project may be awake; the least recently used sleeps.
 	budget := fmt.Appendf(nil, sleepConfig, project, project, "1h", "  max_running: 1\n")
-	if _, err := c.AddFeatureApps(ctx, connect.NewRequest(&agentv2.AddFeatureAppsRequest{WorkspacePath: wsPath, Config: budget, Feature: "f1", Apps: []string{"api"}})); err != nil {
+	tm.setFeatures(t, ctx, c, budget)
+	if _, err := c.AddFeatureApps(ctx, connect.NewRequest(&agentv2.AddFeatureAppsRequest{Project: project, Feature: "f1", Apps: []string{"api"}})); err != nil {
 		t.Fatal(err)
 	}
 	waitPhase(t, ctx, c, fID, agentv2.Phase_PHASE_RUNNING)
 	// The proxy reports requests every few seconds: let f1's last ones arrive first.
 	time.Sleep(proxy.StatsInterval + time.Second)
-	g, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{WorkspacePath: wsPath, Config: budget, Name: "f2", Apps: []string{"web"}}))
+	g, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{Project: project, Name: "f2", Apps: []string{"web"}}))
 	if err != nil {
 		t.Fatal(err)
 	}

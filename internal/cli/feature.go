@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -19,7 +17,6 @@ import (
 	"github.com/amalychev/devopus/internal/agent/client"
 	"github.com/amalychev/devopus/internal/agent/paths"
 	"github.com/amalychev/devopus/internal/agent/stack"
-	"github.com/amalychev/devopus/internal/importer"
 	"github.com/amalychev/devopus/internal/spec"
 )
 
@@ -33,58 +30,28 @@ func (a *app) featureCmd() *cobra.Command {
 	return cmd
 }
 
-// loadValid reads workspace.yaml for the agent: errors stop the command.
-func (a *app) loadValid(again string) (*spec.Project, string, []byte, error) {
-	res, file, err := a.load()
-	if err != nil {
-		return nil, "", nil, err
-	}
-	a.printDiagnostics(file, res.Diagnostics.Warnings())
-	if res.Diagnostics.HasErrors() {
-		a.printDiagnostics(file, res.Diagnostics.Errors())
-		return nil, "", nil, fail(ExitInvalid, "fix the errors above, then run '%s' again", again)
-	}
-	abs, err := filepath.Abs(file)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	config, err := os.ReadFile(abs)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	proj, err := importer.FromV1(res.Workspace)
-	if err != nil {
-		return nil, "", nil, fail(ExitInvalid, "%s: %v", display(file), err)
-	}
-	return proj, abs, config, nil
-}
-
-// featureProject is the project a feature command works on: the --project flag, a
-// project the agent runs (one of the workspace), or workspace.yaml of this folder.
-// path and config are set only for workspace.yaml.
-func (a *app) featureProject(ctx context.Context, c agentv2connect.AgentServiceClient, project, again string) (ws *spec.Project, path string, config []byte, err error) {
-	if _, ferr := a.workspaceFile(); project == "" && (ferr == nil || a.file != "") {
-		return a.loadValid(again)
-	}
+// featureProject is the project a feature command works on, as the agent runs it: the
+// --project flag, or the current workspace's only project.
+func (a *app) featureProject(ctx context.Context, c agentv2connect.AgentServiceClient, project string) (*spec.Project, error) {
 	if project == "" {
 		_, have, err := a.workspaceProjects(ctx, c, nil)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, err
 		}
 		if len(have) != 1 {
-			return nil, "", nil, fail(ExitInvalid, "name the project: --project <name>")
+			return nil, fail(ExitInvalid, "name the project: --project <name>")
 		}
 		project = have[0].Name
 	}
 	res, err := c.DescribeProject(ctx, connect.NewRequest(&agentv2.DescribeProjectRequest{Project: project}))
 	if err != nil {
-		return nil, "", nil, rpcError(err)
+		return nil, rpcError(err)
 	}
-	ws, err = spec.ParseYAML(res.Msg.Spec)
+	ws, err := spec.ParseYAML(res.Msg.Spec)
 	if err != nil {
-		return nil, "", nil, fail(ExitError, "%v", err)
+		return nil, fail(ExitError, "%v", err)
 	}
-	return ws, "", nil, nil
+	return ws, nil
 }
 
 func splitList(list []string) []string {
@@ -123,7 +90,7 @@ func (a *app) featureCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ws, abs, config, err := a.featureProject(ctx, c, project, "devopus feature create")
+			ws, err := a.featureProject(ctx, c, project)
 			if err != nil {
 				return err
 			}
@@ -137,7 +104,7 @@ func (a *app) featureCreateCmd() *cobra.Command {
 			}
 			defer w.Close()
 			res, err := c.CreateFeature(ctx, connect.NewRequest(&agentv2.CreateFeatureRequest{
-				WorkspacePath: abs, Config: config, Name: name, Apps: apps, Branch: branch, Project: projectOf(abs, ws),
+				Name: name, Apps: apps, Branch: branch, Project: ws.Name,
 			}))
 			if err != nil {
 				return rpcError(err)
@@ -221,7 +188,7 @@ func (a *app) featureAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ws, abs, config, err := a.featureProject(ctx, c, project, "devopus feature add")
+			ws, err := a.featureProject(ctx, c, project)
 			if err != nil {
 				return err
 			}
@@ -231,7 +198,7 @@ func (a *app) featureAddCmd() *cobra.Command {
 			}
 			defer w.Close()
 			res, err := c.AddFeatureApps(ctx, connect.NewRequest(&agentv2.AddFeatureAppsRequest{
-				WorkspacePath: abs, Config: config, Feature: args[0], Apps: apps, Project: projectOf(abs, ws),
+				Feature: args[0], Apps: apps, Project: ws.Name,
 			}))
 			if err != nil {
 				return rpcError(err)
@@ -249,19 +216,30 @@ func (a *app) featureAddCmd() *cobra.Command {
 	return cmd
 }
 
-// project is the project of the current folder, or the --project flag.
+// project is the --project flag, or the current workspace's only project on this
+// machine.
 func (a *app) project(flag string) (string, error) {
 	if flag != "" {
 		return flag, nil
 	}
-	res, _, err := a.load()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	c, err := a.connect(ctx)
 	if err != nil {
 		return "", err
 	}
-	if res.Workspace == nil || res.Workspace.Project == "" {
-		return "", fail(ExitInvalid, "cannot read the project name from workspace.yaml; pass --project")
+	_, have, err := a.workspaceProjects(ctx, c, nil)
+	if err != nil {
+		return "", err
 	}
-	return res.Workspace.Project, nil
+	if len(have) != 1 {
+		names := make([]string, len(have))
+		for i, p := range have {
+			names[i] = p.Name
+		}
+		return "", fail(ExitInvalid, "name the project (%s): --project <name>", strings.Join(names, ", "))
+	}
+	return have[0].Name, nil
 }
 
 func features(st *agentv2.StatusResponse, project string) []*agentv2.EnvironmentStatus {
@@ -553,12 +531,4 @@ func (a *app) featureSleepCmd(asleep bool) *cobra.Command {
 	cmd.Flags().StringVar(&project, "project", "", "project name (default: from workspace.yaml)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Minute, "how long to wait")
 	return cmd
-}
-
-// projectOf names the project for the agent when no workspace.yaml goes with a request.
-func projectOf(path string, ws *spec.Project) string {
-	if path != "" {
-		return ""
-	}
-	return ws.Name
 }

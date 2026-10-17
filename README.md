@@ -59,7 +59,7 @@
 
 ## Статус
 
-Этап 1 — **локальный движок** — готов и выпущен ([v0.1.0](https://github.com/amalychev/devopus/releases/tag/v0.1.0), [план](docs/stage-1/plan.md)): агент, окружения из описания стека, фичи с копиями данных, сон и пробуждение, локальная панель, установка. Пока он работает с `workspace.yaml` в репозитории — попробовать: [examples/demo](examples/demo). Дальше — **этап 2: аккаунты и воркспейсы** ([roadmap](roadmap.md)).
+Этап 1 — **локальный движок** — выпущен в [v0.1.0](https://github.com/amalychev/devopus/releases/tag/v0.1.0) ([план](docs/stage-1/plan.md)). В `main` готова новая модель ([план рефакторинга](docs/refactoring-plan.md), R0–R10): вход по email, воркспейсы с участниками и правами, проекты с приложениями, сервисами и версиями настроек на сервере воркспейса, агенты берут проекты оттуда, E2E-секреты, личные переопределения `devopus.yaml`. Режима без воркспейса (`workspace.yaml` в папке) больше нет; попробовать — демо-воркспейс ([docs/development.md](docs/development.md)). Дальше — веб-интерфейс воркспейса ([roadmap](roadmap.md)).
 
 ## Установка
 
@@ -76,17 +76,15 @@ devopus --help                         # все команды по группа
 
 ## Разработка
 
-Полная инструкция — [docs/development.md](docs/development.md). Коротко: нужен Go 1.27+. Тесты, которым нужен Docker (сквозной тест агента, `docker compose config` для экспорта), без него пропускаются.
+Полная инструкция — [docs/development.md](docs/development.md). Коротко: нужен Go 1.27+. Тесты, которым нужен Docker или PostgreSQL (сквозные тесты движка, Auth, сервер воркспейса), без него пропускаются.
 
 ```bash
 go test ./...                          # все тесты
 go build -o devopus ./cmd/devopus      # бинарник
 
-./devopus init                         # workspace.yaml из compose-файла в текущей папке
-./devopus validate                     # проверка по схеме и правилам, с номерами строк
-./devopus export compose -o out.yml    # обратно в docker-compose
-./devopus schema                       # JSON Schema для редактора
-./devopus up                           # поднять базовое окружение (стартует агента в фоне)
+./devopus register                     # аккаунт (Auth и сервер воркспейса — docs/development.md)
+./devopus workspace demo               # демо-воркспейс с проектом из examples/demo
+./devopus up demo --dir examples/demo  # поднять его на этой машине (агент стартует в фоне)
 ./devopus status                       # агент, runtime, прокси, окружения и их модули
 ./devopus open                         # открыть окружение в браузере
 ./devopus panel open                   # локальная панель: окружения, прогресс, логи, фичи
@@ -105,8 +103,8 @@ go build -o devopus ./cmd/devopus      # бинарник
 ./devopus db reset PAY-1               # заново скопировать данные main в фичу
 ./devopus db golden refresh            # снять золотые копии main с текущими данными
 ./devopus doctor --fix                 # проверки; доверие к локальному CA
-./devopus down                         # остановить (данные остаются)
-./devopus down --volumes               # удалить окружения проекта с данными
+./devopus down demo                    # остановить здесь (данные остаются)
+./devopus down demo --volumes          # удалить окружения проекта с данными
 ./devopus agent install                # агент службой (собранный бинарник — не из go run)
 ./devopus agent restart                # после пересборки; так же devopus panel restart
 

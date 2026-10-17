@@ -97,11 +97,11 @@ var ErrProjectConflict = errors.New("project name is taken")
 // ErrUnknownProject: no project with this name.
 var ErrUnknownProject = errors.New("unknown project")
 
-// Up registers or updates a project and wants its environments running: the base
-// one, and the features 'down' stopped. It returns the ID of the base environment.
-func (s *Store) Up(name, root string, config []byte) (envID string, rev uint64, err error) {
+// Up wants a project's environments running: the base one, and the features 'down'
+// stopped. It returns the ID of the base environment.
+func (s *Store) Up(name string) (envID string, rev uint64, err error) {
 	rev, err = s.update(func(st *agentv2.DesiredState) error {
-		base, err := register(st, name, root, config)
+		base, err := registered(st, name)
 		if err != nil {
 			return err
 		}
@@ -116,26 +116,18 @@ func (s *Store) Up(name, root string, config []byte) (envID string, rev uint64, 
 	return envID, rev, err
 }
 
-// register adds or updates a project and makes sure it has a base environment. A
-// project from the workspace server keeps its settings: only the server changes them.
-func register(st *agentv2.DesiredState, name, root string, config []byte) (*agentv2.EnvironmentSpec, error) {
-	sum := sha256.Sum256(config)
+// registered is a project the device has, released from 'devopus down', with its base
+// environment. Projects come from the workspace server (SyncServer); those registered
+// from folders before R10 keep running as they were.
+func registered(st *agentv2.DesiredState, name string) (*agentv2.EnvironmentSpec, error) {
 	p := findProject(st, name)
-	if p != nil && p.WorkspaceId != "" {
-		if p.Orphaned {
-			return nil, fmt.Errorf("%w: %s is no longer given to this device by its workspace", ErrUnknownProject, name)
-		}
-		p.Held = false
-		return ensureBase(st, name), nil
-	}
-	if p != nil && p.Root != root {
-		return nil, fmt.Errorf("%w: %q is already used by %s", ErrProjectConflict, name, p.Root)
-	}
 	if p == nil {
-		p = &agentv2.ProjectSpec{Name: name, Root: root}
-		st.Projects = append(st.Projects, p)
+		return nil, fmt.Errorf("%w %q: the projects of the current workspace come from its server ('devopus project list')", ErrUnknownProject, name)
 	}
-	p.Config, p.ConfigHash = config, hex.EncodeToString(sum[:])
+	if p.Orphaned {
+		return nil, fmt.Errorf("%w: %s is no longer given to this device by its workspace", ErrUnknownProject, name)
+	}
+	p.Held = false
 	return ensureBase(st, name), nil
 }
 
@@ -310,11 +302,11 @@ type NewFeature struct {
 	Reserved []string
 }
 
-// CreateFeature registers or updates the project, wants its base environment running
+// CreateFeature wants the project's base environment running
 // (the feature reaches the base's applications and services) and adds the feature.
-func (s *Store) CreateFeature(project, root string, config []byte, f NewFeature) (feature, base *agentv2.EnvironmentSpec, rev uint64, err error) {
+func (s *Store) CreateFeature(project string, f NewFeature) (feature, base *agentv2.EnvironmentSpec, rev uint64, err error) {
 	rev, err = s.update(func(st *agentv2.DesiredState) error {
-		b, err := register(st, project, root, config)
+		b, err := registered(st, project)
 		if err != nil {
 			return err
 		}
@@ -338,10 +330,10 @@ func (s *Store) CreateFeature(project, root string, config []byte, f NewFeature)
 	return feature, base, rev, err
 }
 
-// AddFeatureApps updates the project and forks more applications in a feature.
-func (s *Store) AddFeatureApps(project, root string, config []byte, feature string, applications []string) (env *agentv2.EnvironmentSpec, rev uint64, err error) {
+// AddFeatureApps forks more applications in a feature.
+func (s *Store) AddFeatureApps(project, feature string, applications []string) (env *agentv2.EnvironmentSpec, rev uint64, err error) {
 	rev, err = s.update(func(st *agentv2.DesiredState) error {
-		b, err := register(st, project, root, config)
+		b, err := registered(st, project)
 		if err != nil {
 			return err
 		}

@@ -1,6 +1,6 @@
 # Спецификация: команда `devopus`
 
-**Статус:** черновик; реализованы `init`, `validate`, `export compose`, `schema`, `version` (M1), `agent run`, `status`, `up`, `down` (M2), `doctor [--fix]`, `routes`, `open`, `proxy restart`, `proxy coexist` (M3), `logs`, `exec` (M4), `feature create/add/list/rm/path` (M5), `db reset`, `db golden refresh`, `db lag` (M6), `feature sleep/wake` (M7), локальная панель (M8), группы `agent` и `panel` с установкой службами (M9, [ADR-0012](../adr/0012-devopus-cli-control-point.md)). Все команды поддерживают `--json`. Файл конфига — `-f/--file`, по умолчанию `workspace.yaml` в текущей или ближайшей родительской папке.
+**Статус:** черновик; реализованы `version` (M1; `init`, `validate`, `export compose`, `schema` убраны в R10), `agent run`, `status`, `up`, `down` (M2), `doctor [--fix]`, `routes`, `open`, `proxy restart`, `proxy coexist` (M3), `logs`, `exec` (M4), `feature create/add/list/rm/path` (M5), `db reset`, `db golden refresh`, `db lag` (M6), `feature sleep/wake` (M7), локальная панель (M8), группы `agent` и `panel` с установкой службами (M9, [ADR-0012](../adr/0012-devopus-cli-control-point.md)). Все команды поддерживают `--json`. С R10 проекты берутся из текущего воркспейса (`devopus workspace use`); `workspace.yaml` в папке и `-f/--file` больше не читаются.
 
 ## Принцип
 
@@ -32,7 +32,7 @@
 | **Окружения** | `up [проект…] [--dir]` (проекты текущего воркспейса; в папке с `workspace.yaml` — её проект до конца этапа 3), `down [проект]`, `open`, `status`, `logs`, `exec`, `routes`; `env create staging\|production --project … --branch …` на сервере админа | все в проекте; staging/production — `servers.manage` | ✅ (сейчас из `workspace.yaml`); staging — 5 |
 | **Фичи и данные** | `feature …`, `db …` — ниже | все в проекте | ✅ |
 | **AI-агенты** | `mcp` | все в проекте | 7 |
-| **Уходят** | `init`, `validate`, `export compose`, `schema` — работа с `workspace.yaml` без воркспейса. Режима без воркспейса не будет; импорт compose — `project create --from-compose`, отладка — демо-воркспейс | — | есть в v0.1.0, убираются на этапе 3 |
+| **Убраны** (R10) | `init`, `validate`, `export compose`, `schema`, `-f/--file` — работа с `workspace.yaml` без воркспейса. Импорт compose — `project create --from-compose`, отладка — демо-воркспейс (`workspace demo`) | — | убраны |
 
 ## Агент
 
@@ -73,17 +73,13 @@
 
 ## Окружения (локальный движок)
 
-Сейчас (v0.1.0) команды работают с `workspace.yaml` в текущей папке. С этапа 3 источник — настройки воркспейса на сервере: `devopus up` без аргументов поднимает проекты текущего воркспейса, к которым у пользователя есть доступ; работы без воркспейса нет ([ADR-0013](../adr/0013-config-on-workspace-server.md)).
+Проекты — текущего воркспейса: агент получает их с сервера воркспейса и поднимает сам; `devopus up [проект…]` поднимает остановленные, `--dir` — папка приложений `path` на этой машине. Команды с необязательным проектом берут единственный проект воркспейса на этой машине, иначе просят назвать его.
 
 | Команда | Описание |
 |---|---|
-| `devopus init [--from-compose <file>]… [--project <name>] [--no-pin] [--force]` | Создать `workspace.yaml` в текущей папке (она — корень репозитория). Без `--from-compose` берёт `compose.yaml`/`docker-compose.yml` из папки, если есть, иначе пишет шаблон. Несколько `--from-compose` сливаются как `docker compose -f`. Плавающие теги закрепляются по digest из реестра (`--no-pin` — пропустить). Секреты — в `.env.secrets`. Отчёт с уровнем A/B/C/N; код выхода 2 при уровне C |
-| `devopus validate` | Проверка по JSON Schema и правилам + антипаттерны |
-| `devopus export compose [-o file]` | Экспорт в `docker-compose.yml` (по умолчанию в stdout); откажет, если конфиг с ошибками |
-| `devopus schema` | Напечатать JSON Schema `workspace.yaml` |
-| `devopus up [-d] [--timeout]` | Поднять базовое окружение (clone репозиториев, образы, сервисы, хуки, модули, маршруты); показывает прогресс шагов и в конце — адреса модулей и сервисов. `-d` — не ждать. Повторный `up` без изменений ничего не перезапускает |
-| `devopus down [--volumes] [--project]` | Остановить окружения проекта; `--volumes` — удалить проект со всеми ресурсами и данными |
-| `devopus open [env]` | Открыть URL в браузере; без аргумента — базовое окружение проекта из `workspace.yaml` |
+| `devopus up [проект…] [--dir папка] [-d] [--timeout]` | Поднять базовые окружения проектов воркспейса (clone репозиториев, образы, сервисы, хуки, приложения, маршруты); показывает прогресс шагов и в конце — адреса. `-d` — не ждать. Повторный `up` без изменений ничего не перезапускает |
+| `devopus down [проект] [--volumes]` | Остановить окружения проекта на этой машине и держать его остановленным; `--volumes` — удалить окружения с данными (собранные образы остаются до следующего `up`) |
+| `devopus open [env]` | Открыть URL в браузере; без аргумента — базовое окружение единственного проекта воркспейса |
 
 ## Фичи
 

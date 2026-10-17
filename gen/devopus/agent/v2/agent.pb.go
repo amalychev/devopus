@@ -2244,12 +2244,8 @@ func (x *SetProxyResponse) GetRevision() uint64 {
 
 type UpRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Absolute path of workspace.yaml.
-	WorkspacePath string `protobuf:"bytes,1,opt,name=workspace_path,json=workspacePath,proto3" json:"workspace_path,omitempty"`
-	Config        []byte `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
-	// Instead of the file: a registered project, whose workspace.yaml the agent reads
-	// from its folder (the panel has no file to send), or a project from the workspace
-	// server. Also in CreateFeature and AddFeatureApps.
+	// A project the agent has: from the workspace server, or registered from a folder
+	// before R10.
 	Project string `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
 	// A project from the workspace server: the folder of its path applications.
 	Dir           string `protobuf:"bytes,4,opt,name=dir,proto3" json:"dir,omitempty"`
@@ -2285,20 +2281,6 @@ func (x *UpRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpRequest.ProtoReflect.Descriptor instead.
 func (*UpRequest) Descriptor() ([]byte, []int) {
 	return file_devopus_agent_v2_agent_proto_rawDescGZIP(), []int{23}
-}
-
-func (x *UpRequest) GetWorkspacePath() string {
-	if x != nil {
-		return x.WorkspacePath
-	}
-	return ""
-}
-
-func (x *UpRequest) GetConfig() []byte {
-	if x != nil {
-		return x.Config
-	}
-	return nil
 }
 
 func (x *UpRequest) GetProject() string {
@@ -2565,11 +2547,8 @@ func (x *WatchResponse) GetSynced() bool {
 
 type CreateFeatureRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Absolute path of workspace.yaml and its content, as for Up: the project is updated.
-	WorkspacePath string   `protobuf:"bytes,1,opt,name=workspace_path,json=workspacePath,proto3" json:"workspace_path,omitempty"`
-	Config        []byte   `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
-	Name          string   `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Apps          []string `protobuf:"bytes,4,rep,name=apps,proto3" json:"apps,omitempty"`
+	Name  string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Apps  []string               `protobuf:"bytes,4,rep,name=apps,proto3" json:"apps,omitempty"`
 	// Default: features.branch_prefix + name.
 	Branch        string `protobuf:"bytes,5,opt,name=branch,proto3" json:"branch,omitempty"`
 	Project       string `protobuf:"bytes,6,opt,name=project,proto3" json:"project,omitempty"`
@@ -2605,20 +2584,6 @@ func (x *CreateFeatureRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateFeatureRequest.ProtoReflect.Descriptor instead.
 func (*CreateFeatureRequest) Descriptor() ([]byte, []int) {
 	return file_devopus_agent_v2_agent_proto_rawDescGZIP(), []int{29}
-}
-
-func (x *CreateFeatureRequest) GetWorkspacePath() string {
-	if x != nil {
-		return x.WorkspacePath
-	}
-	return ""
-}
-
-func (x *CreateFeatureRequest) GetConfig() []byte {
-	if x != nil {
-		return x.Config
-	}
-	return nil
 }
 
 func (x *CreateFeatureRequest) GetName() string {
@@ -2726,9 +2691,7 @@ func (x *CreateFeatureResponse) GetBaseEnvironmentId() string {
 }
 
 type AddFeatureAppsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspacePath string                 `protobuf:"bytes,1,opt,name=workspace_path,json=workspacePath,proto3" json:"workspace_path,omitempty"`
-	Config        []byte                 `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name, slug or ID of the feature.
 	Feature       string   `protobuf:"bytes,3,opt,name=feature,proto3" json:"feature,omitempty"`
 	Apps          []string `protobuf:"bytes,4,rep,name=apps,proto3" json:"apps,omitempty"`
@@ -2765,20 +2728,6 @@ func (x *AddFeatureAppsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use AddFeatureAppsRequest.ProtoReflect.Descriptor instead.
 func (*AddFeatureAppsRequest) Descriptor() ([]byte, []int) {
 	return file_devopus_agent_v2_agent_proto_rawDescGZIP(), []int{31}
-}
-
-func (x *AddFeatureAppsRequest) GetWorkspacePath() string {
-	if x != nil {
-		return x.WorkspacePath
-	}
-	return ""
-}
-
-func (x *AddFeatureAppsRequest) GetConfig() []byte {
-	if x != nil {
-		return x.Config
-	}
-	return nil
 }
 
 func (x *AddFeatureAppsRequest) GetFeature() string {
@@ -4195,12 +4144,10 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	"\x12coexist_https_port\x18\x02 \x01(\rR\x10coexistHttpsPort\x12\x18\n" +
 	"\arestart\x18\x03 \x01(\bR\arestart\".\n" +
 	"\x10SetProxyResponse\x12\x1a\n" +
-	"\brevision\x18\x01 \x01(\x04R\brevision\"v\n" +
-	"\tUpRequest\x12%\n" +
-	"\x0eworkspace_path\x18\x01 \x01(\tR\rworkspacePath\x12\x16\n" +
-	"\x06config\x18\x02 \x01(\fR\x06config\x12\x18\n" +
+	"\brevision\x18\x01 \x01(\x04R\brevision\"[\n" +
+	"\tUpRequest\x12\x18\n" +
 	"\aproject\x18\x03 \x01(\tR\aproject\x12\x10\n" +
-	"\x03dir\x18\x04 \x01(\tR\x03dir\"O\n" +
+	"\x03dir\x18\x04 \x01(\tR\x03dirJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x0eworkspace_pathR\x06config\"O\n" +
 	"\n" +
 	"UpResponse\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12\x1a\n" +
@@ -4214,26 +4161,22 @@ const file_devopus_agent_v2_agent_proto_rawDesc = "" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"d\n" +
 	"\rWatchResponse\x12;\n" +
 	"\x06status\x18\x01 \x01(\v2#.devopus.agent.v2.EnvironmentStatusR\x06status\x12\x16\n" +
-	"\x06synced\x18\x02 \x01(\bR\x06synced\"\xaf\x01\n" +
-	"\x14CreateFeatureRequest\x12%\n" +
-	"\x0eworkspace_path\x18\x01 \x01(\tR\rworkspacePath\x12\x16\n" +
-	"\x06config\x18\x02 \x01(\fR\x06config\x12\x12\n" +
+	"\x06synced\x18\x02 \x01(\bR\x06synced\"\x94\x01\n" +
+	"\x14CreateFeatureRequest\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x12\n" +
 	"\x04apps\x18\x04 \x03(\tR\x04apps\x12\x16\n" +
 	"\x06branch\x18\x05 \x01(\tR\x06branch\x12\x18\n" +
-	"\aproject\x18\x06 \x01(\tR\aproject\"\xb6\x01\n" +
+	"\aproject\x18\x06 \x01(\tR\aprojectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x0eworkspace_pathR\x06config\"\xb6\x01\n" +
 	"\x15CreateFeatureResponse\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12\x12\n" +
 	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x16\n" +
 	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x1a\n" +
 	"\brevision\x18\x04 \x01(\x04R\brevision\x12.\n" +
-	"\x13base_environment_id\x18\x05 \x01(\tR\x11baseEnvironmentId\"\x9e\x01\n" +
-	"\x15AddFeatureAppsRequest\x12%\n" +
-	"\x0eworkspace_path\x18\x01 \x01(\tR\rworkspacePath\x12\x16\n" +
-	"\x06config\x18\x02 \x01(\fR\x06config\x12\x18\n" +
+	"\x13base_environment_id\x18\x05 \x01(\tR\x11baseEnvironmentId\"\x83\x01\n" +
+	"\x15AddFeatureAppsRequest\x12\x18\n" +
 	"\afeature\x18\x03 \x01(\tR\afeature\x12\x12\n" +
 	"\x04apps\x18\x04 \x03(\tR\x04apps\x12\x18\n" +
-	"\aproject\x18\x05 \x01(\tR\aproject\"[\n" +
+	"\aproject\x18\x05 \x01(\tR\aprojectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x0eworkspace_pathR\x06config\"[\n" +
 	"\x16AddFeatureAppsResponse\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x04R\brevision\"`\n" +

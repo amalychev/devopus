@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/base64"
 	"errors"
 	"os"
 	"path/filepath"
@@ -9,29 +10,40 @@ import (
 	agentv2 "github.com/amalychev/devopus/gen/devopus/agent/v2"
 )
 
+// served registers a project as the workspace server gives it.
+func served(t *testing.T, s *Store, names ...string) {
+	t.Helper()
+	var ps []ServerProject
+	for _, n := range names {
+		ps = append(ps, ServerProject{Name: n, Spec: []byte("name: " + n + "\ndomain: " + n + ".localhost\n"), Version: 1})
+	}
+	if _, _, err := s.SyncServer("wsp_1", "", ServerKey{}, ps, func(n string) string { return "/data/projects/" + n }); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestUpDownPersist(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.json")
 	s, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, rev, err := s.Up("shop", "/src/shop", []byte("version: 1"))
-	if err != nil || rev != 1 || len(id) != 6 {
-		t.Fatalf("up: %q %d %v", id, rev, err)
+	if _, _, err := s.Up("shop"); !errors.Is(err, ErrUnknownProject) {
+		t.Fatalf("up of a project the server did not give: %v", err)
 	}
+	served(t, s, "shop")
 	select {
 	case <-s.Changed():
 	default:
 		t.Error("no change signal")
 	}
-
-	// Up again keeps the environment ID and updates the config.
-	id2, rev, _ := s.Up("shop", "/src/shop", []byte("version: 1\n# v2"))
-	if id2 != id || rev != 2 {
-		t.Errorf("second up: %q %d", id2, rev)
+	id, rev, err := s.Up("shop")
+	if err != nil || rev != 2 || len(id) != 6 {
+		t.Fatalf("up: %q %d %v", id, rev, err)
 	}
-	if _, _, err := s.Up("shop", "/elsewhere/shop", nil); !errors.Is(err, ErrProjectConflict) {
-		t.Errorf("conflict: %v", err)
+	// Up again keeps the environment.
+	if id2, _, _ := s.Up("shop"); id2 != id {
+		t.Errorf("second up: %q", id2)
 	}
 	if _, err := s.Down("nope", false); !errors.Is(err, ErrUnknownProject) {
 		t.Errorf("unknown: %v", err)
@@ -46,17 +58,17 @@ func TestUpDownPersist(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := s2.Snapshot()
-	if st.Revision != 3 || len(st.Projects) != 1 || string(st.Projects[0].Config) != "version: 1\n# v2" {
+	if len(st.Projects) != 1 || !st.Projects[0].Held || st.Projects[0].WorkspaceId != "wsp_1" {
 		t.Fatalf("reloaded: %v", st)
 	}
 	if e := st.Environments[0]; e.Id != id || e.Phase != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED {
 		t.Errorf("env: %v", e)
 	}
-
+	// down --volumes of a workspace project keeps it registered and held.
 	if _, err := s2.Down("shop", true); err != nil {
 		t.Fatal(err)
 	}
-	if st := s2.Snapshot(); len(st.Projects) != 0 || len(st.Environments) != 0 {
+	if st := s2.Snapshot(); len(st.Projects) != 1 || len(st.Environments) != 0 {
 		t.Errorf("after purge: %v", st)
 	}
 }
@@ -66,7 +78,8 @@ func TestFeatures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, base, _, err := s.CreateFeature("shop", "/src/shop", []byte("version: 1"), NewFeature{Name: "PAY-123", Branch: "feature/PAY-123", Apps: []string{"web", "api", "web"}, Reserved: []string{"mail"}})
+	served(t, s, "shop")
+	f, base, _, err := s.CreateFeature("shop", NewFeature{Name: "PAY-123", Branch: "feature/PAY-123", Apps: []string{"web", "api", "web"}, Reserved: []string{"mail"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,27 +89,30 @@ func TestFeatures(t *testing.T) {
 	if base.Kind != agentv2.EnvironmentKind_ENVIRONMENT_KIND_BASE || base.Phase != agentv2.DesiredPhase_DESIRED_PHASE_RUNNING {
 		t.Errorf("base = %v", base)
 	}
-	if _, _, _, err := s.CreateFeature("shop", "/src/shop", nil, NewFeature{Name: "pay-123"}); !errors.Is(err, ErrFeatureExists) {
+	if _, _, _, err := s.CreateFeature("shop", NewFeature{Name: "pay-123"}); !errors.Is(err, ErrFeatureExists) {
 		t.Errorf("same name: %v", err)
 	}
 	// Different names, same slug; and a slug an exposed web UI has.
-	g, _, _, err := s.CreateFeature("shop", "/src/shop", nil, NewFeature{Name: "pay_123"})
+	g, _, _, err := s.CreateFeature("shop", NewFeature{Name: "pay_123"})
 	if err != nil || g.Slug != "pay-123-2" {
 		t.Errorf("collision: %v %v", g, err)
 	}
-	m, _, _, err := s.CreateFeature("shop", "/src/shop", nil, NewFeature{Name: "Mail", Reserved: []string{"mail"}})
+	m, _, _, err := s.CreateFeature("shop", NewFeature{Name: "Mail", Reserved: []string{"mail"}})
 	if err != nil || m.Slug != "mail-2" {
 		t.Errorf("reserved: %v %v", m, err)
 	}
-	if _, _, _, err := s.CreateFeature("shop", "/src/shop", nil, NewFeature{Name: "---"}); err == nil {
+	if _, _, _, err := s.CreateFeature("shop", NewFeature{Name: "---"}); err == nil {
 		t.Error("a name without letters must fail")
 	}
+	if _, _, _, err := s.CreateFeature("nope", NewFeature{Name: "x"}); !errors.Is(err, ErrUnknownProject) {
+		t.Errorf("feature of an unknown project: %v", err)
+	}
 
-	e, _, err := s.AddFeatureApps("shop", "/src/shop", nil, "pay-123", []string{"payments", "api"})
+	e, _, err := s.AddFeatureApps("shop", "pay-123", []string{"payments", "api"})
 	if err != nil || len(e.ForkedApps) != 3 {
 		t.Errorf("add: %v %v", e, err)
 	}
-	if _, _, err := s.AddFeatureApps("shop", "/src/shop", nil, "nope", nil); !errors.Is(err, ErrUnknownFeature) {
+	if _, _, err := s.AddFeatureApps("shop", "nope", nil); !errors.Is(err, ErrUnknownFeature) {
 		t.Errorf("add to unknown: %v", err)
 	}
 
@@ -104,7 +120,7 @@ func TestFeatures(t *testing.T) {
 	if _, err := s.Down("shop", false); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.Up("shop", "/src/shop", nil); err != nil {
+	if _, _, err := s.Up("shop"); err != nil {
 		t.Fatal(err)
 	}
 	for _, e := range s.Snapshot().Environments {
@@ -125,6 +141,31 @@ func TestFeatures(t *testing.T) {
 	}
 	if s.Feature("shop", "pay-123") != nil || len(s.Snapshot().Environments) != 3 {
 		t.Errorf("after remove: %v", s.Snapshot().Environments)
+	}
+}
+
+// A project registered from a folder before R10 keeps running from the state file.
+func TestFolderProjectFromBefore(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.json")
+	legacy := `{"revision":"3","projects":[{"name":"local","root":"/src/local","config":"` +
+		base64.StdEncoding.EncodeToString([]byte("version: 1\nproject: local\ndomain: local.localhost\nmodules:\n  web:\n    path: web\n    image: nginx:1.27\n")) +
+		`"}],"environments":[{"id":"b1","project":"local","kind":"ENVIRONMENT_KIND_BASE","phase":"DESIRED_PHASE_RUNNING"}]}`
+	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := ParseProject(s.Snapshot().Projects[0])
+	if err != nil || p.Domain != "local.localhost" || p.Apps["web"] == nil {
+		t.Fatalf("legacy project: %+v %v", p, err)
+	}
+	if _, _, err := s.Up("local"); err != nil {
+		t.Errorf("up of the legacy project: %v", err)
+	}
+	if _, err := s.Down("local", true); err != nil || len(s.Snapshot().Projects) != 0 {
+		t.Errorf("purge of the legacy project: %v", err)
 	}
 }
 
@@ -152,7 +193,12 @@ func TestSyncServer(t *testing.T) {
 	root := func(name string) string { return "/data/projects/" + name }
 	shop := ServerProject{Name: "shop", Spec: []byte("name: shop\ndomain: shop.localhost\n"), Version: 1}
 	blog := ServerProject{Name: "blog", Spec: []byte("name: blog\ndomain: blog.localhost\n"), Version: 4}
-	if _, _, err := s.Up("local", "/src/local", []byte("version: 1\nproject: local\n")); err != nil {
+	// A project of a folder from before R10 keeps its name.
+	legacy := []byte(`{"projects":[{"name":"local","root":"/src/local","config":"dmVyc2lvbjogMQ=="}]}`)
+	if err := os.WriteFile(s.path, legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if s, err = Open(s.path); err != nil {
 		t.Fatal(err)
 	}
 	clash := ServerProject{Name: "local", Spec: []byte("name: local\n"), Version: 1}
@@ -184,7 +230,7 @@ func TestSyncServer(t *testing.T) {
 	if p, err := ParseProject(project("shop")); err != nil || p.Domain != "shop.localhost" {
 		t.Fatalf("parse: %+v %v", p, err)
 	}
-	if string(project("local").Config) != "version: 1\nproject: local\n" {
+	if string(project("local").Config) != "version: 1" || project("local").WorkspaceId != "" {
 		t.Error("the folder's project was replaced")
 	}
 	// The same state again changes nothing.
@@ -201,7 +247,7 @@ func TestSyncServer(t *testing.T) {
 	if phase("shop") != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED || project("shop").ConfigVersion != 2 || !project("shop").Held {
 		t.Fatalf("held shop: %v %+v", phase("shop"), project("shop"))
 	}
-	if _, _, err := s.Up("shop", "", nil); err != nil {
+	if _, _, err := s.Up("shop"); err != nil {
 		t.Fatal(err)
 	}
 	if phase("shop") != agentv2.DesiredPhase_DESIRED_PHASE_RUNNING || project("shop").Held || project("shop").Root != "/data/projects/shop" {
@@ -213,7 +259,7 @@ func TestSyncServer(t *testing.T) {
 	if !project("blog").Orphaned || phase("blog") != agentv2.DesiredPhase_DESIRED_PHASE_STOPPED {
 		t.Fatalf("blog: %+v", project("blog"))
 	}
-	if _, _, err := s.Up("blog", "", nil); !errors.Is(err, ErrUnknownProject) {
+	if _, _, err := s.Up("blog"); !errors.Is(err, ErrUnknownProject) {
 		t.Errorf("up of an orphan: %v", err)
 	}
 	// Back on the server: it comes up again.

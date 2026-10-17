@@ -461,7 +461,7 @@ func (a *app) importCompose(ctx context.Context, name string, files []string, no
 	if err != nil {
 		return nil, nil, fail(ExitInvalid, "cannot load %s: %v", strings.Join(files, ", "), err)
 	}
-	data, err := marshal(res.Workspace)
+	data, err := workspace.Marshal(res.Workspace, "")
 	if err != nil {
 		return nil, nil, err
 	}
