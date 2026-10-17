@@ -24,16 +24,22 @@ import (
 )
 
 func (a *app) agentInstallCmd() *cobra.Command {
-	var yes bool
+	var yes, server, dryRun bool
+	var url, join string
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Run the agent as a service on this machine and set the machine up",
 		Long: "Registers the agent as a per-user service (a launchd agent on macOS, a systemd user unit\n" +
 			"on Linux) that starts at login, then checks the machine and offers to trust the local CA.\n" +
 			"Every change asks first. Run it again after moving the binary. The web panel is separate:\n" +
-			"'devopus panel install'.",
+			"'devopus panel install'.\n\n" +
+			"--server makes this machine a server of a workspace (staging, production): the agent\n" +
+			"joins with the code 'devopus servers add' gave and runs as a system service.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if server {
+				return a.installServerAgent(cmd.Context(), url, join, dryRun)
+			}
 			s, err := service.For(service.Agent)
 			if err != nil {
 				return fail(ExitError, "%v", err)
@@ -91,6 +97,10 @@ func (a *app) agentInstallCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "do not ask")
+	cmd.Flags().BoolVar(&server, "server", false, "make this machine a server of a workspace (Linux, root)")
+	cmd.Flags().StringVar(&url, "url", "", "with --server: the workspace server's address")
+	cmd.Flags().StringVar(&join, "join", "", "with --server: the one-time code from 'devopus servers add'")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "with --server: show what would be done")
 	return cmd
 }
 
@@ -101,7 +111,7 @@ func temporary(exe string) bool {
 }
 
 func (a *app) agentUninstallCmd() *cobra.Command {
-	var purge, yes bool
+	var purge, yes, server bool
 	cmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: "Stop the environments, remove the agent's service and the trust in the local CA",
@@ -112,6 +122,9 @@ func (a *app) agentUninstallCmd() *cobra.Command {
 			"The devopus binary itself stays: remove it with the tool that installed it.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if server {
+				return a.uninstallServerAgent(purge, yes)
+			}
 			s, err := service.For(service.Agent)
 			if err != nil {
 				return fail(ExitError, "%v", err)
@@ -209,6 +222,7 @@ func (a *app) agentUninstallCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&purge, "purge", false, "also remove the environments with their data and the agent's directory")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "do not ask")
+	cmd.Flags().BoolVar(&server, "server", false, "the agent of a server of a workspace (Linux, root)")
 	return cmd
 }
 

@@ -109,6 +109,9 @@ func (d DryRun) WriteFile(p string, data []byte, perm os.FileMode) error {
 		if k, _, ok := strings.Cut(l, "="); ok && (k == "DEVOPUS_SERVER_DATABASE_URL" || k == "DEVOPUS_SERVER_DB_PASSWORD" || k == "POSTGRES_PASSWORD") {
 			l = k + "=…"
 		}
+		if k, _, ok := strings.Cut(strings.TrimSpace(l), ":"); ok && k == `"token"` {
+			l = `  "token": "…",` // a server's device token
+		}
 		fmt.Fprintf(d.Out, "    %s\n", l)
 	}
 	return nil

@@ -35,6 +35,18 @@ type Store struct {
 	mu      sync.Mutex
 	state   *agentv2.DesiredState
 	changed chan struct{}
+	// Strict is an admin's server (ADR-0019): no version applies without a trusted
+	// signature — not the first one, not one without new code.
+	Strict   bool
+	withheld []string
+}
+
+// Withheld are the server's projects a strict agent did not take at all: their
+// version is not signed by anyone the admin trusts, and nothing of them runs yet.
+func (s *Store) Withheld() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.withheld)
 }
 
 func Open(path string) (*Store, error) {
@@ -220,24 +232,23 @@ type ServerKey struct {
 // trust is what the server says signatures are checked with; its root counts only the
 // first time: then it is pinned.
 func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projects []ServerProject, trust *signing.Set, root func(name string) string) (rev uint64, conflicts []string, err error) {
+	var withheld []string
+	defer func() {
+		s.mu.Lock()
+		s.withheld = withheld
+		s.mu.Unlock()
+	}()
 	rev, err = s.updateIfChanged(func(st *agentv2.DesiredState) error {
 		conflicts = nil // fn runs twice: once to see whether anything changes
 		set := pin(st, workspaceID, trust)
 		given := map[string]bool{}
+		withheld = nil
 		for _, sp := range projects {
 			p := findProject(st, sp.Name)
 			if p != nil && p.WorkspaceId == "" {
 				conflicts = append(conflicts, sp.Name)
 				continue
 			}
-			given[sp.Name] = true
-			start := false
-			if p == nil {
-				p = &agentv2.ProjectSpec{Name: sp.Name, Root: root(sp.Name)}
-				st.Projects = append(st.Projects, p)
-				start = true
-			}
-			start = start || p.Orphaned
 			signedBy, why := "", ""
 			if set == nil {
 				why = "the workspace has no root of trust yet"
@@ -246,7 +257,19 @@ func (s *Store) SyncServer(workspaceID, adminEmail string, key ServerKey, projec
 			} else {
 				signedBy = who
 			}
-			if pending := review(p, sp.Version, sp.Spec, signedBy, why); pending == nil {
+			given[sp.Name] = true
+			start := false
+			if p == nil {
+				if s.Strict && signedBy == "" {
+					withheld = append(withheld, sp.Name+": "+why)
+					continue
+				}
+				p = &agentv2.ProjectSpec{Name: sp.Name, Root: root(sp.Name)}
+				st.Projects = append(st.Projects, p)
+				start = true
+			}
+			start = start || p.Orphaned
+			if pending := review(p, sp.Version, sp.Spec, signedBy, why, s.Strict); pending == nil {
 				applySpec(p, sp.Version, sp.Spec, signedBy)
 			} else if pending.Hash != p.Declined {
 				p.Pending = pending
@@ -305,22 +328,28 @@ func pin(st *agentv2.DesiredState, workspace string, trust *signing.Set) *signin
 // review decides whether a server's version of a project applies at once: the first
 // one does, and so does one without risky changes, or whose risky changes are the
 // user's own (ExpectChange). Otherwise it waits for the user: what it returns.
-func review(p *agentv2.ProjectSpec, version int32, next []byte, signedBy, why string) *agentv2.PendingChange {
-	if len(p.Spec) == 0 || bytes.Equal(p.Spec, next) || signedBy != "" {
-		return nil // the first version, no change, or signed by someone the admin trusts
+func review(p *agentv2.ProjectSpec, version int32, next []byte, signedBy, why string, strict bool) *agentv2.PendingChange {
+	if bytes.Equal(p.Spec, next) || signedBy != "" {
+		return nil // no change, or signed by someone the admin trusts
 	}
-	old, err := spec.ParseYAML(p.Spec)
-	if err != nil {
-		return nil // what runs now cannot be read: nothing to compare with
+	if len(p.Spec) == 0 && !strict {
+		return nil // the first version: joining the team
 	}
 	pending := &agentv2.PendingChange{Version: version, Spec: next, Hash: hashOf(next), Unverified: why}
+	old, err := spec.ParseYAML(p.Spec)
+	if err != nil {
+		if strict {
+			return pending // a server takes nothing unsigned, comparable or not
+		}
+		return nil // what runs now cannot be read: nothing to compare with
+	}
 	proj, err := spec.ParseYAML(next)
 	if err != nil {
 		pending.Risky = []string{"the version cannot be read: " + err.Error()}
 		return pending
 	}
 	changes := spec.Diff(old, proj)
-	if len(spec.Risky(changes)) == 0 || expected(p, proj, changes) {
+	if !strict && (len(spec.Risky(changes)) == 0 || expected(p, proj, changes)) {
 		return nil
 	}
 	for _, c := range changes {
@@ -413,7 +442,7 @@ func (s *Store) ExpectChange(project, section string, data []byte) (uint64, erro
 			data = []byte{}
 		}
 		p.Expected[section] = data
-		if w := p.Pending; w != nil && review(p, w.Version, w.Spec, "", w.Unverified) == nil {
+		if w := p.Pending; w != nil && review(p, w.Version, w.Spec, "", w.Unverified, s.Strict) == nil {
 			applySpec(p, w.Version, w.Spec, "")
 		}
 		return nil

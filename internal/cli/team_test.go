@@ -1,11 +1,14 @@
 package cli
 
 import (
+	workspacev1 "github.com/amalychev/devopus/gen/devopus/workspace/v1"
+	"github.com/amalychev/devopus/gen/devopus/workspace/v1/workspacev1connect"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -183,6 +186,36 @@ func TestTeam(t *testing.T) {
 	}
 	if out := squash(ok("project", "config", "history", "shop")); !strings.Contains(out, "lead@acme.dev yes service set redis") {
 		t.Errorf("history:\n%s", out)
+	}
+
+	// R13: the teamlead adds a server for their project; it joins with the code.
+	as(lead)
+	out := ok("servers", "add", "stage", "--project", "shop")
+	m := regexp.MustCompile(`--url (\S+) --join (dvj_\S+)`).FindStringSubmatch(out)
+	if m == nil || !strings.Contains(out, "sudo devopus agent install --server") {
+		t.Fatalf("servers add:\n%s", out)
+	}
+	if out := squash(ok("servers", "list")); !strings.Contains(out, "stage shop not joined yet") {
+		t.Errorf("servers before joining:\n%s", out)
+	}
+	if runtime.GOOS != "linux" {
+		if code, _, errOut := cli(t, "", "agent", "install", "--server", "--url", m[1], "--join", m[2]); code != ExitInvalid || !strings.Contains(errOut, "runs on Linux") {
+			t.Errorf("server agent off Linux: %d %s", code, errOut)
+		}
+	}
+	joined, err := workspacev1connect.NewWorkspaceServiceClient(http.DefaultClient, m[1]).JoinServer(t.Context(),
+		connect.NewRequest(&workspacev1.JoinServerRequest{Code: m[2], DeviceId: "stage-1", DeviceName: "stage-1"}))
+	if err != nil || joined.Msg.Name != "stage" {
+		t.Fatalf("join: %v", err)
+	}
+	if out := squash(ok("servers", "list")); !strings.Contains(out, "stage shop joined") {
+		t.Errorf("servers after joining:\n%s", out)
+	}
+	if code, _, errOut := cli(t, "", "servers", "set", "stage", "--project", "shop,blog"); code != ExitInvalid && code != ExitAuth || errOut == "" {
+		t.Errorf("lead gives the server another's project: %d %s", code, errOut)
+	}
+	if out := ok("servers", "rm", "stage"); !strings.Contains(out, "Server stage removed") {
+		t.Errorf("servers rm:\n%s", out)
 	}
 
 	as(dev)

@@ -207,3 +207,26 @@ func TestDownloadChecksBinary(t *testing.T) {
 		t.Error("not replaced")
 	}
 }
+
+func TestInstallServerAgent(t *testing.T) {
+	var out strings.Builder
+	cfg := map[string]string{"url": "https://ws.acme.test", "workspaceId": "wsp_1", "token": "dvs_secret"}
+	if err := InstallAgent(context.Background(), DryRun{Out: &out}, AgentOptions{Binary: "/usr/local/bin/devopus", Config: cfg}); err != nil {
+		t.Fatal(err)
+	}
+	s := out.String()
+	for _, want := range []string{"docker version", "mkdir " + AgentDataDir, "write " + AgentConfigFile(), "write " + AgentUnitFile, "systemctl enable " + AgentService, "systemctl restart " + AgentService} {
+		if !strings.Contains(s, want) {
+			t.Errorf("dry run lacks %q:\n%s", want, s)
+		}
+	}
+	if strings.Contains(s, "dvs_secret") {
+		t.Error("the dry run shows the device token")
+	}
+	if u := AgentUnit("/usr/local/bin/devopus"); !strings.Contains(u, "Environment=DEVOPUS_HOME="+AgentDataDir) || !strings.Contains(u, "ExecStart=/usr/local/bin/devopus agent run") {
+		t.Errorf("unit:\n%s", u)
+	}
+	if err := InstallAgent(context.Background(), DryRun{Out: &out}, AgentOptions{Binary: "devopus"}); err == nil {
+		t.Error("a relative binary")
+	}
+}

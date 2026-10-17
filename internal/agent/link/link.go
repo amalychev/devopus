@@ -45,6 +45,8 @@ type Options struct {
 	// Wait is how long the link waits for a workspace or a sign-in before looking
 	// again; 10 s when zero.
 	Wait time.Duration
+	// Server makes this the agent of an admin's server: one workspace, its device token.
+	Server *ServerConfig
 }
 
 // State is what the link is doing, for 'devopus status'.
@@ -92,6 +94,22 @@ func (l *Link) set(fn func(*State)) {
 // their folder is chosen: <data>/projects/<name>.
 func ProjectsDir(name string) string { return filepath.Join(paths.Home(), "projects", name) }
 
+// workspace is the one the link follows: the server's, or the device's current one.
+func (l *Link) workspace() (*credentials.Workspace, error) {
+	if c := l.opt.Server; c != nil {
+		return &credentials.Workspace{ID: c.WorkspaceID, Name: c.WorkspaceName, ServerURL: c.URL}, nil
+	}
+	return credentials.CurrentWorkspace()
+}
+
+// token is the server's device token, or the signed-in person's access token.
+func (l *Link) token(ctx context.Context, ws *credentials.Workspace) (string, error) {
+	if c := l.opt.Server; c != nil {
+		return c.Token, nil
+	}
+	return l.opt.Token(ctx, credentials.Audience(ws.ServerURL))
+}
+
 func root(name string) string {
 	dir := ProjectsDir(name)
 	_ = os.MkdirAll(dir, 0o755)
@@ -104,13 +122,13 @@ func (l *Link) Run(ctx context.Context) {
 	go l.report(ctx)
 	failures := 0
 	for ctx.Err() == nil {
-		ws, err := credentials.CurrentWorkspace()
+		ws, err := l.workspace()
 		if err != nil || ws == nil {
 			l.set(func(s *State) { *s = State{Error: "no workspace chosen on this device: devopus workspace use <name>"} })
 			l.sleep(ctx, l.opt.Wait)
 			continue
 		}
-		tok, err := l.opt.Token(ctx, credentials.Audience(ws.ServerURL))
+		tok, err := l.token(ctx, ws)
 		if err != nil {
 			l.set(func(s *State) {
 				*s = State{Workspace: ws.Name, Server: ws.ServerURL, Error: "not signed in: " + err.Error()}
@@ -217,6 +235,9 @@ func (l *Link) watch(ctx context.Context, ws *credentials.Workspace, tok string)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() {
+		if l.opt.Server != nil {
+			return // a server follows its one workspace
+		}
 		// Another workspace chosen on the device: end this stream.
 		for {
 			select {
@@ -251,6 +272,10 @@ func (l *Link) watch(ctx context.Context, ws *credentials.Workspace, tok string)
 		_, conflicts, err := l.opt.Store.SyncServer(m.WorkspaceId, m.AdminEmail, key, projects, TrustSet(m.WorkspaceId, m.Trust), root)
 		if err != nil {
 			return err
+		}
+		if w := l.opt.Store.Withheld(); len(w) > 0 {
+			l.opt.Log.Warn("projects not taken: a server runs only versions signed by people the admin certified ('devopus trust approve')",
+				"projects", strings.Join(w, "; "))
 		}
 		if len(conflicts) > 0 {
 			l.opt.Log.Warn("projects of the workspace clash with projects of folders; 'devopus down --volumes --project <name>' frees the name",
@@ -315,11 +340,11 @@ var errNotLinked = errors.New("not linked to a workspace")
 
 // Report sends the statuses of the current workspace's environments now.
 func (l *Link) Report(ctx context.Context) error {
-	ws, err := credentials.CurrentWorkspace()
+	ws, err := l.workspace()
 	if err != nil || ws == nil || !l.State().Connected {
 		return errNotLinked
 	}
-	tok, err := l.opt.Token(ctx, credentials.Audience(ws.ServerURL))
+	tok, err := l.token(ctx, ws)
 	if err != nil {
 		return err
 	}

@@ -39,6 +39,8 @@ const (
 	Scope_SCOPE_WORKSPACE Scope = 2
 	// In the request's project of workspace_id.
 	Scope_SCOPE_PROJECT Scope = 3
+	// No sign-in: the request carries its own one-time credential (a server's join code).
+	Scope_SCOPE_NONE Scope = 4
 )
 
 // Enum value maps for Scope.
@@ -48,12 +50,14 @@ var (
 		1: "SCOPE_SIGNED_IN",
 		2: "SCOPE_WORKSPACE",
 		3: "SCOPE_PROJECT",
+		4: "SCOPE_NONE",
 	}
 	Scope_value = map[string]int32{
 		"SCOPE_UNSPECIFIED": 0,
 		"SCOPE_SIGNED_IN":   1,
 		"SCOPE_WORKSPACE":   2,
 		"SCOPE_PROJECT":     3,
+		"SCOPE_NONE":        4,
 	}
 )
 
@@ -5652,6 +5656,638 @@ func (*SignVersionResponse) Descriptor() ([]byte, []int) {
 	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{100}
 }
 
+type ServerInfo struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Id       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Projects []string               `protobuf:"bytes,3,rep,name=projects,proto3" json:"projects,omitempty"`
+	// Joined: its agent traded the code for a token.
+	Joined    bool                   `protobuf:"varint,4,opt,name=joined,proto3" json:"joined,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// When its agent was last connected; absent before.
+	LastSeen      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
+	AgentVersion  string                 `protobuf:"bytes,7,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerInfo) Reset() {
+	*x = ServerInfo{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[101]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerInfo) ProtoMessage() {}
+
+func (x *ServerInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[101]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerInfo.ProtoReflect.Descriptor instead.
+func (*ServerInfo) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{101}
+}
+
+func (x *ServerInfo) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ServerInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ServerInfo) GetProjects() []string {
+	if x != nil {
+		return x.Projects
+	}
+	return nil
+}
+
+func (x *ServerInfo) GetJoined() bool {
+	if x != nil {
+		return x.Joined
+	}
+	return false
+}
+
+func (x *ServerInfo) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *ServerInfo) GetLastSeen() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSeen
+	}
+	return nil
+}
+
+func (x *ServerInfo) GetAgentVersion() string {
+	if x != nil {
+		return x.AgentVersion
+	}
+	return ""
+}
+
+type CreateServerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Projects      []string               `protobuf:"bytes,3,rep,name=projects,proto3" json:"projects,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateServerRequest) Reset() {
+	*x = CreateServerRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[102]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateServerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateServerRequest) ProtoMessage() {}
+
+func (x *CreateServerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[102]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateServerRequest.ProtoReflect.Descriptor instead.
+func (*CreateServerRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{102}
+}
+
+func (x *CreateServerRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *CreateServerRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateServerRequest) GetProjects() []string {
+	if x != nil {
+		return x.Projects
+	}
+	return nil
+}
+
+type CreateServerResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Server *ServerInfo            `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
+	// One-time, for 'devopus agent install --server --join <code>'.
+	JoinCode      string                 `protobuf:"bytes,2,opt,name=join_code,json=joinCode,proto3" json:"join_code,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateServerResponse) Reset() {
+	*x = CreateServerResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[103]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateServerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateServerResponse) ProtoMessage() {}
+
+func (x *CreateServerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[103]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateServerResponse.ProtoReflect.Descriptor instead.
+func (*CreateServerResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{103}
+}
+
+func (x *CreateServerResponse) GetServer() *ServerInfo {
+	if x != nil {
+		return x.Server
+	}
+	return nil
+}
+
+func (x *CreateServerResponse) GetJoinCode() string {
+	if x != nil {
+		return x.JoinCode
+	}
+	return ""
+}
+
+func (x *CreateServerResponse) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+type JoinServerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	DeviceId      string                 `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	DeviceName    string                 `protobuf:"bytes,3,opt,name=device_name,json=deviceName,proto3" json:"device_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinServerRequest) Reset() {
+	*x = JoinServerRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[104]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinServerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinServerRequest) ProtoMessage() {}
+
+func (x *JoinServerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[104]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinServerRequest.ProtoReflect.Descriptor instead.
+func (*JoinServerRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{104}
+}
+
+func (x *JoinServerRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *JoinServerRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *JoinServerRequest) GetDeviceName() string {
+	if x != nil {
+		return x.DeviceName
+	}
+	return ""
+}
+
+type JoinServerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WorkspaceName string                 `protobuf:"bytes,2,opt,name=workspace_name,json=workspaceName,proto3" json:"workspace_name,omitempty"`
+	ServerId      string                 `protobuf:"bytes,3,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	// The device token: the agent keeps it and sends it as a bearer token.
+	Token         string `protobuf:"bytes,5,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinServerResponse) Reset() {
+	*x = JoinServerResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[105]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinServerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinServerResponse) ProtoMessage() {}
+
+func (x *JoinServerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[105]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinServerResponse.ProtoReflect.Descriptor instead.
+func (*JoinServerResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{105}
+}
+
+func (x *JoinServerResponse) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *JoinServerResponse) GetWorkspaceName() string {
+	if x != nil {
+		return x.WorkspaceName
+	}
+	return ""
+}
+
+func (x *JoinServerResponse) GetServerId() string {
+	if x != nil {
+		return x.ServerId
+	}
+	return ""
+}
+
+func (x *JoinServerResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *JoinServerResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type ListServersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListServersRequest) Reset() {
+	*x = ListServersRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[106]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListServersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListServersRequest) ProtoMessage() {}
+
+func (x *ListServersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[106]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListServersRequest.ProtoReflect.Descriptor instead.
+func (*ListServersRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{106}
+}
+
+func (x *ListServersRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+type ListServersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Servers       []*ServerInfo          `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListServersResponse) Reset() {
+	*x = ListServersResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[107]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListServersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListServersResponse) ProtoMessage() {}
+
+func (x *ListServersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[107]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListServersResponse.ProtoReflect.Descriptor instead.
+func (*ListServersResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{107}
+}
+
+func (x *ListServersResponse) GetServers() []*ServerInfo {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
+type SetServerProjectsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Projects      []string               `protobuf:"bytes,3,rep,name=projects,proto3" json:"projects,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetServerProjectsRequest) Reset() {
+	*x = SetServerProjectsRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[108]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetServerProjectsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetServerProjectsRequest) ProtoMessage() {}
+
+func (x *SetServerProjectsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[108]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetServerProjectsRequest.ProtoReflect.Descriptor instead.
+func (*SetServerProjectsRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{108}
+}
+
+func (x *SetServerProjectsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *SetServerProjectsRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SetServerProjectsRequest) GetProjects() []string {
+	if x != nil {
+		return x.Projects
+	}
+	return nil
+}
+
+type SetServerProjectsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Server        *ServerInfo            `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetServerProjectsResponse) Reset() {
+	*x = SetServerProjectsResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[109]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetServerProjectsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetServerProjectsResponse) ProtoMessage() {}
+
+func (x *SetServerProjectsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[109]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetServerProjectsResponse.ProtoReflect.Descriptor instead.
+func (*SetServerProjectsResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{109}
+}
+
+func (x *SetServerProjectsResponse) GetServer() *ServerInfo {
+	if x != nil {
+		return x.Server
+	}
+	return nil
+}
+
+type RemoveServerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveServerRequest) Reset() {
+	*x = RemoveServerRequest{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[110]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveServerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveServerRequest) ProtoMessage() {}
+
+func (x *RemoveServerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[110]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveServerRequest.ProtoReflect.Descriptor instead.
+func (*RemoveServerRequest) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{110}
+}
+
+func (x *RemoveServerRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *RemoveServerRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type RemoveServerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveServerResponse) Reset() {
+	*x = RemoveServerResponse{}
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[111]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveServerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveServerResponse) ProtoMessage() {}
+
+func (x *RemoveServerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_devopus_workspace_v1_workspace_proto_msgTypes[111]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveServerResponse.ProtoReflect.Descriptor instead.
+func (*RemoveServerResponse) Descriptor() ([]byte, []int) {
+	return file_devopus_workspace_v1_workspace_proto_rawDescGZIP(), []int{111}
+}
+
 var file_devopus_workspace_v1_workspace_proto_extTypes = []protoimpl.ExtensionInfo{
 	{
 		ExtendedType:  (*descriptorpb.MethodOptions)(nil),
@@ -6065,12 +6701,58 @@ const file_devopus_workspace_v1_workspace_proto_rawDesc = "" +
 	"\aversion\x18\x03 \x01(\x05R\aversion\x12\x1b\n" +
 	"\tdevice_id\x18\x04 \x01(\tR\bdeviceId\x12\x1c\n" +
 	"\tsignature\x18\x05 \x01(\fR\tsignature\"\x15\n" +
-	"\x13SignVersionResponse*[\n" +
+	"\x13SignVersionResponse\"\xfd\x01\n" +
+	"\n" +
+	"ServerInfo\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
+	"\bprojects\x18\x03 \x03(\tR\bprojects\x12\x16\n" +
+	"\x06joined\x18\x04 \x01(\bR\x06joined\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x127\n" +
+	"\tlast_seen\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\blastSeen\x12#\n" +
+	"\ragent_version\x18\a \x01(\tR\fagentVersion\"h\n" +
+	"\x13CreateServerRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
+	"\bprojects\x18\x03 \x03(\tR\bprojects\"\xa8\x01\n" +
+	"\x14CreateServerResponse\x128\n" +
+	"\x06server\x18\x01 \x01(\v2 .devopus.workspace.v1.ServerInfoR\x06server\x12\x1b\n" +
+	"\tjoin_code\x18\x02 \x01(\tR\bjoinCode\x129\n" +
+	"\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"e\n" +
+	"\x11JoinServerRequest\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12\x1f\n" +
+	"\vdevice_name\x18\x03 \x01(\tR\n" +
+	"deviceName\"\xa5\x01\n" +
+	"\x12JoinServerResponse\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12%\n" +
+	"\x0eworkspace_name\x18\x02 \x01(\tR\rworkspaceName\x12\x1b\n" +
+	"\tserver_id\x18\x03 \x01(\tR\bserverId\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12\x14\n" +
+	"\x05token\x18\x05 \x01(\tR\x05token\"7\n" +
+	"\x12ListServersRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"Q\n" +
+	"\x13ListServersResponse\x12:\n" +
+	"\aservers\x18\x01 \x03(\v2 .devopus.workspace.v1.ServerInfoR\aservers\"m\n" +
+	"\x18SetServerProjectsRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
+	"\bprojects\x18\x03 \x03(\tR\bprojects\"U\n" +
+	"\x19SetServerProjectsResponse\x128\n" +
+	"\x06server\x18\x01 \x01(\v2 .devopus.workspace.v1.ServerInfoR\x06server\"L\n" +
+	"\x13RemoveServerRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\x16\n" +
+	"\x14RemoveServerResponse*k\n" +
 	"\x05Scope\x12\x15\n" +
 	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fSCOPE_SIGNED_IN\x10\x01\x12\x13\n" +
 	"\x0fSCOPE_WORKSPACE\x10\x02\x12\x11\n" +
-	"\rSCOPE_PROJECT\x10\x032\xa8+\n" +
+	"\rSCOPE_PROJECT\x10\x03\x12\x0e\n" +
+	"\n" +
+	"SCOPE_NONE\x10\x042\x9a0\n" +
 	"\x10WorkspaceService\x12y\n" +
 	"\x10ListServiceTypes\x12-.devopus.workspace.v1.ListServiceTypesRequest\x1a..devopus.workspace.v1.ListServiceTypesResponse\"\x06\xc2\xf3\x18\x02\b\x01\x12v\n" +
 	"\x0fCreateWorkspace\x12,.devopus.workspace.v1.CreateWorkspaceRequest\x1a-.devopus.workspace.v1.CreateWorkspaceResponse\"\x06\xc2\xf3\x18\x02\b\x01\x12s\n" +
@@ -6091,7 +6773,13 @@ const file_devopus_workspace_v1_workspace_proto_rawDesc = "" +
 	"\tRemoveApp\x12&.devopus.workspace.v1.RemoveAppRequest\x1a'.devopus.workspace.v1.RemoveAppResponse\"\x13\xc2\xf3\x18\x0f\b\x03\x12\vapps.manage\x12x\n" +
 	"\n" +
 	"PutService\x12'.devopus.workspace.v1.PutServiceRequest\x1a(.devopus.workspace.v1.PutServiceResponse\"\x17\xc2\xf3\x18\x13\b\x03\x12\x0fservices.manage\x12\x81\x01\n" +
-	"\rRemoveService\x12*.devopus.workspace.v1.RemoveServiceRequest\x1a+.devopus.workspace.v1.RemoveServiceResponse\"\x17\xc2\xf3\x18\x13\b\x03\x12\x0fservices.manage\x12\x8f\x01\n" +
+	"\rRemoveService\x12*.devopus.workspace.v1.RemoveServiceRequest\x1a+.devopus.workspace.v1.RemoveServiceResponse\"\x17\xc2\xf3\x18\x13\b\x03\x12\x0fservices.manage\x12}\n" +
+	"\fCreateServer\x12).devopus.workspace.v1.CreateServerRequest\x1a*.devopus.workspace.v1.CreateServerResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0eworkspace.view\x12g\n" +
+	"\n" +
+	"JoinServer\x12'.devopus.workspace.v1.JoinServerRequest\x1a(.devopus.workspace.v1.JoinServerResponse\"\x06\xc2\xf3\x18\x02\b\x04\x12z\n" +
+	"\vListServers\x12(.devopus.workspace.v1.ListServersRequest\x1a).devopus.workspace.v1.ListServersResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0eworkspace.view\x12\x8c\x01\n" +
+	"\x11SetServerProjects\x12..devopus.workspace.v1.SetServerProjectsRequest\x1a/.devopus.workspace.v1.SetServerProjectsResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0eworkspace.view\x12}\n" +
+	"\fRemoveServer\x12).devopus.workspace.v1.RemoveServerRequest\x1a*.devopus.workspace.v1.RemoveServerResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0eworkspace.view\x12\x8f\x01\n" +
 	"\x12RegisterSigningKey\x12/.devopus.workspace.v1.RegisterSigningKeyRequest\x1a0.devopus.workspace.v1.RegisterSigningKeyResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0eworkspace.view\x12\x7f\n" +
 	"\fSetTrustRoot\x12).devopus.workspace.v1.SetTrustRootRequest\x1a*.devopus.workspace.v1.SetTrustRootResponse\"\x18\xc2\xf3\x18\x14\b\x02\x12\x10workspace.manage\x12\x86\x01\n" +
 	"\x0fListSigningKeys\x12,.devopus.workspace.v1.ListSigningKeysRequest\x1a-.devopus.workspace.v1.ListSigningKeysResponse\"\x16\xc2\xf3\x18\x12\b\x02\x12\x0eworkspace.view\x12\x8e\x01\n" +
@@ -6131,7 +6819,7 @@ func file_devopus_workspace_v1_workspace_proto_rawDescGZIP() []byte {
 }
 
 var file_devopus_workspace_v1_workspace_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_devopus_workspace_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 101)
+var file_devopus_workspace_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 112)
 var file_devopus_workspace_v1_workspace_proto_goTypes = []any{
 	(Scope)(0),                            // 0: devopus.workspace.v1.Scope
 	(*Access)(nil),                        // 1: devopus.workspace.v1.Access
@@ -6235,20 +6923,31 @@ var file_devopus_workspace_v1_workspace_proto_goTypes = []any{
 	(*CertifySigningKeyResponse)(nil),     // 99: devopus.workspace.v1.CertifySigningKeyResponse
 	(*SignVersionRequest)(nil),            // 100: devopus.workspace.v1.SignVersionRequest
 	(*SignVersionResponse)(nil),           // 101: devopus.workspace.v1.SignVersionResponse
-	(*timestamppb.Timestamp)(nil),         // 102: google.protobuf.Timestamp
-	(*descriptorpb.MethodOptions)(nil),    // 103: google.protobuf.MethodOptions
+	(*ServerInfo)(nil),                    // 102: devopus.workspace.v1.ServerInfo
+	(*CreateServerRequest)(nil),           // 103: devopus.workspace.v1.CreateServerRequest
+	(*CreateServerResponse)(nil),          // 104: devopus.workspace.v1.CreateServerResponse
+	(*JoinServerRequest)(nil),             // 105: devopus.workspace.v1.JoinServerRequest
+	(*JoinServerResponse)(nil),            // 106: devopus.workspace.v1.JoinServerResponse
+	(*ListServersRequest)(nil),            // 107: devopus.workspace.v1.ListServersRequest
+	(*ListServersResponse)(nil),           // 108: devopus.workspace.v1.ListServersResponse
+	(*SetServerProjectsRequest)(nil),      // 109: devopus.workspace.v1.SetServerProjectsRequest
+	(*SetServerProjectsResponse)(nil),     // 110: devopus.workspace.v1.SetServerProjectsResponse
+	(*RemoveServerRequest)(nil),           // 111: devopus.workspace.v1.RemoveServerRequest
+	(*RemoveServerResponse)(nil),          // 112: devopus.workspace.v1.RemoveServerResponse
+	(*timestamppb.Timestamp)(nil),         // 113: google.protobuf.Timestamp
+	(*descriptorpb.MethodOptions)(nil),    // 114: google.protobuf.MethodOptions
 }
 var file_devopus_workspace_v1_workspace_proto_depIdxs = []int32{
 	0,   // 0: devopus.workspace.v1.Access.scope:type_name -> devopus.workspace.v1.Scope
-	102, // 1: devopus.workspace.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
-	102, // 2: devopus.workspace.v1.Project.created_at:type_name -> google.protobuf.Timestamp
-	102, // 3: devopus.workspace.v1.ProjectConfig.created_at:type_name -> google.protobuf.Timestamp
-	102, // 4: devopus.workspace.v1.ProjectVersion.created_at:type_name -> google.protobuf.Timestamp
+	113, // 1: devopus.workspace.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
+	113, // 2: devopus.workspace.v1.Project.created_at:type_name -> google.protobuf.Timestamp
+	113, // 3: devopus.workspace.v1.ProjectConfig.created_at:type_name -> google.protobuf.Timestamp
+	113, // 4: devopus.workspace.v1.ProjectVersion.created_at:type_name -> google.protobuf.Timestamp
 	6,   // 5: devopus.workspace.v1.Member.projects:type_name -> devopus.workspace.v1.ProjectRole
-	102, // 6: devopus.workspace.v1.Member.joined_at:type_name -> google.protobuf.Timestamp
-	102, // 7: devopus.workspace.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
-	102, // 8: devopus.workspace.v1.Invite.expires_at:type_name -> google.protobuf.Timestamp
-	102, // 9: devopus.workspace.v1.AuditEvent.at:type_name -> google.protobuf.Timestamp
+	113, // 6: devopus.workspace.v1.Member.joined_at:type_name -> google.protobuf.Timestamp
+	113, // 7: devopus.workspace.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
+	113, // 8: devopus.workspace.v1.Invite.expires_at:type_name -> google.protobuf.Timestamp
+	113, // 9: devopus.workspace.v1.AuditEvent.at:type_name -> google.protobuf.Timestamp
 	2,   // 10: devopus.workspace.v1.CreateWorkspaceResponse.workspace:type_name -> devopus.workspace.v1.Workspace
 	2,   // 11: devopus.workspace.v1.ListWorkspacesResponse.workspaces:type_name -> devopus.workspace.v1.Workspace
 	2,   // 12: devopus.workspace.v1.GetWorkspaceResponse.workspace:type_name -> devopus.workspace.v1.Workspace
@@ -6273,105 +6972,121 @@ var file_devopus_workspace_v1_workspace_proto_depIdxs = []int32{
 	71,  // 31: devopus.workspace.v1.ProvideKeyWrapsRequest.wraps:type_name -> devopus.workspace.v1.KeyWrap
 	71,  // 32: devopus.workspace.v1.RotateSecretsKeyRequest.wraps:type_name -> devopus.workspace.v1.KeyWrap
 	74,  // 33: devopus.workspace.v1.RotateSecretsKeyRequest.secrets:type_name -> devopus.workspace.v1.SealedSecret
-	102, // 34: devopus.workspace.v1.SecretInfo.updated_at:type_name -> google.protobuf.Timestamp
+	113, // 34: devopus.workspace.v1.SecretInfo.updated_at:type_name -> google.protobuf.Timestamp
 	79,  // 35: devopus.workspace.v1.ListSecretsResponse.secrets:type_name -> devopus.workspace.v1.SecretInfo
 	74,  // 36: devopus.workspace.v1.PrepareRotationResponse.secrets:type_name -> devopus.workspace.v1.SealedSecret
 	85,  // 37: devopus.workspace.v1.PrepareRotationResponse.devices:type_name -> devopus.workspace.v1.DeviceKey
 	88,  // 38: devopus.workspace.v1.ListServiceTypesResponse.types:type_name -> devopus.workspace.v1.ServiceType
-	102, // 39: devopus.workspace.v1.SigningKey.created_at:type_name -> google.protobuf.Timestamp
+	113, // 39: devopus.workspace.v1.SigningKey.created_at:type_name -> google.protobuf.Timestamp
 	95,  // 40: devopus.workspace.v1.ListSigningKeysResponse.root:type_name -> devopus.workspace.v1.TrustRoot
 	96,  // 41: devopus.workspace.v1.ListSigningKeysResponse.keys:type_name -> devopus.workspace.v1.SigningKey
-	103, // 42: devopus.workspace.v1.access:extendee -> google.protobuf.MethodOptions
-	1,   // 43: devopus.workspace.v1.access:type_name -> devopus.workspace.v1.Access
-	87,  // 44: devopus.workspace.v1.WorkspaceService.ListServiceTypes:input_type -> devopus.workspace.v1.ListServiceTypesRequest
-	10,  // 45: devopus.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> devopus.workspace.v1.CreateWorkspaceRequest
-	12,  // 46: devopus.workspace.v1.WorkspaceService.ListWorkspaces:input_type -> devopus.workspace.v1.ListWorkspacesRequest
-	14,  // 47: devopus.workspace.v1.WorkspaceService.GetWorkspace:input_type -> devopus.workspace.v1.GetWorkspaceRequest
-	17,  // 48: devopus.workspace.v1.WorkspaceService.RenameWorkspace:input_type -> devopus.workspace.v1.RenameWorkspaceRequest
-	19,  // 49: devopus.workspace.v1.WorkspaceService.TransferWorkspace:input_type -> devopus.workspace.v1.TransferWorkspaceRequest
-	21,  // 50: devopus.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> devopus.workspace.v1.DeleteWorkspaceRequest
-	23,  // 51: devopus.workspace.v1.WorkspaceService.ListAudit:input_type -> devopus.workspace.v1.ListAuditRequest
-	25,  // 52: devopus.workspace.v1.WorkspaceService.CreateProject:input_type -> devopus.workspace.v1.CreateProjectRequest
-	45,  // 53: devopus.workspace.v1.WorkspaceService.ListProjects:input_type -> devopus.workspace.v1.ListProjectsRequest
-	27,  // 54: devopus.workspace.v1.WorkspaceService.DeleteProject:input_type -> devopus.workspace.v1.DeleteProjectRequest
-	29,  // 55: devopus.workspace.v1.WorkspaceService.GetProjectConfig:input_type -> devopus.workspace.v1.GetProjectConfigRequest
-	31,  // 56: devopus.workspace.v1.WorkspaceService.ListProjectVersions:input_type -> devopus.workspace.v1.ListProjectVersionsRequest
-	33,  // 57: devopus.workspace.v1.WorkspaceService.UpdateProjectSettings:input_type -> devopus.workspace.v1.UpdateProjectSettingsRequest
-	35,  // 58: devopus.workspace.v1.WorkspaceService.RollbackProject:input_type -> devopus.workspace.v1.RollbackProjectRequest
-	37,  // 59: devopus.workspace.v1.WorkspaceService.PutApp:input_type -> devopus.workspace.v1.PutAppRequest
-	39,  // 60: devopus.workspace.v1.WorkspaceService.RemoveApp:input_type -> devopus.workspace.v1.RemoveAppRequest
-	41,  // 61: devopus.workspace.v1.WorkspaceService.PutService:input_type -> devopus.workspace.v1.PutServiceRequest
-	43,  // 62: devopus.workspace.v1.WorkspaceService.RemoveService:input_type -> devopus.workspace.v1.RemoveServiceRequest
-	90,  // 63: devopus.workspace.v1.WorkspaceService.RegisterSigningKey:input_type -> devopus.workspace.v1.RegisterSigningKeyRequest
-	92,  // 64: devopus.workspace.v1.WorkspaceService.SetTrustRoot:input_type -> devopus.workspace.v1.SetTrustRootRequest
-	94,  // 65: devopus.workspace.v1.WorkspaceService.ListSigningKeys:input_type -> devopus.workspace.v1.ListSigningKeysRequest
-	98,  // 66: devopus.workspace.v1.WorkspaceService.CertifySigningKey:input_type -> devopus.workspace.v1.CertifySigningKeyRequest
-	100, // 67: devopus.workspace.v1.WorkspaceService.SignVersion:input_type -> devopus.workspace.v1.SignVersionRequest
-	65,  // 68: devopus.workspace.v1.WorkspaceService.GetSecretsKey:input_type -> devopus.workspace.v1.GetSecretsKeyRequest
-	67,  // 69: devopus.workspace.v1.WorkspaceService.RegisterDeviceKey:input_type -> devopus.workspace.v1.RegisterDeviceKeyRequest
-	69,  // 70: devopus.workspace.v1.WorkspaceService.CreateSecretsKey:input_type -> devopus.workspace.v1.CreateSecretsKeyRequest
-	72,  // 71: devopus.workspace.v1.WorkspaceService.ProvideKeyWraps:input_type -> devopus.workspace.v1.ProvideKeyWrapsRequest
-	84,  // 72: devopus.workspace.v1.WorkspaceService.PrepareRotation:input_type -> devopus.workspace.v1.PrepareRotationRequest
-	75,  // 73: devopus.workspace.v1.WorkspaceService.RotateSecretsKey:input_type -> devopus.workspace.v1.RotateSecretsKeyRequest
-	77,  // 74: devopus.workspace.v1.WorkspaceService.SetSecret:input_type -> devopus.workspace.v1.SetSecretRequest
-	80,  // 75: devopus.workspace.v1.WorkspaceService.ListSecrets:input_type -> devopus.workspace.v1.ListSecretsRequest
-	82,  // 76: devopus.workspace.v1.WorkspaceService.RemoveSecret:input_type -> devopus.workspace.v1.RemoveSecretRequest
-	47,  // 77: devopus.workspace.v1.WorkspaceService.CreateInvite:input_type -> devopus.workspace.v1.CreateInviteRequest
-	49,  // 78: devopus.workspace.v1.WorkspaceService.ListInvites:input_type -> devopus.workspace.v1.ListInvitesRequest
-	51,  // 79: devopus.workspace.v1.WorkspaceService.RevokeInvite:input_type -> devopus.workspace.v1.RevokeInviteRequest
-	53,  // 80: devopus.workspace.v1.WorkspaceService.AcceptInvite:input_type -> devopus.workspace.v1.AcceptInviteRequest
-	55,  // 81: devopus.workspace.v1.WorkspaceService.ListMembers:input_type -> devopus.workspace.v1.ListMembersRequest
-	57,  // 82: devopus.workspace.v1.WorkspaceService.GrantPermission:input_type -> devopus.workspace.v1.GrantPermissionRequest
-	59,  // 83: devopus.workspace.v1.WorkspaceService.RevokePermission:input_type -> devopus.workspace.v1.RevokePermissionRequest
-	61,  // 84: devopus.workspace.v1.WorkspaceService.RemoveFromProject:input_type -> devopus.workspace.v1.RemoveFromProjectRequest
-	63,  // 85: devopus.workspace.v1.WorkspaceService.RemoveMember:input_type -> devopus.workspace.v1.RemoveMemberRequest
-	89,  // 86: devopus.workspace.v1.WorkspaceService.ListServiceTypes:output_type -> devopus.workspace.v1.ListServiceTypesResponse
-	11,  // 87: devopus.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> devopus.workspace.v1.CreateWorkspaceResponse
-	13,  // 88: devopus.workspace.v1.WorkspaceService.ListWorkspaces:output_type -> devopus.workspace.v1.ListWorkspacesResponse
-	16,  // 89: devopus.workspace.v1.WorkspaceService.GetWorkspace:output_type -> devopus.workspace.v1.GetWorkspaceResponse
-	18,  // 90: devopus.workspace.v1.WorkspaceService.RenameWorkspace:output_type -> devopus.workspace.v1.RenameWorkspaceResponse
-	20,  // 91: devopus.workspace.v1.WorkspaceService.TransferWorkspace:output_type -> devopus.workspace.v1.TransferWorkspaceResponse
-	22,  // 92: devopus.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> devopus.workspace.v1.DeleteWorkspaceResponse
-	24,  // 93: devopus.workspace.v1.WorkspaceService.ListAudit:output_type -> devopus.workspace.v1.ListAuditResponse
-	26,  // 94: devopus.workspace.v1.WorkspaceService.CreateProject:output_type -> devopus.workspace.v1.CreateProjectResponse
-	46,  // 95: devopus.workspace.v1.WorkspaceService.ListProjects:output_type -> devopus.workspace.v1.ListProjectsResponse
-	28,  // 96: devopus.workspace.v1.WorkspaceService.DeleteProject:output_type -> devopus.workspace.v1.DeleteProjectResponse
-	30,  // 97: devopus.workspace.v1.WorkspaceService.GetProjectConfig:output_type -> devopus.workspace.v1.GetProjectConfigResponse
-	32,  // 98: devopus.workspace.v1.WorkspaceService.ListProjectVersions:output_type -> devopus.workspace.v1.ListProjectVersionsResponse
-	34,  // 99: devopus.workspace.v1.WorkspaceService.UpdateProjectSettings:output_type -> devopus.workspace.v1.UpdateProjectSettingsResponse
-	36,  // 100: devopus.workspace.v1.WorkspaceService.RollbackProject:output_type -> devopus.workspace.v1.RollbackProjectResponse
-	38,  // 101: devopus.workspace.v1.WorkspaceService.PutApp:output_type -> devopus.workspace.v1.PutAppResponse
-	40,  // 102: devopus.workspace.v1.WorkspaceService.RemoveApp:output_type -> devopus.workspace.v1.RemoveAppResponse
-	42,  // 103: devopus.workspace.v1.WorkspaceService.PutService:output_type -> devopus.workspace.v1.PutServiceResponse
-	44,  // 104: devopus.workspace.v1.WorkspaceService.RemoveService:output_type -> devopus.workspace.v1.RemoveServiceResponse
-	91,  // 105: devopus.workspace.v1.WorkspaceService.RegisterSigningKey:output_type -> devopus.workspace.v1.RegisterSigningKeyResponse
-	93,  // 106: devopus.workspace.v1.WorkspaceService.SetTrustRoot:output_type -> devopus.workspace.v1.SetTrustRootResponse
-	97,  // 107: devopus.workspace.v1.WorkspaceService.ListSigningKeys:output_type -> devopus.workspace.v1.ListSigningKeysResponse
-	99,  // 108: devopus.workspace.v1.WorkspaceService.CertifySigningKey:output_type -> devopus.workspace.v1.CertifySigningKeyResponse
-	101, // 109: devopus.workspace.v1.WorkspaceService.SignVersion:output_type -> devopus.workspace.v1.SignVersionResponse
-	66,  // 110: devopus.workspace.v1.WorkspaceService.GetSecretsKey:output_type -> devopus.workspace.v1.GetSecretsKeyResponse
-	68,  // 111: devopus.workspace.v1.WorkspaceService.RegisterDeviceKey:output_type -> devopus.workspace.v1.RegisterDeviceKeyResponse
-	70,  // 112: devopus.workspace.v1.WorkspaceService.CreateSecretsKey:output_type -> devopus.workspace.v1.CreateSecretsKeyResponse
-	73,  // 113: devopus.workspace.v1.WorkspaceService.ProvideKeyWraps:output_type -> devopus.workspace.v1.ProvideKeyWrapsResponse
-	86,  // 114: devopus.workspace.v1.WorkspaceService.PrepareRotation:output_type -> devopus.workspace.v1.PrepareRotationResponse
-	76,  // 115: devopus.workspace.v1.WorkspaceService.RotateSecretsKey:output_type -> devopus.workspace.v1.RotateSecretsKeyResponse
-	78,  // 116: devopus.workspace.v1.WorkspaceService.SetSecret:output_type -> devopus.workspace.v1.SetSecretResponse
-	81,  // 117: devopus.workspace.v1.WorkspaceService.ListSecrets:output_type -> devopus.workspace.v1.ListSecretsResponse
-	83,  // 118: devopus.workspace.v1.WorkspaceService.RemoveSecret:output_type -> devopus.workspace.v1.RemoveSecretResponse
-	48,  // 119: devopus.workspace.v1.WorkspaceService.CreateInvite:output_type -> devopus.workspace.v1.CreateInviteResponse
-	50,  // 120: devopus.workspace.v1.WorkspaceService.ListInvites:output_type -> devopus.workspace.v1.ListInvitesResponse
-	52,  // 121: devopus.workspace.v1.WorkspaceService.RevokeInvite:output_type -> devopus.workspace.v1.RevokeInviteResponse
-	54,  // 122: devopus.workspace.v1.WorkspaceService.AcceptInvite:output_type -> devopus.workspace.v1.AcceptInviteResponse
-	56,  // 123: devopus.workspace.v1.WorkspaceService.ListMembers:output_type -> devopus.workspace.v1.ListMembersResponse
-	58,  // 124: devopus.workspace.v1.WorkspaceService.GrantPermission:output_type -> devopus.workspace.v1.GrantPermissionResponse
-	60,  // 125: devopus.workspace.v1.WorkspaceService.RevokePermission:output_type -> devopus.workspace.v1.RevokePermissionResponse
-	62,  // 126: devopus.workspace.v1.WorkspaceService.RemoveFromProject:output_type -> devopus.workspace.v1.RemoveFromProjectResponse
-	64,  // 127: devopus.workspace.v1.WorkspaceService.RemoveMember:output_type -> devopus.workspace.v1.RemoveMemberResponse
-	86,  // [86:128] is the sub-list for method output_type
-	44,  // [44:86] is the sub-list for method input_type
-	43,  // [43:44] is the sub-list for extension type_name
-	42,  // [42:43] is the sub-list for extension extendee
-	0,   // [0:42] is the sub-list for field type_name
+	113, // 42: devopus.workspace.v1.ServerInfo.created_at:type_name -> google.protobuf.Timestamp
+	113, // 43: devopus.workspace.v1.ServerInfo.last_seen:type_name -> google.protobuf.Timestamp
+	102, // 44: devopus.workspace.v1.CreateServerResponse.server:type_name -> devopus.workspace.v1.ServerInfo
+	113, // 45: devopus.workspace.v1.CreateServerResponse.expires_at:type_name -> google.protobuf.Timestamp
+	102, // 46: devopus.workspace.v1.ListServersResponse.servers:type_name -> devopus.workspace.v1.ServerInfo
+	102, // 47: devopus.workspace.v1.SetServerProjectsResponse.server:type_name -> devopus.workspace.v1.ServerInfo
+	114, // 48: devopus.workspace.v1.access:extendee -> google.protobuf.MethodOptions
+	1,   // 49: devopus.workspace.v1.access:type_name -> devopus.workspace.v1.Access
+	87,  // 50: devopus.workspace.v1.WorkspaceService.ListServiceTypes:input_type -> devopus.workspace.v1.ListServiceTypesRequest
+	10,  // 51: devopus.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> devopus.workspace.v1.CreateWorkspaceRequest
+	12,  // 52: devopus.workspace.v1.WorkspaceService.ListWorkspaces:input_type -> devopus.workspace.v1.ListWorkspacesRequest
+	14,  // 53: devopus.workspace.v1.WorkspaceService.GetWorkspace:input_type -> devopus.workspace.v1.GetWorkspaceRequest
+	17,  // 54: devopus.workspace.v1.WorkspaceService.RenameWorkspace:input_type -> devopus.workspace.v1.RenameWorkspaceRequest
+	19,  // 55: devopus.workspace.v1.WorkspaceService.TransferWorkspace:input_type -> devopus.workspace.v1.TransferWorkspaceRequest
+	21,  // 56: devopus.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> devopus.workspace.v1.DeleteWorkspaceRequest
+	23,  // 57: devopus.workspace.v1.WorkspaceService.ListAudit:input_type -> devopus.workspace.v1.ListAuditRequest
+	25,  // 58: devopus.workspace.v1.WorkspaceService.CreateProject:input_type -> devopus.workspace.v1.CreateProjectRequest
+	45,  // 59: devopus.workspace.v1.WorkspaceService.ListProjects:input_type -> devopus.workspace.v1.ListProjectsRequest
+	27,  // 60: devopus.workspace.v1.WorkspaceService.DeleteProject:input_type -> devopus.workspace.v1.DeleteProjectRequest
+	29,  // 61: devopus.workspace.v1.WorkspaceService.GetProjectConfig:input_type -> devopus.workspace.v1.GetProjectConfigRequest
+	31,  // 62: devopus.workspace.v1.WorkspaceService.ListProjectVersions:input_type -> devopus.workspace.v1.ListProjectVersionsRequest
+	33,  // 63: devopus.workspace.v1.WorkspaceService.UpdateProjectSettings:input_type -> devopus.workspace.v1.UpdateProjectSettingsRequest
+	35,  // 64: devopus.workspace.v1.WorkspaceService.RollbackProject:input_type -> devopus.workspace.v1.RollbackProjectRequest
+	37,  // 65: devopus.workspace.v1.WorkspaceService.PutApp:input_type -> devopus.workspace.v1.PutAppRequest
+	39,  // 66: devopus.workspace.v1.WorkspaceService.RemoveApp:input_type -> devopus.workspace.v1.RemoveAppRequest
+	41,  // 67: devopus.workspace.v1.WorkspaceService.PutService:input_type -> devopus.workspace.v1.PutServiceRequest
+	43,  // 68: devopus.workspace.v1.WorkspaceService.RemoveService:input_type -> devopus.workspace.v1.RemoveServiceRequest
+	103, // 69: devopus.workspace.v1.WorkspaceService.CreateServer:input_type -> devopus.workspace.v1.CreateServerRequest
+	105, // 70: devopus.workspace.v1.WorkspaceService.JoinServer:input_type -> devopus.workspace.v1.JoinServerRequest
+	107, // 71: devopus.workspace.v1.WorkspaceService.ListServers:input_type -> devopus.workspace.v1.ListServersRequest
+	109, // 72: devopus.workspace.v1.WorkspaceService.SetServerProjects:input_type -> devopus.workspace.v1.SetServerProjectsRequest
+	111, // 73: devopus.workspace.v1.WorkspaceService.RemoveServer:input_type -> devopus.workspace.v1.RemoveServerRequest
+	90,  // 74: devopus.workspace.v1.WorkspaceService.RegisterSigningKey:input_type -> devopus.workspace.v1.RegisterSigningKeyRequest
+	92,  // 75: devopus.workspace.v1.WorkspaceService.SetTrustRoot:input_type -> devopus.workspace.v1.SetTrustRootRequest
+	94,  // 76: devopus.workspace.v1.WorkspaceService.ListSigningKeys:input_type -> devopus.workspace.v1.ListSigningKeysRequest
+	98,  // 77: devopus.workspace.v1.WorkspaceService.CertifySigningKey:input_type -> devopus.workspace.v1.CertifySigningKeyRequest
+	100, // 78: devopus.workspace.v1.WorkspaceService.SignVersion:input_type -> devopus.workspace.v1.SignVersionRequest
+	65,  // 79: devopus.workspace.v1.WorkspaceService.GetSecretsKey:input_type -> devopus.workspace.v1.GetSecretsKeyRequest
+	67,  // 80: devopus.workspace.v1.WorkspaceService.RegisterDeviceKey:input_type -> devopus.workspace.v1.RegisterDeviceKeyRequest
+	69,  // 81: devopus.workspace.v1.WorkspaceService.CreateSecretsKey:input_type -> devopus.workspace.v1.CreateSecretsKeyRequest
+	72,  // 82: devopus.workspace.v1.WorkspaceService.ProvideKeyWraps:input_type -> devopus.workspace.v1.ProvideKeyWrapsRequest
+	84,  // 83: devopus.workspace.v1.WorkspaceService.PrepareRotation:input_type -> devopus.workspace.v1.PrepareRotationRequest
+	75,  // 84: devopus.workspace.v1.WorkspaceService.RotateSecretsKey:input_type -> devopus.workspace.v1.RotateSecretsKeyRequest
+	77,  // 85: devopus.workspace.v1.WorkspaceService.SetSecret:input_type -> devopus.workspace.v1.SetSecretRequest
+	80,  // 86: devopus.workspace.v1.WorkspaceService.ListSecrets:input_type -> devopus.workspace.v1.ListSecretsRequest
+	82,  // 87: devopus.workspace.v1.WorkspaceService.RemoveSecret:input_type -> devopus.workspace.v1.RemoveSecretRequest
+	47,  // 88: devopus.workspace.v1.WorkspaceService.CreateInvite:input_type -> devopus.workspace.v1.CreateInviteRequest
+	49,  // 89: devopus.workspace.v1.WorkspaceService.ListInvites:input_type -> devopus.workspace.v1.ListInvitesRequest
+	51,  // 90: devopus.workspace.v1.WorkspaceService.RevokeInvite:input_type -> devopus.workspace.v1.RevokeInviteRequest
+	53,  // 91: devopus.workspace.v1.WorkspaceService.AcceptInvite:input_type -> devopus.workspace.v1.AcceptInviteRequest
+	55,  // 92: devopus.workspace.v1.WorkspaceService.ListMembers:input_type -> devopus.workspace.v1.ListMembersRequest
+	57,  // 93: devopus.workspace.v1.WorkspaceService.GrantPermission:input_type -> devopus.workspace.v1.GrantPermissionRequest
+	59,  // 94: devopus.workspace.v1.WorkspaceService.RevokePermission:input_type -> devopus.workspace.v1.RevokePermissionRequest
+	61,  // 95: devopus.workspace.v1.WorkspaceService.RemoveFromProject:input_type -> devopus.workspace.v1.RemoveFromProjectRequest
+	63,  // 96: devopus.workspace.v1.WorkspaceService.RemoveMember:input_type -> devopus.workspace.v1.RemoveMemberRequest
+	89,  // 97: devopus.workspace.v1.WorkspaceService.ListServiceTypes:output_type -> devopus.workspace.v1.ListServiceTypesResponse
+	11,  // 98: devopus.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> devopus.workspace.v1.CreateWorkspaceResponse
+	13,  // 99: devopus.workspace.v1.WorkspaceService.ListWorkspaces:output_type -> devopus.workspace.v1.ListWorkspacesResponse
+	16,  // 100: devopus.workspace.v1.WorkspaceService.GetWorkspace:output_type -> devopus.workspace.v1.GetWorkspaceResponse
+	18,  // 101: devopus.workspace.v1.WorkspaceService.RenameWorkspace:output_type -> devopus.workspace.v1.RenameWorkspaceResponse
+	20,  // 102: devopus.workspace.v1.WorkspaceService.TransferWorkspace:output_type -> devopus.workspace.v1.TransferWorkspaceResponse
+	22,  // 103: devopus.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> devopus.workspace.v1.DeleteWorkspaceResponse
+	24,  // 104: devopus.workspace.v1.WorkspaceService.ListAudit:output_type -> devopus.workspace.v1.ListAuditResponse
+	26,  // 105: devopus.workspace.v1.WorkspaceService.CreateProject:output_type -> devopus.workspace.v1.CreateProjectResponse
+	46,  // 106: devopus.workspace.v1.WorkspaceService.ListProjects:output_type -> devopus.workspace.v1.ListProjectsResponse
+	28,  // 107: devopus.workspace.v1.WorkspaceService.DeleteProject:output_type -> devopus.workspace.v1.DeleteProjectResponse
+	30,  // 108: devopus.workspace.v1.WorkspaceService.GetProjectConfig:output_type -> devopus.workspace.v1.GetProjectConfigResponse
+	32,  // 109: devopus.workspace.v1.WorkspaceService.ListProjectVersions:output_type -> devopus.workspace.v1.ListProjectVersionsResponse
+	34,  // 110: devopus.workspace.v1.WorkspaceService.UpdateProjectSettings:output_type -> devopus.workspace.v1.UpdateProjectSettingsResponse
+	36,  // 111: devopus.workspace.v1.WorkspaceService.RollbackProject:output_type -> devopus.workspace.v1.RollbackProjectResponse
+	38,  // 112: devopus.workspace.v1.WorkspaceService.PutApp:output_type -> devopus.workspace.v1.PutAppResponse
+	40,  // 113: devopus.workspace.v1.WorkspaceService.RemoveApp:output_type -> devopus.workspace.v1.RemoveAppResponse
+	42,  // 114: devopus.workspace.v1.WorkspaceService.PutService:output_type -> devopus.workspace.v1.PutServiceResponse
+	44,  // 115: devopus.workspace.v1.WorkspaceService.RemoveService:output_type -> devopus.workspace.v1.RemoveServiceResponse
+	104, // 116: devopus.workspace.v1.WorkspaceService.CreateServer:output_type -> devopus.workspace.v1.CreateServerResponse
+	106, // 117: devopus.workspace.v1.WorkspaceService.JoinServer:output_type -> devopus.workspace.v1.JoinServerResponse
+	108, // 118: devopus.workspace.v1.WorkspaceService.ListServers:output_type -> devopus.workspace.v1.ListServersResponse
+	110, // 119: devopus.workspace.v1.WorkspaceService.SetServerProjects:output_type -> devopus.workspace.v1.SetServerProjectsResponse
+	112, // 120: devopus.workspace.v1.WorkspaceService.RemoveServer:output_type -> devopus.workspace.v1.RemoveServerResponse
+	91,  // 121: devopus.workspace.v1.WorkspaceService.RegisterSigningKey:output_type -> devopus.workspace.v1.RegisterSigningKeyResponse
+	93,  // 122: devopus.workspace.v1.WorkspaceService.SetTrustRoot:output_type -> devopus.workspace.v1.SetTrustRootResponse
+	97,  // 123: devopus.workspace.v1.WorkspaceService.ListSigningKeys:output_type -> devopus.workspace.v1.ListSigningKeysResponse
+	99,  // 124: devopus.workspace.v1.WorkspaceService.CertifySigningKey:output_type -> devopus.workspace.v1.CertifySigningKeyResponse
+	101, // 125: devopus.workspace.v1.WorkspaceService.SignVersion:output_type -> devopus.workspace.v1.SignVersionResponse
+	66,  // 126: devopus.workspace.v1.WorkspaceService.GetSecretsKey:output_type -> devopus.workspace.v1.GetSecretsKeyResponse
+	68,  // 127: devopus.workspace.v1.WorkspaceService.RegisterDeviceKey:output_type -> devopus.workspace.v1.RegisterDeviceKeyResponse
+	70,  // 128: devopus.workspace.v1.WorkspaceService.CreateSecretsKey:output_type -> devopus.workspace.v1.CreateSecretsKeyResponse
+	73,  // 129: devopus.workspace.v1.WorkspaceService.ProvideKeyWraps:output_type -> devopus.workspace.v1.ProvideKeyWrapsResponse
+	86,  // 130: devopus.workspace.v1.WorkspaceService.PrepareRotation:output_type -> devopus.workspace.v1.PrepareRotationResponse
+	76,  // 131: devopus.workspace.v1.WorkspaceService.RotateSecretsKey:output_type -> devopus.workspace.v1.RotateSecretsKeyResponse
+	78,  // 132: devopus.workspace.v1.WorkspaceService.SetSecret:output_type -> devopus.workspace.v1.SetSecretResponse
+	81,  // 133: devopus.workspace.v1.WorkspaceService.ListSecrets:output_type -> devopus.workspace.v1.ListSecretsResponse
+	83,  // 134: devopus.workspace.v1.WorkspaceService.RemoveSecret:output_type -> devopus.workspace.v1.RemoveSecretResponse
+	48,  // 135: devopus.workspace.v1.WorkspaceService.CreateInvite:output_type -> devopus.workspace.v1.CreateInviteResponse
+	50,  // 136: devopus.workspace.v1.WorkspaceService.ListInvites:output_type -> devopus.workspace.v1.ListInvitesResponse
+	52,  // 137: devopus.workspace.v1.WorkspaceService.RevokeInvite:output_type -> devopus.workspace.v1.RevokeInviteResponse
+	54,  // 138: devopus.workspace.v1.WorkspaceService.AcceptInvite:output_type -> devopus.workspace.v1.AcceptInviteResponse
+	56,  // 139: devopus.workspace.v1.WorkspaceService.ListMembers:output_type -> devopus.workspace.v1.ListMembersResponse
+	58,  // 140: devopus.workspace.v1.WorkspaceService.GrantPermission:output_type -> devopus.workspace.v1.GrantPermissionResponse
+	60,  // 141: devopus.workspace.v1.WorkspaceService.RevokePermission:output_type -> devopus.workspace.v1.RevokePermissionResponse
+	62,  // 142: devopus.workspace.v1.WorkspaceService.RemoveFromProject:output_type -> devopus.workspace.v1.RemoveFromProjectResponse
+	64,  // 143: devopus.workspace.v1.WorkspaceService.RemoveMember:output_type -> devopus.workspace.v1.RemoveMemberResponse
+	97,  // [97:144] is the sub-list for method output_type
+	50,  // [50:97] is the sub-list for method input_type
+	49,  // [49:50] is the sub-list for extension type_name
+	48,  // [48:49] is the sub-list for extension extendee
+	0,   // [0:48] is the sub-list for field type_name
 }
 
 func init() { file_devopus_workspace_v1_workspace_proto_init() }
@@ -6385,7 +7100,7 @@ func file_devopus_workspace_v1_workspace_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_devopus_workspace_v1_workspace_proto_rawDesc), len(file_devopus_workspace_v1_workspace_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   101,
+			NumMessages:   112,
 			NumExtensions: 1,
 			NumServices:   1,
 		},

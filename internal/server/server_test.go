@@ -137,9 +137,9 @@ func TestEveryCallDeclaresAccess(t *testing.T) {
 			t.Errorf("%s declares no access", m.Name())
 			continue
 		}
-		if a.Scope == workspacev1.Scope_SCOPE_SIGNED_IN {
+		if a.Scope == workspacev1.Scope_SCOPE_SIGNED_IN || a.Scope == workspacev1.Scope_SCOPE_NONE {
 			if a.Permission != "" {
-				t.Errorf("%s: a signed-in call with a permission", m.Name())
+				t.Errorf("%s: a call without a workspace with a permission", m.Name())
 			}
 			continue
 		}
@@ -240,6 +240,13 @@ func TestRoleMatrix(t *testing.T) {
 				bearer = e.token(email)
 			}
 			got := e.call(t, m, bearer, f.ws)
+			if a.Scope == workspacev1.Scope_SCOPE_NONE {
+				// The request carries its own credential: the check lets anyone through.
+				if strings.HasPrefix(got, "unauthenticated") || strings.HasPrefix(got, "permission_denied") {
+					t.Errorf("%s as %s: %s", m.Name(), role, got)
+				}
+				continue
+			}
 			var allowed bool
 			switch {
 			case role == "anonymous":

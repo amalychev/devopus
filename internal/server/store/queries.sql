@@ -41,7 +41,7 @@ DELETE FROM members WHERE workspace_id = $1 AND user_id = $2;
 
 -- name: Members :many
 SELECT m.*, u.email FROM members m JOIN users u ON u.id = m.user_id
-WHERE m.workspace_id = $1
+WHERE m.workspace_id = $1 AND m.role <> 'server'
 ORDER BY CASE m.role WHEN 'admin' THEN 0 WHEN 'teamlead' THEN 1 ELSE 2 END, u.email;
 
 -- name: CreateProject :one
@@ -247,3 +247,32 @@ UPDATE workspaces SET trust_root = $2, trust_root_device = $3, trust_root_user =
 -- name: SignProjectVersion :exec
 UPDATE project_versions SET signature = $3, signer_device = $4
 WHERE project_id = $1 AND version = $2 AND signature IS NULL;
+
+-- name: CreateServer :exec
+INSERT INTO servers (workspace_id, id, name, created_by, created_at, join_hash, join_expires)
+VALUES ($1, $2, $3, $4, $5, $6, $7);
+
+-- name: ServerByJoin :one
+SELECT * FROM servers WHERE join_hash = $1 FOR UPDATE;
+
+-- name: JoinServer :exec
+UPDATE servers SET join_hash = NULL, join_expires = NULL, token_hash = $3, joined_at = $4
+WHERE workspace_id = $1 AND id = $2;
+
+-- name: ServerByToken :one
+SELECT * FROM servers WHERE token_hash = $1;
+
+-- name: ServerByName :one
+SELECT * FROM servers WHERE workspace_id = $1 AND name = $2;
+
+-- name: Servers :many
+SELECT s.*, d.last_seen, d.agent_version,
+    COALESCE((SELECT array_agg(p.name ORDER BY p.name) FROM project_members pm JOIN projects p ON p.id = pm.project_id
+        WHERE pm.workspace_id = s.workspace_id AND pm.user_id = s.id), '{}')::text[] AS projects
+FROM servers s
+LEFT JOIN devices d ON d.workspace_id = s.workspace_id AND d.user_id = s.id
+WHERE s.workspace_id = $1
+ORDER BY s.name;
+
+-- name: DeleteProjectMembersOf :exec
+DELETE FROM project_members WHERE workspace_id = $1 AND user_id = $2;

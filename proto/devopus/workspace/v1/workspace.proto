@@ -18,6 +18,8 @@ enum Scope {
   SCOPE_WORKSPACE = 2;
   // In the request's project of workspace_id.
   SCOPE_PROJECT = 3;
+  // No sign-in: the request carries its own one-time credential (a server's join code).
+  SCOPE_NONE = 4;
 }
 
 // Access is what a call needs.
@@ -158,6 +160,43 @@ service WorkspaceService {
     option (access) = {
       scope: SCOPE_PROJECT
       permission: "services.manage"
+    };
+  }
+
+  // Servers of the admin (R13, ADR-0019): machines with an agent that run projects —
+  // staging, production. A server joins with a one-time code and signs in with a
+  // device token; it runs only versions signed by people the admin trusts.
+
+  // CreateServer adds a server and gives the one-time code its agent joins with.
+  // Needs servers.manage in every project it is to run (the admin's for none).
+  rpc CreateServer(CreateServerRequest) returns (CreateServerResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  // JoinServer trades the one-time code for the server's device token.
+  rpc JoinServer(JoinServerRequest) returns (JoinServerResponse) {
+    option (access) = {scope: SCOPE_NONE};
+  }
+  rpc ListServers(ListServersRequest) returns (ListServersResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  // SetServerProjects sets which projects a server runs.
+  rpc SetServerProjects(SetServerProjectsRequest) returns (SetServerProjectsResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
+    };
+  }
+  // RemoveServer revokes a server's token; its agent stops the projects.
+  rpc RemoveServer(RemoveServerRequest) returns (RemoveServerResponse) {
+    option (access) = {
+      scope: SCOPE_WORKSPACE
+      permission: "workspace.view"
     };
   }
 
@@ -903,3 +942,68 @@ message SignVersionRequest {
 }
 
 message SignVersionResponse {}
+
+message ServerInfo {
+  string id = 1;
+  string name = 2;
+  repeated string projects = 3;
+  // Joined: its agent traded the code for a token.
+  bool joined = 4;
+  google.protobuf.Timestamp created_at = 5;
+  // When its agent was last connected; absent before.
+  google.protobuf.Timestamp last_seen = 6;
+  string agent_version = 7;
+}
+
+message CreateServerRequest {
+  string workspace_id = 1;
+  string name = 2;
+  repeated string projects = 3;
+}
+
+message CreateServerResponse {
+  ServerInfo server = 1;
+  // One-time, for 'devopus agent install --server --join <code>'.
+  string join_code = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message JoinServerRequest {
+  string code = 1;
+  string device_id = 2;
+  string device_name = 3;
+}
+
+message JoinServerResponse {
+  string workspace_id = 1;
+  string workspace_name = 2;
+  string server_id = 3;
+  string name = 4;
+  // The device token: the agent keeps it and sends it as a bearer token.
+  string token = 5;
+}
+
+message ListServersRequest {
+  string workspace_id = 1;
+}
+
+message ListServersResponse {
+  repeated ServerInfo servers = 1;
+}
+
+message SetServerProjectsRequest {
+  string workspace_id = 1;
+  string name = 2;
+  repeated string projects = 3;
+}
+
+message SetServerProjectsResponse {
+  ServerInfo server = 1;
+}
+
+message RemoveServerRequest {
+  string workspace_id = 1;
+  string name = 2;
+}
+
+message RemoveServerResponse {}

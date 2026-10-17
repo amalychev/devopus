@@ -8,10 +8,19 @@ import (
 	"path/filepath"
 )
 
-// Home is the agent's data directory: $DEVOPUS_HOME or ~/.devopus.
+// ServerHome is the data directory of a server's agent (ADR-0019), a system service.
+const ServerHome = "/var/lib/devopus-agent"
+
+// Home is the agent's data directory: $DEVOPUS_HOME, the server's agent's for root on
+// a server (so 'sudo devopus status' talks to it), or ~/.devopus.
 func Home() string {
 	if h := os.Getenv("DEVOPUS_HOME"); h != "" {
 		return h
+	}
+	if os.Geteuid() == 0 {
+		if _, err := os.Stat(filepath.Join(ServerHome, "server.json")); err == nil {
+			return ServerHome
+		}
 	}
 	h, err := os.UserHomeDir()
 	if err != nil {

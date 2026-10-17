@@ -94,6 +94,21 @@ const (
 	// WorkspaceServiceRemoveServiceProcedure is the fully-qualified name of the WorkspaceService's
 	// RemoveService RPC.
 	WorkspaceServiceRemoveServiceProcedure = "/devopus.workspace.v1.WorkspaceService/RemoveService"
+	// WorkspaceServiceCreateServerProcedure is the fully-qualified name of the WorkspaceService's
+	// CreateServer RPC.
+	WorkspaceServiceCreateServerProcedure = "/devopus.workspace.v1.WorkspaceService/CreateServer"
+	// WorkspaceServiceJoinServerProcedure is the fully-qualified name of the WorkspaceService's
+	// JoinServer RPC.
+	WorkspaceServiceJoinServerProcedure = "/devopus.workspace.v1.WorkspaceService/JoinServer"
+	// WorkspaceServiceListServersProcedure is the fully-qualified name of the WorkspaceService's
+	// ListServers RPC.
+	WorkspaceServiceListServersProcedure = "/devopus.workspace.v1.WorkspaceService/ListServers"
+	// WorkspaceServiceSetServerProjectsProcedure is the fully-qualified name of the WorkspaceService's
+	// SetServerProjects RPC.
+	WorkspaceServiceSetServerProjectsProcedure = "/devopus.workspace.v1.WorkspaceService/SetServerProjects"
+	// WorkspaceServiceRemoveServerProcedure is the fully-qualified name of the WorkspaceService's
+	// RemoveServer RPC.
+	WorkspaceServiceRemoveServerProcedure = "/devopus.workspace.v1.WorkspaceService/RemoveServer"
 	// WorkspaceServiceRegisterSigningKeyProcedure is the fully-qualified name of the WorkspaceService's
 	// RegisterSigningKey RPC.
 	WorkspaceServiceRegisterSigningKeyProcedure = "/devopus.workspace.v1.WorkspaceService/RegisterSigningKey"
@@ -207,6 +222,16 @@ type WorkspaceServiceClient interface {
 	// attached to.
 	PutService(context.Context, *connect.Request[v1.PutServiceRequest]) (*connect.Response[v1.PutServiceResponse], error)
 	RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error)
+	// CreateServer adds a server and gives the one-time code its agent joins with.
+	// Needs servers.manage in every project it is to run (the admin's for none).
+	CreateServer(context.Context, *connect.Request[v1.CreateServerRequest]) (*connect.Response[v1.CreateServerResponse], error)
+	// JoinServer trades the one-time code for the server's device token.
+	JoinServer(context.Context, *connect.Request[v1.JoinServerRequest]) (*connect.Response[v1.JoinServerResponse], error)
+	ListServers(context.Context, *connect.Request[v1.ListServersRequest]) (*connect.Response[v1.ListServersResponse], error)
+	// SetServerProjects sets which projects a server runs.
+	SetServerProjects(context.Context, *connect.Request[v1.SetServerProjectsRequest]) (*connect.Response[v1.SetServerProjectsResponse], error)
+	// RemoveServer revokes a server's token; its agent stops the projects.
+	RemoveServer(context.Context, *connect.Request[v1.RemoveServerRequest]) (*connect.Response[v1.RemoveServerResponse], error)
 	// RegisterSigningKey records the signing key of one of the caller's devices. A new
 	// key for the device needs a new certificate.
 	RegisterSigningKey(context.Context, *connect.Request[v1.RegisterSigningKeyRequest]) (*connect.Response[v1.RegisterSigningKeyResponse], error)
@@ -385,6 +410,36 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workspaceServiceMethods.ByName("RemoveService")),
 			connect.WithClientOptions(opts...),
 		),
+		createServer: connect.NewClient[v1.CreateServerRequest, v1.CreateServerResponse](
+			httpClient,
+			baseURL+WorkspaceServiceCreateServerProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("CreateServer")),
+			connect.WithClientOptions(opts...),
+		),
+		joinServer: connect.NewClient[v1.JoinServerRequest, v1.JoinServerResponse](
+			httpClient,
+			baseURL+WorkspaceServiceJoinServerProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("JoinServer")),
+			connect.WithClientOptions(opts...),
+		),
+		listServers: connect.NewClient[v1.ListServersRequest, v1.ListServersResponse](
+			httpClient,
+			baseURL+WorkspaceServiceListServersProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("ListServers")),
+			connect.WithClientOptions(opts...),
+		),
+		setServerProjects: connect.NewClient[v1.SetServerProjectsRequest, v1.SetServerProjectsResponse](
+			httpClient,
+			baseURL+WorkspaceServiceSetServerProjectsProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("SetServerProjects")),
+			connect.WithClientOptions(opts...),
+		),
+		removeServer: connect.NewClient[v1.RemoveServerRequest, v1.RemoveServerResponse](
+			httpClient,
+			baseURL+WorkspaceServiceRemoveServerProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("RemoveServer")),
+			connect.WithClientOptions(opts...),
+		),
 		registerSigningKey: connect.NewClient[v1.RegisterSigningKeyRequest, v1.RegisterSigningKeyResponse](
 			httpClient,
 			baseURL+WorkspaceServiceRegisterSigningKeyProcedure,
@@ -547,6 +602,11 @@ type workspaceServiceClient struct {
 	removeApp             *connect.Client[v1.RemoveAppRequest, v1.RemoveAppResponse]
 	putService            *connect.Client[v1.PutServiceRequest, v1.PutServiceResponse]
 	removeService         *connect.Client[v1.RemoveServiceRequest, v1.RemoveServiceResponse]
+	createServer          *connect.Client[v1.CreateServerRequest, v1.CreateServerResponse]
+	joinServer            *connect.Client[v1.JoinServerRequest, v1.JoinServerResponse]
+	listServers           *connect.Client[v1.ListServersRequest, v1.ListServersResponse]
+	setServerProjects     *connect.Client[v1.SetServerProjectsRequest, v1.SetServerProjectsResponse]
+	removeServer          *connect.Client[v1.RemoveServerRequest, v1.RemoveServerResponse]
 	registerSigningKey    *connect.Client[v1.RegisterSigningKeyRequest, v1.RegisterSigningKeyResponse]
 	setTrustRoot          *connect.Client[v1.SetTrustRootRequest, v1.SetTrustRootResponse]
 	listSigningKeys       *connect.Client[v1.ListSigningKeysRequest, v1.ListSigningKeysResponse]
@@ -665,6 +725,31 @@ func (c *workspaceServiceClient) PutService(ctx context.Context, req *connect.Re
 // RemoveService calls devopus.workspace.v1.WorkspaceService.RemoveService.
 func (c *workspaceServiceClient) RemoveService(ctx context.Context, req *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error) {
 	return c.removeService.CallUnary(ctx, req)
+}
+
+// CreateServer calls devopus.workspace.v1.WorkspaceService.CreateServer.
+func (c *workspaceServiceClient) CreateServer(ctx context.Context, req *connect.Request[v1.CreateServerRequest]) (*connect.Response[v1.CreateServerResponse], error) {
+	return c.createServer.CallUnary(ctx, req)
+}
+
+// JoinServer calls devopus.workspace.v1.WorkspaceService.JoinServer.
+func (c *workspaceServiceClient) JoinServer(ctx context.Context, req *connect.Request[v1.JoinServerRequest]) (*connect.Response[v1.JoinServerResponse], error) {
+	return c.joinServer.CallUnary(ctx, req)
+}
+
+// ListServers calls devopus.workspace.v1.WorkspaceService.ListServers.
+func (c *workspaceServiceClient) ListServers(ctx context.Context, req *connect.Request[v1.ListServersRequest]) (*connect.Response[v1.ListServersResponse], error) {
+	return c.listServers.CallUnary(ctx, req)
+}
+
+// SetServerProjects calls devopus.workspace.v1.WorkspaceService.SetServerProjects.
+func (c *workspaceServiceClient) SetServerProjects(ctx context.Context, req *connect.Request[v1.SetServerProjectsRequest]) (*connect.Response[v1.SetServerProjectsResponse], error) {
+	return c.setServerProjects.CallUnary(ctx, req)
+}
+
+// RemoveServer calls devopus.workspace.v1.WorkspaceService.RemoveServer.
+func (c *workspaceServiceClient) RemoveServer(ctx context.Context, req *connect.Request[v1.RemoveServerRequest]) (*connect.Response[v1.RemoveServerResponse], error) {
+	return c.removeServer.CallUnary(ctx, req)
 }
 
 // RegisterSigningKey calls devopus.workspace.v1.WorkspaceService.RegisterSigningKey.
@@ -825,6 +910,16 @@ type WorkspaceServiceHandler interface {
 	// attached to.
 	PutService(context.Context, *connect.Request[v1.PutServiceRequest]) (*connect.Response[v1.PutServiceResponse], error)
 	RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error)
+	// CreateServer adds a server and gives the one-time code its agent joins with.
+	// Needs servers.manage in every project it is to run (the admin's for none).
+	CreateServer(context.Context, *connect.Request[v1.CreateServerRequest]) (*connect.Response[v1.CreateServerResponse], error)
+	// JoinServer trades the one-time code for the server's device token.
+	JoinServer(context.Context, *connect.Request[v1.JoinServerRequest]) (*connect.Response[v1.JoinServerResponse], error)
+	ListServers(context.Context, *connect.Request[v1.ListServersRequest]) (*connect.Response[v1.ListServersResponse], error)
+	// SetServerProjects sets which projects a server runs.
+	SetServerProjects(context.Context, *connect.Request[v1.SetServerProjectsRequest]) (*connect.Response[v1.SetServerProjectsResponse], error)
+	// RemoveServer revokes a server's token; its agent stops the projects.
+	RemoveServer(context.Context, *connect.Request[v1.RemoveServerRequest]) (*connect.Response[v1.RemoveServerResponse], error)
 	// RegisterSigningKey records the signing key of one of the caller's devices. A new
 	// key for the device needs a new certificate.
 	RegisterSigningKey(context.Context, *connect.Request[v1.RegisterSigningKeyRequest]) (*connect.Response[v1.RegisterSigningKeyResponse], error)
@@ -997,6 +1092,36 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 		WorkspaceServiceRemoveServiceProcedure,
 		svc.RemoveService,
 		connect.WithSchema(workspaceServiceMethods.ByName("RemoveService")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceCreateServerHandler := connect.NewUnaryHandler(
+		WorkspaceServiceCreateServerProcedure,
+		svc.CreateServer,
+		connect.WithSchema(workspaceServiceMethods.ByName("CreateServer")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceJoinServerHandler := connect.NewUnaryHandler(
+		WorkspaceServiceJoinServerProcedure,
+		svc.JoinServer,
+		connect.WithSchema(workspaceServiceMethods.ByName("JoinServer")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceListServersHandler := connect.NewUnaryHandler(
+		WorkspaceServiceListServersProcedure,
+		svc.ListServers,
+		connect.WithSchema(workspaceServiceMethods.ByName("ListServers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceSetServerProjectsHandler := connect.NewUnaryHandler(
+		WorkspaceServiceSetServerProjectsProcedure,
+		svc.SetServerProjects,
+		connect.WithSchema(workspaceServiceMethods.ByName("SetServerProjects")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceRemoveServerHandler := connect.NewUnaryHandler(
+		WorkspaceServiceRemoveServerProcedure,
+		svc.RemoveServer,
+		connect.WithSchema(workspaceServiceMethods.ByName("RemoveServer")),
 		connect.WithHandlerOptions(opts...),
 	)
 	workspaceServiceRegisterSigningKeyHandler := connect.NewUnaryHandler(
@@ -1177,6 +1302,16 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 			workspaceServicePutServiceHandler.ServeHTTP(w, r)
 		case WorkspaceServiceRemoveServiceProcedure:
 			workspaceServiceRemoveServiceHandler.ServeHTTP(w, r)
+		case WorkspaceServiceCreateServerProcedure:
+			workspaceServiceCreateServerHandler.ServeHTTP(w, r)
+		case WorkspaceServiceJoinServerProcedure:
+			workspaceServiceJoinServerHandler.ServeHTTP(w, r)
+		case WorkspaceServiceListServersProcedure:
+			workspaceServiceListServersHandler.ServeHTTP(w, r)
+		case WorkspaceServiceSetServerProjectsProcedure:
+			workspaceServiceSetServerProjectsHandler.ServeHTTP(w, r)
+		case WorkspaceServiceRemoveServerProcedure:
+			workspaceServiceRemoveServerHandler.ServeHTTP(w, r)
 		case WorkspaceServiceRegisterSigningKeyProcedure:
 			workspaceServiceRegisterSigningKeyHandler.ServeHTTP(w, r)
 		case WorkspaceServiceSetTrustRootProcedure:
@@ -1306,6 +1441,26 @@ func (UnimplementedWorkspaceServiceHandler) PutService(context.Context, *connect
 
 func (UnimplementedWorkspaceServiceHandler) RemoveService(context.Context, *connect.Request[v1.RemoveServiceRequest]) (*connect.Response[v1.RemoveServiceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RemoveService is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) CreateServer(context.Context, *connect.Request[v1.CreateServerRequest]) (*connect.Response[v1.CreateServerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.CreateServer is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) JoinServer(context.Context, *connect.Request[v1.JoinServerRequest]) (*connect.Response[v1.JoinServerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.JoinServer is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) ListServers(context.Context, *connect.Request[v1.ListServersRequest]) (*connect.Response[v1.ListServersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.ListServers is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) SetServerProjects(context.Context, *connect.Request[v1.SetServerProjectsRequest]) (*connect.Response[v1.SetServerProjectsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.SetServerProjects is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) RemoveServer(context.Context, *connect.Request[v1.RemoveServerRequest]) (*connect.Response[v1.RemoveServerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("devopus.workspace.v1.WorkspaceService.RemoveServer is not implemented"))
 }
 
 func (UnimplementedWorkspaceServiceHandler) RegisterSigningKey(context.Context, *connect.Request[v1.RegisterSigningKeyRequest]) (*connect.Response[v1.RegisterSigningKeyResponse], error) {

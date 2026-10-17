@@ -325,7 +325,17 @@ func Run(ctx context.Context, opt Options) error {
 
 	changes, unsubscribe := a.hub.Subscribe()
 	defer unsubscribe()
-	a.link = link.New(link.Options{Store: st, Token: a.creds.TokenFor, Statuses: a.rec.Statuses, Changed: changes, Version: opt.Version, Log: log})
+	// An admin's server (ADR-0019): one workspace with its device token, signed
+	// versions only.
+	server, err := link.LoadServerConfig()
+	if err != nil {
+		return fmt.Errorf("%s: %w", link.ServerConfigFile(), err)
+	}
+	if server != nil {
+		st.Strict = true
+		log.Info("the agent of a server", "server", server.Name, "workspace", server.WorkspaceName, "url", server.URL)
+	}
+	a.link = link.New(link.Options{Store: st, Token: a.creds.TokenFor, Statuses: a.rec.Statuses, Changed: changes, Version: opt.Version, Log: log, Server: server})
 	go a.link.Run(ctx)
 	go a.watchOverrides(ctx)
 

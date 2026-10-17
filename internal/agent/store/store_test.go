@@ -432,3 +432,41 @@ func TestSignedVersions(t *testing.T) {
 		t.Fatalf("certified later: %+v", p)
 	}
 }
+
+// An admin's server applies nothing without a trusted signature: not the first
+// version, not an everyday change.
+func TestStrictServer(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "desired.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Strict = true
+	root := func(name string) string { return "/srv/" + name }
+	adminKey, _ := signing.NewKey()
+	trust := &signing.Set{Root: adminKey.Public(), RootDevice: "admin-mac", RootEmail: "admin@acme.dev"}
+	v1 := "name: shop\nservices:\n  php:\n    type: php\n    version: \"8.3\"\n"
+	sync := func(version int32, text string, signed bool) []*agentv2.ProjectSpec {
+		t.Helper()
+		sp := ServerProject{Name: "shop", Spec: []byte(text), Version: version}
+		if signed {
+			sp.SignerDevice, sp.Signature = "admin-mac", adminKey.Sign(signing.SettingsMessage("wsp_1", "shop", version, []byte(text)))
+		}
+		if _, _, err := s.SyncServer("wsp_1", "admin@acme.dev", ServerKey{}, []ServerProject{sp}, trust, root); err != nil {
+			t.Fatal(err)
+		}
+		return s.Snapshot().Projects
+	}
+	if ps := sync(1, v1, false); len(ps) != 0 || len(s.Withheld()) != 1 || !strings.Contains(s.Withheld()[0], "not signed") {
+		t.Fatalf("unsigned first version taken: %v %v", ps, s.Withheld())
+	}
+	if ps := sync(1, v1, true); len(ps) != 1 || ps[0].ConfigVersion != 1 || len(s.Withheld()) != 0 {
+		t.Fatalf("signed first version: %v", ps)
+	}
+	v2 := strings.Replace(v1, `"8.3"`, `"8.4"`, 1)
+	if ps := sync(2, v2, false); ps[0].ConfigVersion != 1 || ps[0].Pending == nil || len(ps[0].Pending.Other) != 1 {
+		t.Fatalf("unsigned everyday change: %+v", ps[0])
+	}
+	if ps := sync(2, v2, true); ps[0].ConfigVersion != 2 || ps[0].Pending != nil {
+		t.Fatalf("signed: %+v", ps[0])
+	}
+}

@@ -21,6 +21,7 @@ import (
 
 	authv1 "github.com/amalychev/devopus/gen/devopus/auth/v1"
 	"github.com/amalychev/devopus/gen/devopus/auth/v1/authv1connect"
+	"github.com/amalychev/devopus/internal/agent/link"
 	"github.com/amalychev/devopus/internal/credentials"
 )
 
@@ -55,6 +56,14 @@ func requireSignIn(cmd *cobra.Command) error {
 		p = p[:i]
 	}
 	if cmd.Name() == cobra.ShellCompRequestCmd || cmd.Name() == cobra.ShellCompNoDescRequestCmd {
+		return nil
+	}
+	// A server's agent is set up with a join code and works with its device token:
+	// nobody signs in on a server (ADR-0019).
+	if f := cmd.Flags().Lookup("server"); f != nil && f.Changed && strings.HasPrefix(path, "devopus agent ") {
+		return nil
+	}
+	if c, err := link.LoadServerConfig(); err == nil && c != nil {
 		return nil
 	}
 	s, err := credentials.Load()

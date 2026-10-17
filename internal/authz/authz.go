@@ -49,6 +49,9 @@ const (
 	Admin     Role = "admin"     // the workspace's one owner: everything
 	Teamlead  Role = "teamlead"  // a project's lead; in the workspace, may create projects
 	Developer Role = "developer" // works with a project's environments
+	// Server is an admin's server (R13, ADR-0019): it runs the projects it is given
+	// and nothing else; it signs in with a device token, not as a person.
+	Server Role = "server"
 )
 
 // Rank orders roles: a higher role includes what a lower one may do.
@@ -87,6 +90,7 @@ const (
 var workspaceDefaults = map[Role][]Permission{
 	Teamlead:  {WorkspaceView, ProjectCreate, MembersInvite},
 	Developer: {WorkspaceView},
+	Server:    {WorkspaceView},
 }
 
 // projectDefaults are what a role in a project allows in it.
@@ -94,6 +98,7 @@ var projectDefaults = map[Role][]Permission{
 	Teamlead: {WorkspaceView, ProjectConfigure, AppsManage, ServicesManage, ServersManage, SecretsManage, SecretsRead,
 		MembersInvite, MembersManage, OverridesUse, EnvUse},
 	Developer: {WorkspaceView, SecretsRead, OverridesUse, EnvUse},
+	Server:    {WorkspaceView, SecretsRead, EnvUse},
 }
 
 // Subject is a member as the check sees them.

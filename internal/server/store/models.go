@@ -133,6 +133,18 @@ type Secret struct {
 	UpdatedAt   time.Time
 }
 
+type Server struct {
+	WorkspaceID string
+	ID          string
+	Name        string
+	CreatedBy   string
+	CreatedAt   time.Time
+	JoinHash    *string
+	JoinExpires *time.Time
+	TokenHash   *string
+	JoinedAt    *time.Time
+}
+
 type SigningKey struct {
 	WorkspaceID string
 	DeviceID    string

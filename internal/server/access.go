@@ -26,6 +26,17 @@ type caller struct {
 	subject   authz.Subject
 	// projectIDs maps the names of the projects the caller has a role in to their ids.
 	projectIDs map[string]string
+	// server is set for an admin's server signed in with its device token: its
+	// workspace, which it may not leave.
+	server string
+}
+
+// serverMethods are all an admin's server may call: its settings, its statuses and
+// its device key. A stolen server token reads nothing else.
+var serverMethods = map[string]bool{
+	"/devopus.sync.v1.SyncService/Watch":                    true,
+	"/devopus.sync.v1.SyncService/ReportStatus":             true,
+	"/devopus.workspace.v1.WorkspaceService/RegisterDeviceKey": true,
 }
 
 type callerKey struct{}
@@ -111,9 +122,15 @@ func (s *Service) authorize(ctx context.Context, spec connect.Spec, header strin
 	if access == nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New(spec.Procedure+" declares no access"))
 	}
+	if access.Scope == workspacev1.Scope_SCOPE_NONE {
+		return &caller{}, nil // the request carries its own credential
+	}
 	c, err := s.authenticate(ctx, header)
 	if err != nil {
 		return nil, err
+	}
+	if c.server != "" && !serverMethods[spec.Procedure] {
+		return nil, denied("a server's token is for its settings and statuses only")
 	}
 	if access.Scope == workspacev1.Scope_SCOPE_SIGNED_IN {
 		return c, nil
@@ -124,6 +141,9 @@ func (s *Service) authorize(ctx context.Context, spec connect.Spec, header strin
 	ws := field(msg, "workspace_id")
 	if ws == "" {
 		return nil, invalid("the workspace is not set: 'devopus workspace use <name>'")
+	}
+	if c.server != "" && ws != c.server {
+		return nil, denied("a server's token is for its own workspace")
 	}
 	project := ""
 	if access.Scope == workspacev1.Scope_SCOPE_PROJECT {
@@ -160,6 +180,9 @@ func (s *Service) authenticate(ctx context.Context, header string) (*caller, err
 	raw, ok := strings.CutPrefix(header, "Bearer ")
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("sign in first: devopus login"))
+	}
+	if strings.HasPrefix(raw, serverTokenPrefix) {
+		return s.authenticateServer(ctx, raw)
 	}
 	claims, err := token.Verify(raw, s.cfg.Keys, token.Expect{Issuer: s.cfg.AuthIssuer, Audience: s.cfg.PublicURL, Now: s.cfg.Now()})
 	if errors.Is(err, token.ErrClaims) {

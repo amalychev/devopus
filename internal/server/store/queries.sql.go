@@ -365,6 +365,34 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 	return i, err
 }
 
+const createServer = `-- name: CreateServer :exec
+INSERT INTO servers (workspace_id, id, name, created_by, created_at, join_hash, join_expires)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type CreateServerParams struct {
+	WorkspaceID string
+	ID          string
+	Name        string
+	CreatedBy   string
+	CreatedAt   time.Time
+	JoinHash    *string
+	JoinExpires *time.Time
+}
+
+func (q *Queries) CreateServer(ctx context.Context, arg CreateServerParams) error {
+	_, err := q.db.Exec(ctx, createServer,
+		arg.WorkspaceID,
+		arg.ID,
+		arg.Name,
+		arg.CreatedBy,
+		arg.CreatedAt,
+		arg.JoinHash,
+		arg.JoinExpires,
+	)
+	return err
+}
+
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspaces (id, name, created_at) VALUES ($1, $2, $3) RETURNING id, name, created_at, key_generation, trust_root, trust_root_device, trust_root_user
 `
@@ -425,6 +453,20 @@ DELETE FROM projects WHERE id = $1
 
 func (q *Queries) DeleteProject(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, deleteProject, id)
+	return err
+}
+
+const deleteProjectMembersOf = `-- name: DeleteProjectMembersOf :exec
+DELETE FROM project_members WHERE workspace_id = $1 AND user_id = $2
+`
+
+type DeleteProjectMembersOfParams struct {
+	WorkspaceID string
+	UserID      string
+}
+
+func (q *Queries) DeleteProjectMembersOf(ctx context.Context, arg DeleteProjectMembersOfParams) error {
+	_, err := q.db.Exec(ctx, deleteProjectMembersOf, arg.WorkspaceID, arg.UserID)
 	return err
 }
 
@@ -685,6 +727,28 @@ func (q *Queries) InviteByCodeForUpdate(ctx context.Context, codeHash []byte) (I
 	return i, err
 }
 
+const joinServer = `-- name: JoinServer :exec
+UPDATE servers SET join_hash = NULL, join_expires = NULL, token_hash = $3, joined_at = $4
+WHERE workspace_id = $1 AND id = $2
+`
+
+type JoinServerParams struct {
+	WorkspaceID string
+	ID          string
+	TokenHash   *string
+	JoinedAt    *time.Time
+}
+
+func (q *Queries) JoinServer(ctx context.Context, arg JoinServerParams) error {
+	_, err := q.db.Exec(ctx, joinServer,
+		arg.WorkspaceID,
+		arg.ID,
+		arg.TokenHash,
+		arg.JoinedAt,
+	)
+	return err
+}
+
 const keyWrap = `-- name: KeyWrap :one
 SELECT workspace_id, generation, device_id, user_id, wrapped, wrapped_by, created_at FROM key_wraps WHERE workspace_id = $1 AND generation = $2 AND device_id = $3 AND user_id = $4
 `
@@ -739,7 +803,7 @@ func (q *Queries) Member(ctx context.Context, arg MemberParams) (Member, error) 
 
 const members = `-- name: Members :many
 SELECT m.workspace_id, m.user_id, m.role, m.joined_at, u.email FROM members m JOIN users u ON u.id = m.user_id
-WHERE m.workspace_id = $1
+WHERE m.workspace_id = $1 AND m.role <> 'server'
 ORDER BY CASE m.role WHEN 'admin' THEN 0 WHEN 'teamlead' THEN 1 ELSE 2 END, u.email
 `
 
@@ -1219,6 +1283,132 @@ type RevokeInviteParams struct {
 func (q *Queries) RevokeInvite(ctx context.Context, arg RevokeInviteParams) error {
 	_, err := q.db.Exec(ctx, revokeInvite, arg.WorkspaceID, arg.ID, arg.RevokedAt)
 	return err
+}
+
+const serverByJoin = `-- name: ServerByJoin :one
+SELECT workspace_id, id, name, created_by, created_at, join_hash, join_expires, token_hash, joined_at FROM servers WHERE join_hash = $1 FOR UPDATE
+`
+
+func (q *Queries) ServerByJoin(ctx context.Context, joinHash *string) (Server, error) {
+	row := q.db.QueryRow(ctx, serverByJoin, joinHash)
+	var i Server
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.ID,
+		&i.Name,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.JoinHash,
+		&i.JoinExpires,
+		&i.TokenHash,
+		&i.JoinedAt,
+	)
+	return i, err
+}
+
+const serverByName = `-- name: ServerByName :one
+SELECT workspace_id, id, name, created_by, created_at, join_hash, join_expires, token_hash, joined_at FROM servers WHERE workspace_id = $1 AND name = $2
+`
+
+type ServerByNameParams struct {
+	WorkspaceID string
+	Name        string
+}
+
+func (q *Queries) ServerByName(ctx context.Context, arg ServerByNameParams) (Server, error) {
+	row := q.db.QueryRow(ctx, serverByName, arg.WorkspaceID, arg.Name)
+	var i Server
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.ID,
+		&i.Name,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.JoinHash,
+		&i.JoinExpires,
+		&i.TokenHash,
+		&i.JoinedAt,
+	)
+	return i, err
+}
+
+const serverByToken = `-- name: ServerByToken :one
+SELECT workspace_id, id, name, created_by, created_at, join_hash, join_expires, token_hash, joined_at FROM servers WHERE token_hash = $1
+`
+
+func (q *Queries) ServerByToken(ctx context.Context, tokenHash *string) (Server, error) {
+	row := q.db.QueryRow(ctx, serverByToken, tokenHash)
+	var i Server
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.ID,
+		&i.Name,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.JoinHash,
+		&i.JoinExpires,
+		&i.TokenHash,
+		&i.JoinedAt,
+	)
+	return i, err
+}
+
+const servers = `-- name: Servers :many
+SELECT s.workspace_id, s.id, s.name, s.created_by, s.created_at, s.join_hash, s.join_expires, s.token_hash, s.joined_at, d.last_seen, d.agent_version,
+    COALESCE((SELECT array_agg(p.name ORDER BY p.name) FROM project_members pm JOIN projects p ON p.id = pm.project_id
+        WHERE pm.workspace_id = s.workspace_id AND pm.user_id = s.id), '{}')::text[] AS projects
+FROM servers s
+LEFT JOIN devices d ON d.workspace_id = s.workspace_id AND d.user_id = s.id
+WHERE s.workspace_id = $1
+ORDER BY s.name
+`
+
+type ServersRow struct {
+	WorkspaceID  string
+	ID           string
+	Name         string
+	CreatedBy    string
+	CreatedAt    time.Time
+	JoinHash     *string
+	JoinExpires  *time.Time
+	TokenHash    *string
+	JoinedAt     *time.Time
+	LastSeen     *time.Time
+	AgentVersion *string
+	Projects     []string
+}
+
+func (q *Queries) Servers(ctx context.Context, workspaceID string) ([]ServersRow, error) {
+	rows, err := q.db.Query(ctx, servers, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ServersRow
+	for rows.Next() {
+		var i ServersRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.ID,
+			&i.Name,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.JoinHash,
+			&i.JoinExpires,
+			&i.TokenHash,
+			&i.JoinedAt,
+			&i.LastSeen,
+			&i.AgentVersion,
+			&i.Projects,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setKeyGeneration = `-- name: SetKeyGeneration :exec
