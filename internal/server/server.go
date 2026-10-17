@@ -38,6 +38,9 @@ type Config struct {
 	// Keys are Auth's public keys; AuthIssuer is the iss of its tokens.
 	Keys       token.KeyFunc
 	AuthIssuer string
+	// AuthURL is where the web interface's sign-in goes (the server talks to Auth for
+	// the browser).
+	AuthURL string
 	// Mailer sends invites; the log when nil.
 	Mailer mail.Mailer
 	Log    *slog.Logger
@@ -82,6 +85,7 @@ func (s *Service) Handler() http.Handler {
 	check := connect.WithInterceptors(s.accessInterceptor())
 	mux.Handle(workspacev1connect.NewWorkspaceServiceHandler(s, check))
 	mux.Handle(syncv1connect.NewSyncServiceHandler(&syncService{s: s}, check))
+	s.webHandler(mux)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		if err := s.pool.Ping(r.Context()); err != nil {
 			http.Error(w, "database: "+err.Error(), http.StatusServiceUnavailable)

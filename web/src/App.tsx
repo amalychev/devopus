@@ -76,8 +76,10 @@ export function App() {
             </div>
           ) : groups.length === 0 ? (
             <p className="px-3 text-sm text-sidebar-foreground/70">
-              No projects yet. Run <code className="font-mono">devopus up</code>{" "}
-              in a folder with workspace.yaml.
+              No projects yet: the agent brings up the projects of your
+              workspace. Choose one with{" "}
+              <code className="font-mono">devopus workspace use</code>, or try{" "}
+              <code className="font-mono">devopus workspace demo</code>.
             </p>
           ) : (
             <EnvTree

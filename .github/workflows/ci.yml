@@ -73,8 +73,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
-      # The binary embeds the committed build: it must match the sources.
-      - run: git diff --exit-code -- ../internal/panel/dist
+      # The binary embeds the committed builds: they must match the sources.
+      - run: git diff --exit-code -- ../internal/panel/dist ../internal/server/webdist
 
   release-config:
     runs-on: ubuntu-latest

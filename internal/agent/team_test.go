@@ -121,8 +121,10 @@ func agentHas(t *testing.T, ctx context.Context, c agentv2connect.AgentServiceCl
 }
 
 // upProject brings a workspace project up on this machine with its folder, as
-// 'devopus up <project> --dir <root>' does, and waits until it runs. The agent may have
-// tried it before the folder was linked: errors of earlier revisions do not count.
+// 'devopus up <project> --dir <root>' does, and waits until it runs. The agent brought
+// the project up on its own before the folder was linked, and 'up' interrupts that pass
+// half-way: Docker may answer the next pass with a passing error, which the agent
+// retries. So errors only fail the test when the environment never runs.
 func upProject(t *testing.T, ctx context.Context, c agentv2connect.AgentServiceClient, project, root string) (*connect.Response[agentv2.UpResponse], *agentv2.EnvironmentStatus) {
 	t.Helper()
 	agentHas(t, ctx, c, project, 0)
@@ -135,19 +137,20 @@ func upProject(t *testing.T, ctx context.Context, c agentv2connect.AgentServiceC
 		t.Fatal(err)
 	}
 	defer w.Close()
+	last := ""
 	for w.Receive() {
 		s := w.Msg().Status
 		if s == nil || s.AppliedRevision < up.Msg.Revision {
 			continue
 		}
 		if s.Phase == agentv2.Phase_PHASE_ERROR {
-			t.Fatalf("environment failed: %s", s.Error)
+			last = s.Error
 		}
 		if s.Phase == agentv2.Phase_PHASE_RUNNING {
 			return up, s
 		}
 	}
-	t.Fatalf("watch ended: %v", w.Err())
+	t.Fatalf("the environment never ran: %v; last error: %s", w.Err(), last)
 	return nil, nil
 }
 

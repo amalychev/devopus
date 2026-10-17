@@ -1,14 +1,22 @@
-# Локальная панель
+# Веб-интерфейсы
 
-Веб-панель агента для одного разработчика (веха M8): окружения проектов, прогресс по шагам, приложения и ресурсы, логи, данные, создание фичи, sleep/wake/удаление. React + TypeScript, Vite, Tailwind CSS v4, shadcn/ui (Base UI), клиент — Connect-ES к локальному API агента (`proto/devopus/agent/v1`).
+Два приложения в одном npm-пакете, с общими компонентами (`src/components/ui`, shadcn/ui на Base UI) и стилями. React + TypeScript, Vite, Tailwind CSS v4, клиент — Connect-ES.
 
-Панель — отдельный процесс `devopus panel run` ([ADR-0012](../adr/0012-devopus-cli-control-point.md)): он отдаёт собранное приложение и пересылает его запросы агенту по unix-сокету. `npm run build` кладёт сборку в `internal/panel/dist`, оттуда она встраивается в бинарник (`go:embed`). Сборка закоммичена, чтобы `go build` не требовал Node; после правок в `web/` — пересобрать и закоммитить `dist` вместе с исходниками.
+| Приложение | Где код | Куда собирается | Кто отдаёт |
+|---|---|---|---|
+| **Локальная панель** — окружения этой машины, прогресс, логи, данные, фичи (веха M8) | `src/` | `internal/panel/dist` | `devopus panel run` на `127.0.0.1`; API — агента (`proto/devopus/agent/v2`) |
+| **Веб-интерфейс воркспейса** (R11) — вход, воркспейсы, участники, инвайты, права, проекты, аудит | `workspace/src/` | `internal/server/webdist` | сервер воркспейса (`devopus server run`); API — `proto/devopus/workspace/v1`, те же вызовы и права, что у CLI |
+
+Сборки встроены в бинарник (`go:embed`) и закоммичены, чтобы `go build` не требовал Node: после правок в `web/` — пересобрать и закоммитить обе вместе с исходниками (CI проверяет).
 
 | Команда | Что |
 |---|---|
-| `npm run dev` | Vite с горячей перезагрузкой; API идёт через работающую панель (`devopus panel start`; порт и токен — из `~/.devopus/panel/port` и `token`, или из `$DEVOPUS_HOME/panel`) |
-| `npm run build` | Проверка типов и сборка в `internal/panel/dist` |
+| `npm run dev` | Панель с горячей перезагрузкой; API идёт через работающую панель (`devopus panel start`; порт и токен — из `~/.devopus/panel/` или `$DEVOPUS_HOME/panel`) |
+| `npm run dev:workspace` | Веб-интерфейс воркспейса; API и вход — через работающий сервер воркспейса (`$DEVOPUS_SERVER_URL`, по умолчанию `http://127.0.0.1:7481`) |
+| `npm run build` | Проверка типов и сборка обоих приложений |
 | `npm run gen` | TypeScript из `proto/` (`buf.gen.web.yaml` → `src/gen`) |
 | `npm run lint` | ESLint |
 
-Открыть панель — `devopus panel open`: ссылка с токеном ставит cookie (`HttpOnly`, `SameSite=Strict`), без неё API отвечает 401. Панель слушает только `127.0.0.1` и отклоняет запросы с чужим `Host` (защита от DNS rebinding).
+**Панель:** открыть — `devopus panel open`: ссылка с токеном ставит cookie (`HttpOnly`, `SameSite=Strict`), без неё API отвечает 401. Панель слушает только `127.0.0.1` и отклоняет запросы с чужим `Host` (защита от DNS rebinding).
+
+**Веб-интерфейс воркспейса:** вход — email и код из письма, как в CLI. Сервер воркспейса ходит в Auth за браузер (`/web/auth/*`): refresh-токен держит в cookie `HttpOnly`, `SameSite=Strict` с путём `/web/auth/`, странице отдаёт только короткий access-токен (в памяти). Запросы входа принимаются только с заголовком `X-Devopus: 1` и своего Origin; страницы — со строгим CSP.

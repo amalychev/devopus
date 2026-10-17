@@ -1,0 +1,4 @@
+/* The panel's styles; Tailwind also scans the shared components in web/src. */
+@import "../../src/index.css";
+@source "../../src";
+@source ".";

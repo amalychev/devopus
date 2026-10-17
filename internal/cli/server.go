@@ -70,7 +70,7 @@ func (a *app) serverCmd() *cobra.Command {
 				return fail(ExitInvalid, "%v", err)
 			}
 			keys := &token.Remote{URL: authURL + "/.well-known/jwks.json"}
-			svc, err := server.New(pool, server.Config{Keys: keys.Key, AuthIssuer: issuer, Mailer: mailer, Log: log})
+			svc, err := server.New(pool, server.Config{Keys: keys.Key, AuthIssuer: issuer, AuthURL: authURL, Mailer: mailer, Log: log})
 			if err != nil {
 				return fail(ExitError, "%v", err)
 			}

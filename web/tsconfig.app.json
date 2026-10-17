@@ -23,8 +23,9 @@
     "erasableSyntaxOnly": false,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@ws/*": ["./workspace/src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "workspace/src"]
 }
