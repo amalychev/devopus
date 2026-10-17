@@ -11,6 +11,7 @@
 set -euo pipefail
 
 SRC=${SRC:?the clone of devopus}
+SRC=$(cd "$SRC" && pwd -P)
 BRANCH=${BRANCH:-main}
 DOMAIN=${DOMAIN:-devopus.webapace.ink}
 AUTH_PORT=${AUTH_PORT:-7480}

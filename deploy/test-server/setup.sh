@@ -33,6 +33,7 @@ say() { printf '\n== %s\n' "$*"; }
 die() { echo "error: $*" >&2; exit 1; }
 [ "$(id -u)" = 0 ] || die "run as root (sudo)"
 [ -f "$SRC/go.mod" ] || die "SRC=$SRC is not a clone of devopus"
+SRC=$(cd "$SRC" && pwd -P) # the timer runs from /: the path must be absolute
 command -v docker >/dev/null || die "Docker is needed: the build runs in a container"
 command -v nginx >/dev/null || die "nginx is needed: it serves 80/443 and proxies to the services"
 [ "$TLS" = none ] || [ -n "$ACME_EMAIL" ] || die "ACME_EMAIL is needed for Let's Encrypt (or TLS=none)"
