@@ -105,6 +105,9 @@ type Options struct {
 	// the certificate of hosts outside the local CA's domains (acme.Manager.Cert).
 	ACMEPort   int
 	PublicCert func(hosts []string) (*pki.Leaf, error)
+	// Rolling replaces applications the proxy routes to without downtime (R14c): on
+	// servers, where people use the environments.
+	Rolling bool
 }
 
 type Reconciler struct {

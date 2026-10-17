@@ -33,6 +33,9 @@ const (
 	// LabelConfig is a hash of what the container was created from; a different hash
 	// means the container must be recreated.
 	LabelConfig = "com.devopus.config"
+	// LabelStandIn marks the container that serves while an application's own is
+	// replaced (updates without downtime).
+	LabelStandIn = "com.devopus.stand-in"
 )
 
 // Container is a container as the agent sees it.

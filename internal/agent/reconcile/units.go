@@ -295,8 +295,19 @@ func (r *Reconciler) removeStale(ctx context.Context, plan *stack.Plan, ctrs []r
 	for _, u := range plan.Units {
 		want[u.Spec.Name] = true
 	}
+	running := map[string]bool{}
+	for _, c := range ctrs {
+		running[c.Name] = c.Running && c.Labels[runtime.LabelStandIn] == ""
+	}
 	var errs []error
 	for _, c := range ctrs {
+		if c.Labels[runtime.LabelStandIn] != "" {
+			// A stand-in goes once its application's own container runs again.
+			if running[strings.TrimSuffix(c.Name, "-next")] {
+				errs = append(errs, r.rt.RemoveContainer(ctx, c.ID))
+			}
+			continue
+		}
 		switch c.Labels[runtime.LabelRole] {
 		case stack.RoleService, stack.RoleApp, stack.RoleWorker:
 			if !want[c.Name] {
@@ -327,6 +338,13 @@ func (r *Reconciler) ensureUnits(ctx context.Context, env *agentv2.EnvironmentSp
 		}
 		n++
 		existing := byName[u.Spec.Name]
+		if r.rolling(u, existing) {
+			if err := r.replace(ctx, env.Id, u, existing); err != nil {
+				return "", fmt.Errorf("%s: %w", u.Name, err)
+			}
+			p.started = true
+			continue
+		}
 		if existing != nil && existing.Running && restart[u.Owner] && existing.Labels[runtime.LabelConfig] == u.Spec.Labels[runtime.LabelConfig] {
 			if err := r.rt.StopContainer(ctx, existing.ID); err != nil {
 				return "", fmt.Errorf("%s: %w", u.Name, err)

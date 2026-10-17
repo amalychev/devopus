@@ -362,6 +362,7 @@ func Run(ctx context.Context, opt Options) error {
 		WakerPort:   wakerLn.Addr().(*net.TCPAddr).Port,
 		ACMEPort:    acmePort,
 		PublicCert:  publicCert(certs),
+		Rolling:     server != nil,
 	}, func(s *agentv2.EnvironmentStatus) {
 		log.Info("environment", "id", s.Id, "project", s.Project, "phase", s.Phase.String(), "error", s.Error, "removed", s.Removed)
 		a.hub.Publish(s)

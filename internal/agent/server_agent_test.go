@@ -44,13 +44,16 @@ const serverProject = `apps:
     routes: [/]
     env:
       VERSION: "%s"
-    command: sh -c "mkdir -p /srv && echo server settings v$VERSION > /srv/index.html && cd /srv && exec python -m http.server 8080"
+    command: sh -c "sleep $((VERSION * 2)) && mkdir -p /srv && echo server settings v$VERSION > /srv/index.html && cd /srv && exec python -m http.server 8080"
 services:
   py:
     type: python
     version: 3.12-slim
     apps: [web]
 `
+
+// The application takes seconds to start (2 s for v1, 4 s for v2), as real ones do:
+// an update that recreates it in place would show.
 
 // TestServerAgent is R13's scenario: the admin adds a server; its agent joins with
 // the one-time code and runs the project — only the versions the admin signed.
@@ -315,7 +318,56 @@ func TestServerAgent(t *testing.T) {
 	}
 	deploy(created.Msg.Config)
 	servesAt(prod, "server settings v1")
+
+	// R14c: the update to v2 happens without downtime — every request in between is
+	// answered, by v1 or by v2.
+	stopPoll := make(chan struct{})
+	polled := make(chan []string, 1)
+	go func() {
+		var failures []string
+		n := 0
+		for {
+			select {
+			case <-stopPoll:
+				polled <- append(failures, fmt.Sprintf("%d requests", n))
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
+			n++
+			body, _, err := publicGet(ctx, ports.HTTPS, prod)
+			if err != nil || !strings.Contains(body, "server settings v") {
+				failures = append(failures, fmt.Sprintf("%v %q", err, body))
+			}
+		}
+	}()
 	deploy(put.Msg.Config)
+	servesAt(prod, "server settings v2")
+	// The stand-in serves v2 while the application's own container restarts; it goes
+	// after the switch back, which must not drop requests either.
+	standIn := func() bool {
+		ctrs, err := rt.Containers(ctx, paths.Instance())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range ctrs {
+			if strings.HasSuffix(c.Name, "-next") {
+				return true
+			}
+		}
+		return false
+	}
+	for deadline := time.Now().Add(2 * time.Minute); standIn(); time.Sleep(500 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the stand-in stays")
+		}
+	}
+	time.Sleep(time.Second)
+	close(stopPoll)
+	if f := <-polled; len(f) > 1 {
+		t.Errorf("requests failed during the update (%s): %v", f[len(f)-1], f[:len(f)-1])
+	} else {
+		t.Logf("update without downtime: %s", f[0])
+	}
 	servesAt(prod, "server settings v2")
 	for _, p := range status().Projects {
 		if p.Name == project && (p.DeployedBy != "admin@acme.dev" || p.ConfigVersion != put.Msg.Config.Version) {
