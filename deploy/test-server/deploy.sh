@@ -36,7 +36,8 @@ if [ -z "${FORCE:-}" ] && { [ "$next" = "$deployed" ] || [ "$next" = "$failed" ]
 fi
 
 echo "deploying $next (was ${deployed:-nothing})"
-git_ checkout -q -f --detach "$next"
+# The branch itself, at exactly the commit being built: the folder shows what runs.
+git_ checkout -q -f -B "$BRANCH" "$next"
 version="test-$(git_ describe --tags --always)"
 go=$(awk '/^go /{print $2}' "$SRC/go.mod")
 out=$(mktemp -d)

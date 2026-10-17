@@ -47,7 +47,7 @@ ssh root@167.235.242.165 'journalctl -u devopus-server -n 50 --no-pager | grep -
 | Службы | `devopus-auth` (`127.0.0.1:7480`), `devopus-server` (`127.0.0.1:7481`), PostgreSQL `devopus-test-postgres` (`127.0.0.1:5440`) |
 | Настройки | `/etc/devopus-test/{auth,server,deploy,postgres}.env` — в них пароли базы и SMTP, только root |
 | Автодеплой | `devopus-deploy.timer` → `/usr/local/lib/devopus-test/deploy.sh`; развёрнутый коммит — `/var/lib/devopus-test/deployed`; журнал — `journalctl -u devopus-deploy` |
-| Клон | в папке, где его сделал агент; владелец — root |
+| Клон | `/root/webapace/devopus`, владелец — root; автодеплой держит в нём ветку `main` на развёрнутом коммите — правок в этой папке не делайте, они пропадут |
 
 ## Развёртывание с нуля — инструкция для ИИ-агента на сервере
 
